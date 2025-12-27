@@ -10,6 +10,7 @@
     # pkgs.python311Packages.pip
     # pkgs.nodejs_20
     # pkgs.nodePackages.nodemon
+    # pkgs.orbiton
   ];
   # Sets environment variables in the workspace
   env = {};
