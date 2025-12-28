@@ -1,0 +1,30 @@
+{
+  "name": "youtubevideomaster-ai-pipeline",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"vite\" \"npm run server:dev\"",
+    "build": "npm run server:build && vite build",
+    "preview": "vite preview",
+    "server:install": "cd server && npm install",
+    "server:dev": "cd server && npm run start:dev",
+    "server:build": "cd server && npm run build",
+    "server:start": "cd server && npm run start:prod",
+    "postinstall": "npm run server:install"
+  },
+  "dependencies": {
+    "@google/genai": "^1.19.0",
+    "dom": "^0.0.3",
+    "jszip": "3.10.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "concurrently": "^9.2.1",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}
