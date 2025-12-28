@@ -53,3 +53,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Project specific ignores
+devlogs/
+*.zip
+.gitignore_project
+project_root
+coisas.txt
