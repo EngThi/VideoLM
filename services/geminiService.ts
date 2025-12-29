@@ -254,41 +254,270 @@ export const generateImagePrompts = async (script: string, durationSeconds: numb
 }
 
 /**
- * Generic function to generate an image from a prompt.
+ * Generates an image using Gemini (Imagen 3).
  */
-export const generateImage = async (prompt: string): Promise<string | null> => {
+const generateImageGemini = async (prompt: string): Promise<string | null> => {
     try {
         const ai = getAiClient();
-        const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash-image',
-            contents: {
-                parts: [{ text: prompt }]
-            },
+        const response = await ai.models.generateImages({
+            model: 'imagen-3.0-generate-001',
+            prompt: prompt,
             config: {
-                imageConfig: {
-                    aspectRatio: "16:9"
-                }
+                numberOfImages: 1,
+                aspectRatio: '16:9',
             }
         });
 
-        for (const part of response.candidates?.[0]?.content?.parts || []) {
-            if (part.inlineData) {
-                const base64Data = part.inlineData.data;
-                const binaryString = atob(base64Data);
-                const len = binaryString.length;
-                const bytes = new Uint8Array(len);
-                for (let i = 0; i < len; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                const blob = new Blob([bytes], { type: part.inlineData.mimeType || 'image/png' });
-                return URL.createObjectURL(blob);
+        const generatedImage = response.generatedImages?.[0];
+        if (generatedImage?.image?.imageBytes) {
+            const base64Data = generatedImage.image.imageBytes;
+            const binaryString = atob(base64Data);
+            const len = binaryString.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
             }
+            const blob = new Blob([bytes], { type: 'image/png' });
+            return URL.createObjectURL(blob);
         }
         return null;
     } catch (error) {
-        console.error("Error generating image:", error);
+        console.error("Error generating image with Gemini:", error);
         return null;
     }
+}
+
+/**
+ * Generates an image using Hugging Face Inference API.
+ */
+const generateImageHuggingFace = async (prompt: string): Promise<string | null> => {
+    const token = process.env.HF_TOKEN;
+    if (!token) {
+        console.warn("Skipping Hugging Face: HF_TOKEN not found.");
+        return null;
+    }
+
+    const modelId = "stabilityai/stable-diffusion-xl-base-1.0"; // Or "stabilityai/stable-diffusion-2-1"
+    const url = `https://api-inference.huggingface.co/models/${modelId}`;
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Authorization": `Bearer ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ inputs: prompt })
+        });
+
+        if (!response.ok) {
+            throw new Error(`Hugging Face API Error: ${response.status} ${response.statusText}`);
+        }
+
+        const blob = await response.blob();
+        return URL.createObjectURL(blob);
+    } catch (error) {
+        console.error("Error generating image with Hugging Face:", error);
+        return null;
+    }
+}
+
+/**
+ * Generates an image using Stable Diffusion API.
+ */
+const generateImageStableDiffusion = async (prompt: string): Promise<string | null> => {
+    const key = process.env.STABLE_DIFFUSION_KEY;
+    if (!key) {
+        console.warn("Skipping Stable Diffusion API: STABLE_DIFFUSION_KEY not found.");
+        return null;
+    }
+
+    const url = "https://api.stablediffusionapi.com/v3/text2img";
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                key: key,
+                prompt: prompt,
+                negative_prompt: "blurry, low quality",
+                width: 1024, // 16:9 approx if supported, or crop later. SD usually 512x512 or 1024x1024
+                height: 576, // Trying 16:9 ratio
+                samples: 1,
+                num_inference_steps: 25,
+                guidance_scale: 7.5,
+                safety_checker: true,
+                enhance_prompt: true
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.status === 'success' && data.output && data.output.length > 0) {
+            return data.output[0]; // URL
+        } else if (data.status === 'success' && data.fetch_result) {
+            return data.fetch_result; // URL
+        }
+         else {
+            console.warn("Stable Diffusion API returned non-success or processing:", data);
+            return null;
+        }
+
+    } catch (error) {
+        console.error("Error generating image with Stable Diffusion API:", error);
+        return null;
+    }
+}
+
+/**
+ * Generates an image using Craiyon (DALL-E Mini).
+ * Note: Free tier is slow and has limits.
+ */
+const generateImageCraiyon = async (prompt: string): Promise<string | null> => {
+    // Craiyon doesn't always require a key for free usage, but is heavily rate limited/slow.
+    // User text says "Limite: 5 imagens/dia" for free tier.
+    const url = "https://api.craiyon.com/v3/generate";
+
+    try {
+        const response = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                prompt: prompt,
+                model: "dall-e-3", // User text suggestion, though "drawing" or "art" might be default
+                negative_prompt: "blurry, low quality"
+            })
+        });
+
+        if (!response.ok) {
+             // Craiyon might block direct browser calls or return 4xx
+             console.warn(`Craiyon API Error: ${response.status}`);
+             return null;
+        }
+
+        const data = await response.json();
+        // Craiyon returns a list of images (URLs or base64? User text example says "images")
+        // Usually it returns a list of paths.
+        if (data.images && data.images.length > 0) {
+            // Check if full URL or path
+            let imgPath = data.images[0];
+            if (!imgPath.startsWith('http')) {
+                imgPath = `https://img.craiyon.com/${imgPath}`;
+            }
+            return imgPath;
+        }
+        return null;
+
+    } catch (error) {
+        console.error("Error generating image with Craiyon:", error);
+        return null;
+    }
+}
+
+/**
+ * Generates an image using Replicate.
+ */
+const generateImageReplicate = async (prompt: string): Promise<string | null> => {
+    const token = process.env.REPLICATE_TOKEN;
+    if (!token) {
+        console.warn("Skipping Replicate: REPLICATE_TOKEN not found.");
+        return null;
+    }
+
+    const url = "https://api.replicate.com/v1/predictions";
+    const modelVersion = "db21e45d3f7023abc9e53f8e04737f81d91247244c3b431a4d1e379c8b263899"; // Stable Diffusion
+
+    try {
+        // 1. Start Prediction
+        const startResponse = await fetch(url, {
+            method: "POST",
+            headers: {
+                "Authorization": `Token ${token}`,
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+                version: modelVersion,
+                input: {
+                    prompt: prompt,
+                    negative_prompt: "blurry, low quality"
+                }
+            })
+        });
+
+        if (!startResponse.ok) {
+            throw new Error(`Replicate API Start Error: ${startResponse.status}`);
+        }
+
+        let prediction = await startResponse.json();
+        const predictionId = prediction.id;
+
+        // 2. Poll for results
+        let attempts = 0;
+        const maxAttempts = 20; // 20 * 2s = 40s max wait
+
+        while (['starting', 'processing'].includes(prediction.status) && attempts < maxAttempts) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            attempts++;
+
+            const pollResponse = await fetch(`${url}/${predictionId}`, {
+                headers: {
+                    "Authorization": `Token ${token}`,
+                }
+            });
+            prediction = await pollResponse.json();
+        }
+
+        if (prediction.status === 'succeeded' && prediction.output) {
+            return Array.isArray(prediction.output) ? prediction.output[0] : prediction.output;
+        }
+        
+        console.warn("Replicate timed out or failed:", prediction.status);
+        return null;
+
+    } catch (error) {
+        console.error("Error generating image with Replicate:", error);
+        return null;
+    }
+}
+
+/**
+ * Orchestrator: Rotates through available providers if one fails.
+ */
+export const generateImage = async (prompt: string): Promise<string | null> => {
+    console.log("🎨 Orchestrating Image Generation...");
+    
+    // 1. Try Gemini (Imagen 3)
+    console.log("👉 Attempting: Gemini (Imagen 3)");
+    let result = await generateImageGemini(prompt);
+    if (result) return result;
+
+    // 2. Try Hugging Face
+    console.log("👉 Attempting: Hugging Face");
+    result = await generateImageHuggingFace(prompt);
+    if (result) return result;
+
+    // 3. Try Stable Diffusion API
+    console.log("👉 Attempting: Stable Diffusion API");
+    result = await generateImageStableDiffusion(prompt);
+    if (result) return result;
+
+    // 4. Try Craiyon
+    console.log("👉 Attempting: Craiyon");
+    result = await generateImageCraiyon(prompt);
+    if (result) return result;
+
+    // 5. Try Replicate
+    console.log("👉 Attempting: Replicate");
+    result = await generateImageReplicate(prompt);
+    if (result) return result;
+
+    console.error("❌ All image generation providers failed.");
+    return null;
 }
 
 /**

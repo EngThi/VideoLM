@@ -1,0 +1,232 @@
+.image-generator-pro {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0f0f1e 0%, #1a1a2e 50%, #16213e 100%);
+  padding: 20px;
+}
+
+.generator-card {
+  max-width: 900px;
+  margin: 0 auto;
+  background: rgba(20, 20, 35, 0.95);
+  border: 1px solid rgba(0, 255, 150, 0.3);
+  border-radius: 16px;
+  padding: 32px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 32px;
+  border-bottom: 2px solid rgba(0, 255, 150, 0.2);
+  padding-bottom: 20px;
+}
+
+.header h1 {
+  margin: 0;
+  font-size: 32px;
+  color: #00ff96;
+}
+
+.subtitle {
+  margin: 8px 0 0 0;
+  color: #888;
+  font-size: 14px;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.prompt-input {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 255, 150, 0.3);
+  border-radius: 8px;
+  padding: 16px;
+  color: #e0e0e0;
+  font-size: 14px;
+  min-height: 120px;
+  resize: vertical;
+}
+
+.prompt-input:focus {
+  outline: none;
+  border-color: #00ff96;
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: 0 0 20px rgba(0, 255, 150, 0.2);
+}
+
+.button-group {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.btn {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #00ff96 0%, #00cc7a 100%);
+  color: #1a1a2e;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 255, 150, 0.5);
+}
+
+.btn-secondary {
+  background: rgba(0, 255, 150, 0.1);
+  color: #00ff96;
+  border: 1px solid rgba(0, 255, 150, 0.5);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.providers-panel {
+  background: rgba(0, 255, 150, 0.05);
+  border: 1px solid rgba(0, 255, 150, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 24px;
+}
+
+.providers-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.provider-badge {
+  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(0, 255, 150, 0.2);
+  border-radius: 6px;
+  font-size: 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.provider-badge.configured {
+  border-color: #00ff96;
+  background: rgba(0, 255, 150, 0.1);
+}
+
+.loading-state {
+  text-align: center;
+  padding: 60px 20px;
+  background: rgba(0, 255, 150, 0.05);
+  border-radius: 8px;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid rgba(0, 255, 150, 0.2);
+  border-top: 3px solid #00ff96;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 20px;
+}
+
+ @keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-state p {
+  color: #00ff96;
+  margin: 12px 0;
+}
+
+.attempt {
+  color: #888 !important;
+  font-size: 12px !important;
+}
+
+.error-state {
+  background: rgba(255, 100, 100, 0.1);
+  border: 1px solid rgba(255, 100, 100, 0.5);
+  border-radius: 8px;
+  padding: 20px;
+  color: #ff6464;
+}
+
+.result-state {
+  margin-top: 24px;
+}
+
+.result-state img {
+  width: 100%;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(0, 255, 150, 0.2);
+}
+
+.result-info {
+  background: rgba(0, 255, 150, 0.05);
+  border: 1px solid rgba(0, 255, 150, 0.2);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.badge {
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.badge.primary {
+  background: rgba(0, 255, 150, 0.2);
+  color: #00ff96;
+}
+
+.badge.fallback {
+  background: rgba(255, 165, 0, 0.2);
+  color: #ffa500;
+}
+
+.duration {
+  font-size: 12px;
+  color: #888;
+}
+
+.btn-download {
+  width: 100%;
+  background: linear-gradient(135deg, #00ff96 0%, #00cc7a 100%);
+  color: #1a1a2e;
+}
+
+.btn-download:hover {
+  transform: translateY(-2px);
+}
+
+ @media (max-width: 600px) {
+  .generator-card {
+    padding: 20px;
+  }
+
+  .button-group {
+    grid-template-columns: 1fr;
+  }
+
+  .providers-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
