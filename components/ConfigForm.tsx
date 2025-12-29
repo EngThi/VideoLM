@@ -128,15 +128,31 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                 </select>
             </FormField>
             <FormField label={`Duration: ${Math.floor(config.duration / 60)}m ${config.duration % 60}s`}>
-                <input
-                type="range"
-                min="60"
-                max="1200"
-                step="10"
-                value={config.duration}
-                onChange={e => handleChange('duration', parseInt(e.target.value, 10))}
-                className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500 mt-3"
-                />
+                <div className="space-y-2">
+                    <input
+                        type="number"
+                        min="10"
+                        value={config.duration}
+                        onChange={e => handleChange('duration', parseInt(e.target.value, 10) || 0)}
+                        className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                    />
+                    <div className="flex flex-wrap gap-2">
+                        {[1, 5, 7, 10].map((min) => (
+                            <button
+                                key={min}
+                                type="button"
+                                onClick={() => handleChange('duration', min * 60)}
+                                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                    config.duration === min * 60
+                                        ? 'bg-blue-600 text-white'
+                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                }`}
+                            >
+                                {min} min
+                            </button>
+                        ))}
+                    </div>
+                </div>
             </FormField>
         </div>
 
