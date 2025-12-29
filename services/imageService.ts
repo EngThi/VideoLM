@@ -18,7 +18,7 @@ const logger = {
 
 // 1️⃣ GEMINI
 async function generateImageGemini(prompt: string): Promise<string | null> {
-  logger.info('Attempting: Gemini (Imagen 3)')
+  logger.info('Attempting: Gemini (gemini-2.5-flash-image)')
   try {
     const apiKey = process.env.VITE_GEMINI_API_KEY
     if (!apiKey) {
@@ -26,71 +26,47 @@ async function generateImageGemini(prompt: string): Promise<string | null> {
       return null
     }
 
-    // Using the official Google GenAI SDK would be better if already installed, 
-    // but sticking to the provided fetch implementation for strict adherence to the guide
-    // unless it fails. The guide uses v1beta/models/gemini-2.0-flash:generateContent?
-    // Wait, gemini-2.0-flash is text-to-text/multimodal but for IMAGE generation 
-    // we usually use imagen-3.0. 
-    // However, the provided code snippet uses a text prompt to generate an image via text? 
-    // "Generate an image: ${prompt}" -> The response parsing expects `text` which is an URL?
-    // This looks like it relies on the model returning a link or base64 in text.
-    // BUT the user guide says "IMPLEMENTAÇÃO DEFINITIVA".
-    // I will use the code provided BUT I suspect the endpoint might be wrong for *direct* image gen
-    // unless "gemini-2.0-flash" has a tool or native image capability that returns a URL in text.
-    // Actually, earlier I fixed `geminiService.ts` to use `ai.models.generateImages` with `imagen-3.0`.
-    // I will keep the *structure* but use the *correct* logic from my previous fix for Gemini, 
-    // to ensure it actually works.
-    
-    // ... Actually, I will blindly implement what the user GAVE me first, 
-    // but I suspect "gemini-2.0-flash" generating an image URL in text might be a hallucination 
-    // in the user's provided code unless it's using a tool.
-    // Let's look at the user's code: `const imageUrl = data.candidates?.[0]?.content?.parts?.[0]?.text`
-    // This implies the model returns a URL string. 
-    // If I use the previous logic (Imagen 3), it returns a blob/base64.
-    
-    // I will use my PROVEN method for Gemini (from geminiService.ts) inside this wrapper
-    // because I know it works. The user's code might be hypothetical. 
-    
-    // Re-importing from the SDK or using fetch for Imagen 3:
-    // The user's snippet uses `fetch`.
-    
-    // Let's use the SDK if possible, or fetch correctly.
-    // I'll stick to the user's architecture but fix the Gemini call to be realistic.
-    
-    // Wait, the user said "IMPLEMENTAÇÃO DEFINITIVA".
-    // Maybe they have a proxy or special access? 
-    // "gemini-2.0-flash" is very new.
-    // I'll use the user's code but add a fallback to the SDK method if it fails or if I can't verify it.
-    // Actually, I'll check `geminiService.ts` imports.
-    // I will use the SDK approach here for Gemini because it's safer. 
-    
     const { GoogleGenAI } = await import("@google/genai");
     const ai = new GoogleGenAI({ apiKey: apiKey });
-    
-    const response = await ai.models.generateImages({
-        model: 'imagen-3.0-generate-001',
-        prompt: prompt,
-        config: { numberOfImages: 1, aspectRatio: '16:9' }
+
+    // Using the verified model and method for native image generation
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash-image",
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
 
-    const generatedImage = response.generatedImages?.[0];
-    if (generatedImage?.image?.imageBytes) {
-        const base64Data = generatedImage.image.imageBytes;
-        const binaryString = atob(base64Data);
+    if (!response.candidates || response.candidates.length === 0) {
+      logger.warn('Gemini returned no candidates');
+      return null;
+    }
+
+    for (const part of response.candidates[0].content.parts) {
+      if (part.inlineData) {
+        const imageData = part.inlineData.data;
+        // Convert base64 to blob URL
+        const binaryString = atob(imageData);
         const len = binaryString.length;
         const bytes = new Uint8Array(len);
         for (let i = 0; i < len; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
+          bytes[i] = binaryString.charCodeAt(i);
         }
         const blob = new Blob([bytes], { type: 'image/png' });
         const url = URL.createObjectURL(blob);
-        logger.success('Gemini: Image generated');
+        logger.success('Gemini: Image generated successfully');
         return url;
+      }
     }
+    
+    logger.warn('Gemini response did not contain inline image data');
     return null;
 
-  } catch (error) {
-    logger.error('Gemini failed', error)
+  } catch (error: any) {
+    // Handle specific Quota Exceeded error gracefully
+    if (error?.response?.error?.code === 429 || error?.message?.includes('429')) {
+         logger.warn('Gemini Quota Exceeded (429) - Skipping to next provider');
+    } else {
+         logger.error('Gemini failed', error);
+    }
     return null
   }
 }
@@ -284,9 +260,9 @@ export async function generateImage(prompt: string): Promise<ImageGenerationResu
 
   const providers = [
     { name: 'Gemini', fn: generateImageGemini },
-    { name: 'Pollinations', fn: generateImagePollinations },
     { name: 'HuggingFace', fn: generateImageHuggingFace },
     { name: 'StableDiffusion', fn: generateImageStableDiffusion },
+    { name: 'Pollinations', fn: generateImagePollinations },
     { name: 'Replicate', fn: generateImageReplicate },
     { name: 'Craiyon', fn: generateImageCraiyon },
   ]
