@@ -15,6 +15,7 @@ export interface VideoConfig {
   voice: VoiceProvider;
   thumbnailStyle: ThumbnailStyle;
   useLocalAssets?: boolean;
+  devAssetsFile?: File | null;
 }
 
 export type StageStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';

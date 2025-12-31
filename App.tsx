@@ -157,10 +157,43 @@ const App: React.FC = () => {
         try {
             // --- DEV MODE: LOCAL ASSETS BYPASS ---
             if (config.useLocalAssets) {
+                let assetBasePath = '/temp_assets/video_project_assets'; // Default
+
+                // 1. Upload Custom ZIP if provided
+                if (config.devAssetsFile) {
+                    addLog('📤 Uploading custom asset ZIP...');
+                    const formData = new FormData();
+                    formData.append('zipFile', config.devAssetsFile);
+
+                    const uploadResp = await fetch('/api/upload-assets', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!uploadResp.ok) throw new Error("Failed to upload assets");
+                    
+                    const uploadResult = await uploadResp.json();
+                    assetBasePath = uploadResult.path; // '/temp_assets/custom'
+                    
+                    // Note: Unzip usually creates a folder if the zip has one. 
+                    // We might need to detect subfolders, but for now assuming flat or known structure.
+                    // Let's assume the user zips the CONTENTS, not a folder. 
+                    // Or we check if 'video_project_assets' exists inside custom.
+                    
+                    // Simple hack: Try to access script at root, if 404, try inside subfolder
+                    const check = await fetch(`${assetBasePath}/script.txt`);
+                    if (!check.ok) {
+                        assetBasePath = `${assetBasePath}/video_project_assets`;
+                    }
+                    
+                    addLog('✅ Custom assets uploaded and extracted.');
+                }
+
                 if (currentStage.id === 'SCRIPT_GENERATION') {
                     addLog('🛠️ DEV MODE: Loading local script...');
                     // Simulate loading script
-                    const response = await fetch('/temp_assets/video_project_assets/script.txt');
+                    const response = await fetch(`${assetBasePath}/script.txt`);
+                    if (!response.ok) throw new Error(`Could not find script.txt in ${assetBasePath}`);
                     const text = await response.text();
                     setScriptResult({ scriptText: text, sources: [] });
                     addLog('✅ Local script loaded.');
@@ -168,7 +201,7 @@ const App: React.FC = () => {
                 else if (currentStage.id === 'AUDIO_GENERATION') {
                      addLog('🛠️ DEV MODE: Loading local audio...');
                      // Path to the extracted audio in public folder
-                     const audioPath = '/temp_assets/video_project_assets/narration.wav';
+                     const audioPath = `${assetBasePath}/narration.wav`;
                      setGeneratedAudioUrl(audioPath);
                      generatedAudioUrlRef.current = audioPath;
                      
@@ -183,14 +216,17 @@ const App: React.FC = () => {
                 }
                 else if (currentStage.id === 'VISUAL_GENERATION') {
                      addLog('🛠️ DEV MODE: Loading local storyboard images...');
-                     // Hardcoded based on the zip content we saw (scene_001 to scene_007)
+                     
+                     // Dynamic image detection
+                     // Since we can't list directory via fetch easily, we try a range or use prompts file
+                     // Using the same 1-7 range for now as safe default for the known dataset
                      const imageFiles = [
                         'scene_001.png', 'scene_002.png', 'scene_003.png', 
                         'scene_004.png', 'scene_005.png', 'scene_006.png', 'scene_007.png'
                      ];
                      
                      const newImages: GeneratedImage[] = imageFiles.map((file, i) => ({
-                         url: `/temp_assets/video_project_assets/storyboard/${file}`,
+                         url: `${assetBasePath}/storyboard/${file}`,
                          prompt: `Local Asset ${i+1}`,
                          index: i
                      }));

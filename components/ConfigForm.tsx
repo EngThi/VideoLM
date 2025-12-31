@@ -188,6 +188,23 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
             </label>
         </div>
 
+        {config.useLocalAssets && (
+            <div className="pl-4 border-l-2 border-gray-600 ml-2">
+                <label className="block text-xs text-gray-400 mb-1">
+                    Optional: Upload Custom Project ZIP
+                </label>
+                <input 
+                    type="file" 
+                    accept=".zip"
+                    onChange={(e) => setConfig({ ...config, devAssetsFile: e.target.files?.[0] || null })}
+                    className="block w-full text-sm text-gray-400 file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:bg-gray-600 file:text-white hover:file:bg-gray-500"
+                />
+                <p className="text-[10px] text-gray-500 mt-1">
+                    If empty, uses default assets on server. ZIP must contain: script.txt, narration.wav, storyboard/*.png
+                </p>
+            </div>
+        )}
+
         <div className="flex items-center space-x-4 pt-4">
             <label className="flex items-center space-x-2 cursor-pointer">
             <input type="checkbox" checked={config.upload} onChange={e => handleChange('upload', e.target.checked)} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500"/>
