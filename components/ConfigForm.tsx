@@ -105,23 +105,30 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
     }
   };
 
-  return (
-    <div className="space-y-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-        <h2 className="text-xl font-semibold text-white border-b border-gray-700 pb-3 mb-6">Pipeline Configuration</h2>
-
-        <FormField label="Video Topic">
-            <input
-            type="text"
-            value={config.topic}
-            onChange={e => handleChange('topic', e.target.value)}
-            className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-            placeholder="e.g., The history of AI"
-            required
-            />
-        </FormField>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      const handleAutoUpload = (file: File) => {
+          const newConfig = { ...config, devAssetsFile: file, topic: file.name.replace('.zip', '') };
+          setConfig(newConfig);
+          // Auto-start pipeline
+          onGenerate(newConfig);
+      };
+  
+      return (
+      <div className="space-y-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+          <h2 className="text-xl font-semibold text-white border-b border-gray-700 pb-3 mb-6">Pipeline Configuration</h2>
+  
+          <FormField label="Video Topic">
+              <input
+              type="text"
+              value={config.topic}
+              onChange={e => handleChange('topic', e.target.value)}
+              className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+              placeholder={config.useLocalAssets ? "Ignored in Dev Mode" : "e.g., The history of AI"}
+              required={!config.useLocalAssets}
+              disabled={!!config.useLocalAssets}
+              />
+          </FormField>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Video Quality">
                 <select value={config.quality} onChange={e => handleChange('quality', e.target.value)} className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                 {QUALITY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
@@ -196,11 +203,14 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                 <input 
                     type="file" 
                     accept=".zip"
-                    onChange={(e) => setConfig({ ...config, devAssetsFile: e.target.files?.[0] || null })}
+                    onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleAutoUpload(file);
+                    }}
                     className="block w-full text-sm text-gray-400 file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:bg-gray-600 file:text-white hover:file:bg-gray-500"
                 />
                 <p className="text-[10px] text-gray-500 mt-1">
-                    If empty, uses default assets on server. ZIP must contain: script.txt, narration.wav, storyboard/*.png
+                    Select ZIP to auto-start. Must contain: script.txt, narration.wav, storyboard/*.png
                 </p>
             </div>
         )}
@@ -218,7 +228,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
 
         <button
             type="submit"
-            disabled={isGenerating || isTestLoading || isFfmpegTesting}
+            disabled={isGenerating || isTestLoading || isFfmpegTesting || (!config.topic && !config.useLocalAssets)}
             className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform duration-200 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500/50 flex items-center justify-center space-x-2"
         >
             {isGenerating ? (
