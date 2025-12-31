@@ -173,7 +173,20 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                 <select value={config.thumbnailStyle} onChange={e => handleChange('thumbnailStyle', e.target.value)} className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                 {THUMBNAIL_STYLE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
-            </FormField>
+        </FormField>
+
+        <div className="flex items-center gap-2 mt-4 p-3 bg-gray-700/30 rounded-lg border border-gray-700">
+            <input
+                type="checkbox"
+                id="useLocalAssets"
+                checked={!!config.useLocalAssets}
+                onChange={(e) => setConfig({ ...config, useLocalAssets: e.target.checked })}
+                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+            />
+            <label htmlFor="useLocalAssets" className="text-sm font-medium text-gray-300 cursor-pointer">
+                🛠️ Dev Mode: Use Local Assets (skip AI generation)
+            </label>
+        </div>
 
         <div className="flex items-center space-x-4 pt-4">
             <label className="flex items-center space-x-2 cursor-pointer">

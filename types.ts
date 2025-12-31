@@ -14,6 +14,7 @@ export interface VideoConfig {
   seoOptimize: boolean;
   voice: VoiceProvider;
   thumbnailStyle: ThumbnailStyle;
+  useLocalAssets?: boolean;
 }
 
 export type StageStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';

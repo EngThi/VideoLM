@@ -1,108 +1,73 @@
-# 🔄 Guia do Sistema de Rotação de APIs de Imagem
+# 🔄 Guia do Sistema de Rotação de APIs (Atualizado)
 
-Este documento explica o novo sistema de **Fallback e Rotação de APIs** implementado no projeto. O objetivo é garantir que a geração de vídeos nunca falhe, mesmo que a API principal (Gemini/Google) atinja o limite de cota ou saia do ar.
-
----
-
-## 🚀 Como Funciona a Orquestração
-
-O sistema agora tenta gerar a imagem sequencialmente. Se a **Opção 1** falhar (erro 429, 500, ou falta de chave), ele pula automaticamente para a **Opção 2**, e assim por diante.
-
-### A Ordem de Prioridade
-
-1.  **🥇 Gemini (Imagen 3)**
-    *   **Status:** Principal.
-    *   **Por que:** Mais rápido, nativo do ecossistema Google, alta qualidade.
-    *   **Config:** Usa `GEMINI_API_KEY`.
-
-2.  **🥈 Hugging Face Inference API**
-    *   **Status:** Backup Robusto.
-    *   **Modelo:** `stabilityai/stable-diffusion-xl-base-1.0`.
-    *   **Por que:** Tier gratuito muito generoso e rápido.
-    *   **Config:** Requer `HF_TOKEN`.
-
-3.  **🥉 Stable Diffusion API**
-    *   **Status:** Terciário.
-    *   **Modelo:** SDXL / Standard.
-    *   **Por que:** Oferece créditos gratuitos iniciais.
-    *   **Config:** Requer `STABLE_DIFFUSION_KEY`.
-
-4.  **🛡️ Craiyon (DALL-E Mini)**
-    *   **Status:** "Hail Mary" (Último recurso gratuito).
-    *   **Por que:** Não exige chave de API obrigatoriamente, mas é mais lento e a qualidade é inferior (estilo artístico/abstract).
-    *   **Config:** Nenhuma chave obrigatória.
-
-5.  **💎 Replicate**
-    *   **Status:** Premium Backup.
-    *   **Modelo:** Stable Diffusion / Flux.
-    *   **Por que:** Altíssima qualidade, mas o tier gratuito é limitado por tempo de processamento.
-    *   **Config:** Requer `REPLICATE_TOKEN`.
+Este projeto implementa um sistema robusto de **Rotação de Chaves de API** e **Fallback de Provedores**.
+O objetivo é garantir resiliência total contra limites de cota (Erro 429), bloqueios temporários ou falhas de serviço.
 
 ---
 
-## ⚙️ Configuração (Como Ativar)
+## 🔑 1. Rotação de Chaves de API (Multi-Key)
 
-Para ativar os backups, você precisa obter as chaves (a maioria tem planos gratuitos) e adicioná-las ao seu arquivo `.env`:
+Agora você pode definir **múltiplas chaves** para o mesmo provedor. Se a chave principal atingir o limite (Quota Exceeded), o sistema trocará automaticamente para a próxima chave disponível e tentará novamente a operação, de forma transparente para o usuário.
 
+### Configuração no `.env`
+
+Existem duas formas de configurar múltiplas chaves:
+
+#### Método A: Lista separada por vírgulas (Recomendado para simplicidade)
 ```env
-# --- Principal ---
-GEMINI_API_KEY=sua_chave_aqui
+# Gemini (Separadas por vírgula)
+GEMINI_API_KEY="chave_1,chave_2,chave_3"
 
-# --- Backups (Adicione estas linhas) ---
-
-# 1. Hugging Face (Crie um token "Write" em hf.co/settings/tokens)
-HF_TOKEN=hf_...
-
-# 2. Stable Diffusion API (stablediffusionapi.com)
-STABLE_DIFFUSION_KEY=sua_chave_sd_api
-
-# 3. Replicate (replicate.com/account/api-tokens)
-REPLICATE_TOKEN=r8_...
+# Hugging Face
+HF_TOKEN="token_1,token_2"
 ```
 
-> **Nota:** Se você não colocar uma chave no `.env`, o sistema simplesmente pulará aquele provedor e tentará o próximo.
+#### Método B: Variáveis Indexadas (Melhor para organização)
+O sistema detecta automaticamente variáveis com o mesmo prefixo.
+```env
+# Principal
+GEMINI_API_KEY=chave_principal
+
+# Backups
+GEMINI_API_KEY_2=chave_reserva_1
+GEMINI_API_KEY_3=chave_reserva_2
+
+# O mesmo vale para outros serviços:
+HF_TOKEN=token_principal
+HF_TOKEN_SECONDARY=token_reserva
+```
+
+### Provedores Suportados para Rotação de Chaves
+- **Google Gemini** (Geração de Texto, Script, Audio, Vídeo, Imagens)
+- **Hugging Face** (Imagens)
+- **Stable Diffusion API** (Imagens)
+- **Replicate** (Imagens)
 
 ---
 
-## 🛠️ O Que Foi Alterado no Código?
+## 🛡️ 2. Fallback de Provedores de Imagem
 
-### 1. `vite.config.ts`
-As novas variáveis de ambiente foram expostas para o frontend React de forma segura:
-```typescript
-define: {
-  'process.env.HF_TOKEN': JSON.stringify(env.HF_TOKEN),
-  'process.env.STABLE_DIFFUSION_KEY': JSON.stringify(env.STABLE_DIFFUSION_KEY),
-  'process.env.REPLICATE_TOKEN': JSON.stringify(env.REPLICATE_TOKEN)
-  // ...
-}
-```
+Se todas as chaves de um provedor falharem, o sistema passa para o próximo provedor da lista (Orquestração).
 
-### 2. `services/geminiService.ts`
-A função antiga `generateImage` foi refatorada em uma **Arquitetura de Orquestração**:
-
-*   **Funções Isoladas:** Criadas funções específicas para cada provedor (`generateImageGemini`, `generateImageHuggingFace`, etc.).
-*   **Orquestrador:** A função principal `generateImage` agora atua como um gerenciador:
-    ```typescript
-    export const generateImage = async (prompt) => {
-        // Tenta Gemini...
-        if (sucesso) return url;
-        
-        // Falhou? Tenta Hugging Face...
-        if (sucesso) return url;
-        
-        // ... e assim por diante
-    }
-    ```
-*   **Tratamento de Erros:** Cada função isolada captura seus próprios erros e retorna `null` em vez de quebrar a aplicação, permitindo que o orquestrador continue.
+**Ordem de Prioridade:**
+1.  🥇 **Gemini (Imagen 3)** - *Alta Qualidade / Nativo*
+2.  🥈 **Hugging Face** (SDXL) - *Rápido / Gratuito*
+3.  🥉 **Stable Diffusion API** - *Backup*
+4.  ⚔️ **Pollinations.AI** - *Sem chave necessária*
+5.  💎 **Replicate** (Flux) - *Premium*
+6.  🎨 **Craiyon** - *Último recurso*
 
 ---
 
-## 🧪 Como Testar
+## 🛠 Detalhes Técnicos
 
-1.  Adicione pelo menos uma chave extra (recomendo **Hugging Face**) no `.env`.
-2.  Para forçar o teste do backup, você pode temporariamente "quebrar" a chave do Gemini no `.env` (ex: mude uma letra) ou comentar a chamada do Gemini no código.
-3.  Observe o console do navegador (F12). Você verá logs como:
-    *   `👉 Attempting: Gemini (Imagen 3)`
-    *   `Error generating image with Gemini...`
-    *   `👉 Attempting: Hugging Face`
-    *   `✅ Image generated successfully!`
+### Backend/Frontend (Vite)
+O arquivo `vite.config.ts` foi configurado para agregar automaticamente todas as variáveis de ambiente que começam com `GEMINI_API_KEY`, `HF_TOKEN`, etc., e expô-las ao frontend como arrays.
+
+### Lógica de Retry
+As funções de serviço (`geminiService.ts`, `imageService.ts`) agora possuem wrappers (`withGeminiRetry`, `KeyManager`) que:
+1.  Interceptam erros.
+2.  Verificam se é um erro de cota (`429`, `Quota exceeded`).
+3.  Se for, rotacionam a chave interna.
+4.  Re-executam a requisição.
+5.  Se todas as chaves falharem, lançam o erro para o orquestrador tentar o próximo provedor.

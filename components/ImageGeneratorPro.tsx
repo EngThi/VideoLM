@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { generateImage, checkImageProvidersStatus } from '../services/imageService'
+import { generateImage, checkImageProvidersStatus, ImageOptions } from '../services/imageService'
 import './ImageGeneratorPro.css'
 
 interface GenerationState {
@@ -17,8 +17,25 @@ interface ProviderStatus {
   configured: boolean
 }
 
+const MODELS = [
+  { id: 'flux', name: 'Flux (Black Forest Labs)' },
+  { id: 'turbo', name: 'Turbo (Z-Image)' },
+  { id: 'midijourney', name: 'Midijourney' },
+  { id: 'longcat', name: 'Longcat' },
+  { id: 'sd3.5', name: 'Stable Diffusion 3.5 Large' }
+]
+
+const ASPECT_RATIOS = [
+  { id: '1:1', name: 'Square (1:1)', width: 1024, height: 1024 },
+  { id: '16:9', name: 'Landscape (16:9)', width: 1280, height: 720 },
+  { id: '9:16', name: 'Portrait (9:16)', width: 720, height: 1280 }
+]
+
 export const ImageGeneratorPro: React.FC = () => {
   const [prompt, setPrompt] = useState('')
+  const [selectedModel, setSelectedModel] = useState('flux')
+  const [selectedRatio, setSelectedRatio] = useState('1:1')
+  
   const [state, setState] = useState<GenerationState>({
     loading: false,
     imageUrl: null,
@@ -40,8 +57,15 @@ export const ImageGeneratorPro: React.FC = () => {
   const handleGenerate = async () => {
     setState(prev => ({ ...prev, loading: true, error: null }))
 
+    const ratio = ASPECT_RATIOS.find(r => r.id === selectedRatio) || ASPECT_RATIOS[0]
+    const options: ImageOptions = {
+      model: selectedModel,
+      width: ratio.width,
+      height: ratio.height
+    }
+
     try {
-      const result = await generateImage(prompt)
+      const result = await generateImage(prompt, options)
 
       if (result.success && result.url) {
         setState({
@@ -91,6 +115,28 @@ export const ImageGeneratorPro: React.FC = () => {
         </div>
 
         <div className="controls">
+          <div className="settings-row">
+            <select 
+              value={selectedModel} 
+              onChange={(e) => setSelectedModel(e.target.value)}
+              className="settings-select"
+            >
+              {MODELS.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
+            
+            <select 
+              value={selectedRatio} 
+              onChange={(e) => setSelectedRatio(e.target.value)}
+              className="settings-select"
+            >
+              {ASPECT_RATIOS.map(r => (
+                <option key={r.id} value={r.id}>{r.name}</option>
+              ))}
+            </select>
+          </div>
+
           <textarea
             value={prompt}
             onChange={e => setPrompt(e.target.value)}

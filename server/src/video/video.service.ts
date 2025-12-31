@@ -5,61 +5,118 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 // Set ffmpeg path
-if (process.env.FFMPEG_PATH) {
-    ffmpeg.setFfmpegPath(process.env.FFMPEG_PATH);
+let ffmpegPath = process.env.FFMPEG_PATH;
+if (ffmpegPath) {
+    ffmpeg.setFfmpegPath(ffmpegPath);
 } else {
     try {
         // eslint-disable-next-line @typescript-eslint/no-var-requires
         const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
-        ffmpeg.setFfmpegPath(ffmpegInstaller.path);
+        ffmpegPath = ffmpegInstaller.path;
+        ffmpeg.setFfmpegPath(ffmpegPath);
     } catch (e) {
         console.warn("Could not load @ffmpeg-installer/ffmpeg, assuming native ffmpeg is available in PATH.");
+        ffmpegPath = 'ffmpeg (system)';
     }
 }
+console.log(`[VideoService] Using FFmpeg path: ${ffmpegPath}`);
 
 @Injectable()
 export class VideoService {
   assembleVideo(audioFile: Express.Multer.File, imageFiles: Express.Multer.File[], duration?: number): Promise<string> {
     return new Promise((resolve, reject) => {
+      console.log(`[VideoService] Starting assembly with ${imageFiles.length} images and audio: ${audioFile.path}`);
+      
       const tempDir = path.dirname(audioFile.path);
       const outputFilename = `output-${Date.now()}.mp4`;
       const outputPath = path.join(tempDir, outputFilename);
-      const imagesListPath = path.join(tempDir, `images-${Date.now()}.txt`);
 
       // 1. Calculate duration per image
-      let imageDuration = 10;
-      if (duration && imageFiles.length > 0) {
-          imageDuration = duration / imageFiles.length;
-      }
+      let totalDuration = duration || 30; // Default to 30s if not provided
+      const imageDuration = totalDuration / imageFiles.length;
+      const fps = 25;
 
-      // 2. Create images.txt
-      let concatFileContent = '';
+      // 2. Build FFmpeg command
+      let command = ffmpeg();
 
+      // Add image inputs
       imageFiles.forEach((img) => {
-          concatFileContent += `file '${img.filename}'\n`;
-          concatFileContent += `duration ${imageDuration}\n`;
+        command = command.input(img.path).inputOptions(['-loop 1', `-t ${imageDuration}`]);
       });
 
-      if (imageFiles.length > 0) {
-        concatFileContent += `file '${imageFiles[imageFiles.length - 1].filename}'\n`;
-      }
+      // Add audio input
+      command = command.input(audioFile.path);
 
-      fs.writeFileSync(imagesListPath, concatFileContent);
+      // 3. Create complex filter for Ken Burns effect
+      const complexFilter = [];
+      const videoOutputs = [];
 
-      // 3. Run FFmpeg
-      ffmpeg()
-        .input(imagesListPath)
-        .inputOptions(['-f concat', '-safe 0'])
-        .input(audioFile.path)
+      imageFiles.forEach((_, i) => {
+        const inputLabel = `${i}:v`;
+        const scaledLabel = `scaled${i}`;
+        const croppedLabel = `cropped${i}`;
+        const zoomLabel = `z${i}`;
+        videoOutputs.push(zoomLabel);
+
+        const frames = Math.ceil(imageDuration * fps);
+        const isZoomIn = i % 2 === 0;
+        const zoomExpr = isZoomIn ? 'min(zoom+0.0015,1.5)' : 'max(1.5-0.0015*on,1.0)';
+
+        // Scale to slightly larger than output to avoid black edges during zoom/pan
+        // Actually zoompan handles its own scaling but it's better to provide a consistent base
+        complexFilter.push({
+          filter: 'scale',
+          options: '1280:720:force_original_aspect_ratio=increase',
+          inputs: inputLabel,
+          outputs: scaledLabel
+        });
+
+        complexFilter.push({
+          filter: 'crop',
+          options: '1280:720',
+          inputs: scaledLabel,
+          outputs: croppedLabel
+        });
+
+        complexFilter.push({
+          filter: 'zoompan',
+          options: {
+            z: zoomExpr,
+            d: frames,
+            s: '1280x720',
+            x: 'iw/2-(iw/zoom/2)',
+            y: 'ih/2-(ih/zoom/2)',
+            fps: fps
+          },
+          inputs: croppedLabel,
+          outputs: zoomLabel
+        });
+      });
+
+      // Concat all images
+      complexFilter.push({
+        filter: 'concat',
+        options: {
+          n: imageFiles.length,
+          v: 1,
+          a: 0
+        },
+        inputs: videoOutputs,
+        outputs: 'outv'
+      });
+
+      command
+        .complexFilter(complexFilter, 'outv')
+        .map(`${imageFiles.length}:a`)
         .outputOptions([
           '-c:v libx264',
           '-pix_fmt yuv420p',
           '-shortest',
-          '-r 30'
+          '-r 25'
         ])
         .output(outputPath)
         .on('start', (commandLine) => {
-          console.log('Spawned Ffmpeg with command: ' + commandLine);
+          console.log('Spawned FFmpeg with Ken Burns effect: ' + commandLine);
         })
         .on('error', (err) => {
           console.error('An error occurred: ' + err.message);
@@ -67,12 +124,6 @@ export class VideoService {
         })
         .on('end', () => {
           console.log('Processing finished !');
-          // Cleanup list file
-          try {
-            fs.unlinkSync(imagesListPath);
-          } catch(e) {
-             console.error("Failed to delete images list", e);
-          }
           resolve(outputPath);
         })
         .run();

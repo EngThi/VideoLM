@@ -4,6 +4,25 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
     const env = loadEnv(mode, '.', '');
+
+    // Helper to gather API keys (support rotation)
+    const getKeys = (prefix: string) => {
+        const keys: string[] = [];
+        // 1. Add the main key if it exists
+        if (env[prefix]) keys.push(env[prefix]);
+        // 2. Add indexed keys (e.g., GEMINI_API_KEY_2, GEMINI_API_KEY_3...)
+        Object.keys(env).forEach(k => {
+            if (k.startsWith(prefix + '_') && env[k]) {
+                keys.push(env[k]);
+            }
+        });
+        // 3. Handle comma-separated keys in the main variable
+        if (env[prefix] && env[prefix].includes(',')) {
+             return env[prefix].split(',').map((k: string) => k.trim()).filter((k: string) => k);
+        }
+        return keys;
+    };
+
     return {
       server: {
         port: 5173,
@@ -17,12 +36,19 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
+        // Legacy single keys (for backward compatibility)
         'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.HF_TOKEN': JSON.stringify(env.HF_TOKEN),
         'process.env.STABLE_DIFFUSION_KEY': JSON.stringify(env.STABLE_DIFFUSION_KEY),
         'process.env.REPLICATE_TOKEN': JSON.stringify(env.REPLICATE_TOKEN),
         
+        // Key Rotation Arrays
+        'process.env.GEMINI_API_KEYS': JSON.stringify(getKeys('GEMINI_API_KEY')),
+        'process.env.HF_TOKENS': JSON.stringify(getKeys('HF_TOKEN')),
+        'process.env.STABLE_DIFFUSION_KEYS': JSON.stringify(getKeys('STABLE_DIFFUSION_KEY')),
+        'process.env.REPLICATE_TOKENS': JSON.stringify(getKeys('REPLICATE_TOKEN')),
+
         // Mappings for ImageGeneratorPro compatibility
         'process.env.VITE_GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
         'process.env.VITE_POLLINATIONS_API_KEY': JSON.stringify(env.POLLINATIONS_API_KEY),

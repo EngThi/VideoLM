@@ -7,7 +7,8 @@ import { ResultView } from './components/ResultView';
 import { IdeaSelector } from './components/IdeaSelector';
 import type { VideoConfig, PipelineStage, VideoResult, ContentIdea, ScriptResult, GeneratedImage } from './types';
 import { PIPELINE_STAGES } from './constants';
-import { generateContentIdeas, generateScriptWithGoogleSearch, generateNarration, generateVeoVideo, generateImagePrompts, generateImage } from './services/geminiService';
+import { generateContentIdeas, generateScriptWithGoogleSearch, generateNarration, generateVeoVideo, generateImagePrompts } from './services/geminiService';
+import { generateImage } from './services/imageService';
 import { ffmpegService } from './services/ffmpegService';
 
 const App: React.FC = () => {
@@ -33,6 +34,7 @@ const App: React.FC = () => {
   const generatedAudioUrlRef = useRef<string | undefined>(undefined);
   const generatedAudioDurationRef = useRef<number>(0);
   const generatedImagesRef = useRef<GeneratedImage[]>([]);
+  const isProcessingRef = useRef<boolean>(false);
 
   // Standalone Test States
   const [isTestLoading, setIsTestLoading] = useState(false);
@@ -135,6 +137,8 @@ const App: React.FC = () => {
     if (!isGenerating || !config || !selectedIdea) return;
 
     const runPipeline = async () => {
+        if (isProcessingRef.current) return;
+        
         if(currentStageIndex >= stages.length) {
             if (isMounted.current) {
                 addLog('✅ Pipeline finished!');
@@ -146,10 +150,96 @@ const App: React.FC = () => {
         const currentStage = stages[currentStageIndex];
         if (currentStage.status !== 'PENDING') return;
 
+        isProcessingRef.current = true;
         setStageStatus(currentStageIndex, 'IN_PROGRESS');
         addLog(`⏳ Starting stage: ${currentStage.name}`);
 
         try {
+            // --- DEV MODE: LOCAL ASSETS BYPASS ---
+            if (config.useLocalAssets) {
+                if (currentStage.id === 'SCRIPT_GENERATION') {
+                    addLog('🛠️ DEV MODE: Loading local script...');
+                    // Simulate loading script
+                    const response = await fetch('/temp_assets/video_project_assets/script.txt');
+                    const text = await response.text();
+                    setScriptResult({ scriptText: text, sources: [] });
+                    addLog('✅ Local script loaded.');
+                }
+                else if (currentStage.id === 'AUDIO_GENERATION') {
+                     addLog('🛠️ DEV MODE: Loading local audio...');
+                     // Path to the extracted audio in public folder
+                     const audioPath = '/temp_assets/video_project_assets/narration.wav';
+                     setGeneratedAudioUrl(audioPath);
+                     generatedAudioUrlRef.current = audioPath;
+                     
+                     // Get duration roughly or fetch metadata
+                     const audio = new Audio(audioPath);
+                     await new Promise(r => { audio.onloadedmetadata = r; audio.onerror = r; });
+                     const dur = audio.duration || config.duration; // Fallback
+                     
+                     setGeneratedAudioDuration(dur);
+                     generatedAudioDurationRef.current = dur;
+                     addLog(`✅ Local audio loaded (${dur.toFixed(1)}s).`);
+                }
+                else if (currentStage.id === 'VISUAL_GENERATION') {
+                     addLog('🛠️ DEV MODE: Loading local storyboard images...');
+                     // Hardcoded based on the zip content we saw (scene_001 to scene_007)
+                     const imageFiles = [
+                        'scene_001.png', 'scene_002.png', 'scene_003.png', 
+                        'scene_004.png', 'scene_005.png', 'scene_006.png', 'scene_007.png'
+                     ];
+                     
+                     const newImages: GeneratedImage[] = imageFiles.map((file, i) => ({
+                         url: `/temp_assets/video_project_assets/storyboard/${file}`,
+                         prompt: `Local Asset ${i+1}`,
+                         index: i
+                     }));
+
+                     setGeneratedImages(newImages);
+                     generatedImagesRef.current = newImages;
+                     addLog(`✅ Loaded ${newImages.length} local images.`);
+                }
+                else if (currentStage.id === 'VIDEO_ASSEMBLY') {
+                    // Normal assembly process, but with local URLs
+                    // Note: ffmpegService needs to handle relative paths or full URLs.
+                    // Since these are served by Vite, fetching them in ffmpegService (via fetch) works fine.
+                    
+                    const audioUrl = generatedAudioUrlRef.current;
+                    const images = generatedImagesRef.current;
+                    const audioDur = generatedAudioDurationRef.current;
+
+                     if (!audioUrl || !images || images.length === 0) {
+                        throw new Error("Missing local assets for assembly");
+                     }
+
+                    addLog('🎞️ Initializing FFmpeg engine with local assets...');
+                    const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur);
+
+                    setVideoResult(prev => ({
+                        success: true,
+                        generatedImages: images,
+                        audioUrl: audioUrl,
+                        audioDuration: audioDur,
+                        videoUrl: videoUrl,
+                        localPath: '/output/final_assets',
+                        script: scriptResult ?? undefined,
+                    }));
+
+                    addLog('✨ Final video rendered successfully (Dev Mode)!');
+                }
+                else {
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+                
+                // Complete stage and continue
+                addLog(`✅ Completed stage (DEV): ${currentStage.name}`);
+                setStageStatus(currentStageIndex, 'COMPLETED');
+                isProcessingRef.current = false;
+                if (isMounted.current) setCurrentStageIndex(prev => prev + 1);
+                return; 
+            }
+            // --- END DEV MODE ---
+
             if (currentStage.id === 'SCRIPT_GENERATION') {
                 // Pass duration to ensure script length matches user intent
                 const result = await generateScriptWithGoogleSearch(config.topic, selectedIdea.title, selectedIdea.outline, config.duration);
@@ -185,18 +275,35 @@ const App: React.FC = () => {
                 const newImages: GeneratedImage[] = [];
                 for (let i = 0; i < prompts.length; i++) {
                     addLog(`🎨 Generating image ${i + 1}/${prompts.length}...`);
-                    const imgUrl = await generateImage(prompts[i]);
-                    if (imgUrl) {
-                        newImages.push({
-                            url: imgUrl,
-                            prompt: prompts[i],
-                            index: i
-                        });
+                    
+                    try {
+                        const result = await generateImage(prompts[i]);
+                        if (result.success && result.url) {
+                            newImages.push({
+                                url: result.url,
+                                prompt: prompts[i],
+                                index: i
+                            });
+                        } else {
+                            addLog(`⚠️ Failed to generate image ${i+1}. Attempting emergency fallback...`);
+                            // Emergency fallback: use a simpler prompt and Pollinations directly if possible
+                            // Or just retry with a very simple version of the prompt
+                            const fallbackResult = await generateImage(`A cinematic high quality illustration of ${config.topic}, photorealistic, 4k`);
+                            if (fallbackResult.success && fallbackResult.url) {
+                                newImages.push({
+                                    url: fallbackResult.url,
+                                    prompt: "Fallback: " + prompts[i],
+                                    index: i
+                                });
+                            }
+                        }
+                    } catch (err) {
+                        console.error(`Error generating image ${i}:`, err);
                     }
                 }
 
                 setGeneratedImages(newImages);
-                generatedImagesRef.current = newImages;
+                generatedImagesRef.current = [...newImages]; // Create a new array to be safe
                 addLog(`🎬 Successfully generated ${newImages.length} storyboard images.`);
             }
             else if (currentStage.id === 'VIDEO_ASSEMBLY') {
@@ -204,12 +311,12 @@ const App: React.FC = () => {
                 const images = generatedImagesRef.current;
                 const audioDur = generatedAudioDurationRef.current;
 
-                if (!audioUrl || images.length === 0) {
-                    addLog(`⚠️ Skipping video assembly: Missing assets. Audio: ${!!audioUrl}, Images: ${images.length}`);
+                if (!audioUrl || !images || images.length === 0) {
+                    addLog(`⚠️ Skipping video assembly: Missing assets. Audio: ${!!audioUrl}, Images: ${images?.length || 0}`);
                     // Ensure we still show what we have
                      setVideoResult({
                          success: true, // partial success
-                         generatedImages: images,
+                         generatedImages: images || [],
                          audioUrl: audioUrl,
                          audioDuration: audioDur,
                          script: scriptResult ?? undefined,
@@ -238,6 +345,7 @@ const App: React.FC = () => {
 
             addLog(`✅ Completed stage: ${currentStage.name}`);
             setStageStatus(currentStageIndex, 'COMPLETED');
+            isProcessingRef.current = false;
 
             if (isMounted.current) setCurrentStageIndex(prev => prev + 1);
         } catch (error) {
@@ -246,14 +354,19 @@ const App: React.FC = () => {
 
             addLog(`❌ Error in stage ${currentStage.name}: ${errorMessage}`);
             setStageStatus(currentStageIndex, 'FAILED');
+            isProcessingRef.current = false;
+            
             if (isMounted.current) {
                  setIsGenerating(false);
                  // If video assembly fails, we still might have partial results (images/audio)
-                 if (generatedAudioUrlRef.current || generatedImagesRef.current.length > 0) {
+                 const currentImages = generatedImagesRef.current;
+                 const currentAudio = generatedAudioUrlRef.current;
+                 
+                 if (currentAudio || (currentImages && currentImages.length > 0)) {
                      setVideoResult({
                          success: true, // technically partial success
-                         generatedImages: generatedImagesRef.current,
-                         audioUrl: generatedAudioUrlRef.current,
+                         generatedImages: currentImages || [],
+                         audioUrl: currentAudio,
                          audioDuration: generatedAudioDurationRef.current,
                          script: scriptResult ?? undefined,
                      });
