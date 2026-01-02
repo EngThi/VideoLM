@@ -34,14 +34,16 @@ export class VideoService {
       // 1. Calculate duration per image
       let totalDuration = duration || 30; // Default to 30s if not provided
       const imageDuration = totalDuration / imageFiles.length;
-      const fps = 25;
+      const fps = 30;
 
       // 2. Build FFmpeg command
       let command = ffmpeg();
 
+      console.log(`[VideoService] Duration: ${totalDuration}s, Images: ${imageFiles.length}, Per Image: ${imageDuration}s`);
+
       // Add image inputs
       imageFiles.forEach((img) => {
-        command = command.input(img.path).inputOptions(['-loop 1', `-t ${imageDuration}`]);
+        command = command.input(img.path).inputOptions(['-loop 1', '-framerate 30', `-t ${imageDuration}`]);
       });
 
       // Add audio input
@@ -131,7 +133,7 @@ export class VideoService {
           '-c:v libx264',
           '-pix_fmt yuv420p',
           '-shortest',
-          '-r 25'
+          '-r 30'
         ])
         .output(outputPath)
         .on('start', (commandLine) => {
