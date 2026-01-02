@@ -16,6 +16,10 @@ export interface VideoConfig {
   thumbnailStyle: ThumbnailStyle;
   useLocalAssets?: boolean;
   devAssetsFile?: File | null;
+  // Local/Dev Mode Extracted Assets
+  localScript?: string;
+  localAudioUrl?: string;
+  localImages?: GeneratedImage[];
 }
 
 export type StageStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';

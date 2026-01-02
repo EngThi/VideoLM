@@ -1,5 +1,6 @@
 
 import React, { useState } from 'react';
+import JSZip from 'jszip';
 import type { VideoConfig, GeneratedImage } from '../types';
 import { QUALITY_OPTIONS, STYLE_OPTIONS, VOICE_PROVIDER_OPTIONS, THUMBNAIL_STYLE_OPTIONS } from '../constants';
 import { ffmpegService } from '../services/ffmpegService';
@@ -105,11 +106,62 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
     }
   };
 
-      const handleAutoUpload = (file: File) => {
-          const newConfig = { ...config, devAssetsFile: file, topic: file.name.replace('.zip', '') };
-          setConfig(newConfig);
-          // Auto-start pipeline
-          onGenerate(newConfig);
+      const handleAutoUpload = async (file: File) => {
+          try {
+              const zip = await JSZip.loadAsync(file);
+              const extractedAssets: Partial<VideoConfig> = {
+                  localImages: []
+              };
+              
+              const files = Object.keys(zip.files);
+              const images: GeneratedImage[] = [];
+              
+              for (const filename of files) {
+                  const entry = zip.files[filename];
+                  if (entry.dir) continue;
+                  if (filename.startsWith('__MACOSX')) continue; // Ignore Mac metadata
+                  
+                  const lowerName = filename.toLowerCase();
+                  
+                  if (lowerName.endsWith('script.txt') || (!extractedAssets.localScript && lowerName.endsWith('.txt'))) {
+                      extractedAssets.localScript = await entry.async('string');
+                  } else if (lowerName.endsWith('.wav') || lowerName.endsWith('.mp3')) {
+                      // Prefer narration.wav or just take the first audio
+                      if (!extractedAssets.localAudioUrl || lowerName.includes('narration')) {
+                          const blob = await entry.async('blob');
+                          extractedAssets.localAudioUrl = URL.createObjectURL(blob);
+                      }
+                  } else if (lowerName.match(/\.(jpg|jpeg|png|webp)$/)) {
+                      const blob = await entry.async('blob');
+                      images.push({
+                          url: URL.createObjectURL(blob),
+                          prompt: filename, // Use filename as label
+                          index: 0
+                      });
+                  }
+              }
+              
+              // Sort images by filename
+              images.sort((a, b) => a.prompt.localeCompare(b.prompt));
+              images.forEach((img, idx) => img.index = idx);
+              extractedAssets.localImages = images;
+
+              const newConfig = { 
+                  ...config, 
+                  ...extractedAssets,
+                  devAssetsFile: file, 
+                  topic: file.name.replace('.zip', ''),
+                  useLocalAssets: true 
+              };
+              
+              setConfig(newConfig);
+              // Auto-start pipeline
+              onGenerate(newConfig);
+
+          } catch (error) {
+              console.error("Failed to unzip assets:", error);
+              alert("Failed to read ZIP file. See console for details.");
+          }
       };
   
       return (

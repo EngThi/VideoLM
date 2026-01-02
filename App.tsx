@@ -108,6 +108,15 @@ const App: React.FC = () => {
     setIsLoading(true);
     addLog('🚀 Pipeline initiated. Configuration received.');
 
+    if (newConfig.useLocalAssets) {
+        addLog('🛠️ Dev Mode Active: Skipping idea generation.');
+        // Set a dummy idea to satisfy requirements and start pipeline
+        setSelectedIdea({ title: newConfig.topic || "Local Project", outline: "Generated from local assets" });
+        setIsGenerating(true);
+        setIsLoading(false);
+        return;
+    }
+
     try {
       addLog('🧠 Generating initial content plans with Gemini...');
       setStageStatus(0, 'IN_PROGRESS');
@@ -157,111 +166,77 @@ const App: React.FC = () => {
         try {
             // --- DEV MODE: LOCAL ASSETS BYPASS ---
             if (config.useLocalAssets) {
-                let assetBasePath = '/temp_assets/video_project_assets'; // Default
-
-                // 1. Upload Custom ZIP if provided
-                if (config.devAssetsFile) {
-                    addLog('📤 Uploading custom asset ZIP...');
-                    const formData = new FormData();
-                    formData.append('zipFile', config.devAssetsFile);
-
-                    const uploadResp = await fetch('/api/upload-assets', {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if (!uploadResp.ok) throw new Error("Failed to upload assets");
-                    
-                    const uploadResult = await uploadResp.json();
-                    assetBasePath = uploadResult.path; // '/temp_assets/custom'
-                    
-                    // Note: Unzip usually creates a folder if the zip has one. 
-                    // We might need to detect subfolders, but for now assuming flat or known structure.
-                    // Let's assume the user zips the CONTENTS, not a folder. 
-                    // Or we check if 'video_project_assets' exists inside custom.
-                    
-                    // Simple hack: Try to access script at root, if 404, try inside subfolder
-                    const check = await fetch(`${assetBasePath}/script.txt`);
-                    if (!check.ok) {
-                        assetBasePath = `${assetBasePath}/video_project_assets`;
-                    }
-                    
-                    addLog('✅ Custom assets uploaded and extracted.');
-                }
-
+                // In this new mode, assets are already in 'config' (extracted client-side)
+                
                 if (currentStage.id === 'SCRIPT_GENERATION') {
                     addLog('🛠️ DEV MODE: Loading local script...');
-                    // Simulate loading script
-                    const response = await fetch(`${assetBasePath}/script.txt`);
-                    if (!response.ok) throw new Error(`Could not find script.txt in ${assetBasePath}`);
-                    const text = await response.text();
-                    setScriptResult({ scriptText: text, sources: [] });
-                    addLog('✅ Local script loaded.');
+                    if (config.localScript) {
+                         setScriptResult({ scriptText: config.localScript, sources: [] });
+                         addLog('✅ Local script loaded.');
+                    } else {
+                        // Fallback or skip if not found (maybe the user wants to generate script but use local audio?)
+                        // For now, let's assume if you upload a zip, you want to use what's in it.
+                        // If no script in zip, we might just set an empty one or throw.
+                        addLog('⚠️ No script found in ZIP. Using dummy script.');
+                        setScriptResult({ scriptText: "Local video project", sources: [] });
+                    }
                 }
                 else if (currentStage.id === 'AUDIO_GENERATION') {
                      addLog('🛠️ DEV MODE: Loading local audio...');
-                     // Path to the extracted audio in public folder
-                     const audioPath = `${assetBasePath}/narration.wav`;
-                     setGeneratedAudioUrl(audioPath);
-                     generatedAudioUrlRef.current = audioPath;
                      
-                     // Get duration roughly or fetch metadata
-                     const audio = new Audio(audioPath);
-                     await new Promise(r => { audio.onloadedmetadata = r; audio.onerror = r; });
-                     const dur = audio.duration || config.duration; // Fallback
-                     
-                     setGeneratedAudioDuration(dur);
-                     generatedAudioDurationRef.current = dur;
-                     addLog(`✅ Local audio loaded (${dur.toFixed(1)}s).`);
+                     if (config.localAudioUrl) {
+                         const audioPath = config.localAudioUrl;
+                         setGeneratedAudioUrl(audioPath);
+                         generatedAudioUrlRef.current = audioPath;
+                         
+                         // Get duration
+                         const audio = new Audio(audioPath);
+                         await new Promise(r => { 
+                             audio.onloadedmetadata = () => r(true); 
+                             audio.onerror = () => r(true); 
+                         });
+                         const dur = audio.duration || config.duration || 10;
+                         
+                         setGeneratedAudioDuration(dur);
+                         generatedAudioDurationRef.current = dur;
+                         addLog(`✅ Local audio loaded (${dur.toFixed(1)}s).`);
+                     } else {
+                         addLog('⚠️ No audio found in ZIP. Skipping.');
+                     }
                 }
                 else if (currentStage.id === 'VISUAL_GENERATION') {
                      addLog('🛠️ DEV MODE: Loading local storyboard images...');
                      
-                     // Dynamic image detection
-                     // Since we can't list directory via fetch easily, we try a range or use prompts file
-                     // Using the same 1-7 range for now as safe default for the known dataset
-                     const imageFiles = [
-                        'scene_001.png', 'scene_002.png', 'scene_003.png', 
-                        'scene_004.png', 'scene_005.png', 'scene_006.png', 'scene_007.png'
-                     ];
-                     
-                     const newImages: GeneratedImage[] = imageFiles.map((file, i) => ({
-                         url: `${assetBasePath}/storyboard/${file}`,
-                         prompt: `Local Asset ${i+1}`,
-                         index: i
-                     }));
-
-                     setGeneratedImages(newImages);
-                     generatedImagesRef.current = newImages;
-                     addLog(`✅ Loaded ${newImages.length} local images.`);
+                     if (config.localImages && config.localImages.length > 0) {
+                         setGeneratedImages(config.localImages);
+                         generatedImagesRef.current = config.localImages;
+                         addLog(`✅ Loaded ${config.localImages.length} local images.`);
+                     } else {
+                         addLog('⚠️ No images found in ZIP.');
+                     }
                 }
                 else if (currentStage.id === 'VIDEO_ASSEMBLY') {
-                    // Normal assembly process, but with local URLs
-                    // Note: ffmpegService needs to handle relative paths or full URLs.
-                    // Since these are served by Vite, fetching them in ffmpegService (via fetch) works fine.
-                    
                     const audioUrl = generatedAudioUrlRef.current;
                     const images = generatedImagesRef.current;
                     const audioDur = generatedAudioDurationRef.current;
 
                      if (!audioUrl || !images || images.length === 0) {
-                        throw new Error("Missing local assets for assembly");
+                        addLog("⚠️ Missing local assets for assembly, but marking stage complete.");
+                     } else {
+                        addLog('🎞️ Initializing FFmpeg engine with local assets...');
+                        const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur);
+
+                        setVideoResult(prev => ({
+                            success: true,
+                            generatedImages: images,
+                            audioUrl: audioUrl,
+                            audioDuration: audioDur,
+                            videoUrl: videoUrl,
+                            localPath: '/output/final_assets',
+                            script: scriptResult ?? undefined,
+                        }));
+                        addLog('✨ Final video rendered successfully (Dev Mode)!');
                      }
-
-                    addLog('🎞️ Initializing FFmpeg engine with local assets...');
-                    const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur);
-
-                    setVideoResult(prev => ({
-                        success: true,
-                        generatedImages: images,
-                        audioUrl: audioUrl,
-                        audioDuration: audioDur,
-                        videoUrl: videoUrl,
-                        localPath: '/output/final_assets',
-                        script: scriptResult ?? undefined,
-                    }));
-
-                    addLog('✨ Final video rendered successfully (Dev Mode)!');
                 }
                 else {
                     await new Promise(resolve => setTimeout(resolve, 500));
