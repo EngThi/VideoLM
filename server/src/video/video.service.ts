@@ -55,15 +55,15 @@ export class VideoService {
         const inputLabel = `${i}:v`;
         const scaledLabel = `scaled${i}`;
         const croppedLabel = `cropped${i}`;
-        const zoomLabel = `z${i}`;
+        const zoomRawLabel = `z${i}_raw`; // Intermediate label
+        const zoomLabel = `z${i}`; // Final normalized label
         videoOutputs.push(zoomLabel);
 
         const frames = Math.ceil(imageDuration * fps);
         const isZoomIn = i % 2 === 0;
         const zoomExpr = isZoomIn ? 'min(zoom+0.0015,1.5)' : 'max(1.5-0.0015*on,1.0)';
 
-        // Scale to slightly larger than output to avoid black edges during zoom/pan
-        // Actually zoompan handles its own scaling but it's better to provide a consistent base
+        // Scale
         complexFilter.push({
           filter: 'scale',
           options: '1280:720:force_original_aspect_ratio=increase',
@@ -71,6 +71,7 @@ export class VideoService {
           outputs: scaledLabel
         });
 
+        // Crop
         complexFilter.push({
           filter: 'crop',
           options: '1280:720',
@@ -78,6 +79,7 @@ export class VideoService {
           outputs: croppedLabel
         });
 
+        // ZoomPan
         complexFilter.push({
           filter: 'zoompan',
           options: {
@@ -89,7 +91,23 @@ export class VideoService {
             fps: fps
           },
           inputs: croppedLabel,
-          outputs: zoomLabel
+          outputs: zoomRawLabel
+        });
+
+        // Normalize SAR and Pixel Format before Concat
+        // This prevents "Error reinitializing filters" if inputs differ
+        complexFilter.push({
+            filter: 'setsar',
+            options: '1',
+            inputs: zoomRawLabel,
+            outputs: `${zoomRawLabel}_sar`
+        });
+
+        complexFilter.push({
+            filter: 'format',
+            options: 'yuv420p',
+            inputs: `${zoomRawLabel}_sar`,
+            outputs: zoomLabel
         });
       });
 
@@ -106,9 +124,10 @@ export class VideoService {
       });
 
       command
-        .complexFilter(complexFilter, 'outv')
-        .map(`${imageFiles.length}:a`)
+        .complexFilter(complexFilter)
         .outputOptions([
+          '-map [outv]',
+          `-map ${imageFiles.length}:a`,
           '-c:v libx264',
           '-pix_fmt yuv420p',
           '-shortest',
