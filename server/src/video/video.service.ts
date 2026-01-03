@@ -105,10 +105,18 @@ export class VideoService {
             outputs: `${zoomRawLabel}_sar`
         });
 
+        // Reset PTS to ensure concat works correctly
+        complexFilter.push({
+            filter: 'setpts',
+            options: 'PTS-STARTPTS',
+            inputs: `${zoomRawLabel}_sar`,
+            outputs: `${zoomRawLabel}_pts`
+        });
+
         complexFilter.push({
             filter: 'format',
             options: 'yuv420p',
-            inputs: `${zoomRawLabel}_sar`,
+            inputs: `${zoomRawLabel}_pts`,
             outputs: zoomLabel
         });
       });
