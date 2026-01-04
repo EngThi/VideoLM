@@ -53,7 +53,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-
+GEMINI.md
 # Project specific ignores
 devlogs/
 *.zip

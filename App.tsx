@@ -189,19 +189,38 @@ const App: React.FC = () => {
                          setGeneratedAudioUrl(audioPath);
                          generatedAudioUrlRef.current = audioPath;
                          
-                         // Get duration
+                         addLog('⏳ Probing local audio duration...');
+                         
+                         // Get duration with better fallback
                          const audio = new Audio(audioPath);
-                         await new Promise(r => { 
+                         audio.preload = 'metadata';
+                         
+                         const durationDetected = await new Promise<boolean>(r => { 
                              audio.onloadedmetadata = () => r(true); 
-                             audio.onerror = () => r(true); 
+                             audio.onerror = () => {
+                                 console.error("Audio metadata load error");
+                                 r(false);
+                             };
+                             // Timeout safety
+                             setTimeout(() => r(false), 2000);
                          });
-                         const dur = audio.duration || config.duration || 10;
+
+                         let dur = 0;
+                         if (durationDetected && Number.isFinite(audio.duration) && audio.duration > 0) {
+                             dur = audio.duration;
+                             addLog(`✅ Local audio duration detected: ${dur.toFixed(1)}s`);
+                         } else {
+                             // Fallback: If duration detection fails, we can't just use 480s (default)
+                             // unless it's actually a long audio. For Dev Mode, let's trust 
+                             // config.duration ONLY if it was modified, or use a safe 30s.
+                             dur = config.duration > 0 && config.duration < 3600 ? config.duration : 30;
+                             addLog(`⚠️ Could not detect audio duration. Using fallback: ${dur}s`);
+                         }
                          
                          setGeneratedAudioDuration(dur);
                          generatedAudioDurationRef.current = dur;
-                         addLog(`✅ Local audio loaded (${dur.toFixed(1)}s).`);
                      } else {
-                         addLog('⚠️ No audio found in ZIP. Skipping.');
+                         addLog('⚠️ No audio found in config. Skipping.');
                      }
                 }
                 else if (currentStage.id === 'VISUAL_GENERATION') {
@@ -209,10 +228,10 @@ const App: React.FC = () => {
                      
                      if (config.localImages && config.localImages.length > 0) {
                          setGeneratedImages(config.localImages);
-                         generatedImagesRef.current = config.localImages;
+                         generatedImagesRef.current = [...config.localImages];
                          addLog(`✅ Loaded ${config.localImages.length} local images.`);
                      } else {
-                         addLog('⚠️ No images found in ZIP.');
+                         addLog('⚠️ No images found in config.');
                      }
                 }
                 else if (currentStage.id === 'VIDEO_ASSEMBLY') {
@@ -224,7 +243,7 @@ const App: React.FC = () => {
                         addLog("⚠️ Missing local assets for assembly, but marking stage complete.");
                      } else {
                         addLog('🎞️ Initializing FFmpeg engine with local assets...');
-                        const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur);
+                        const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur, scriptResult?.scriptText);
 
                         setVideoResult(prev => ({
                             success: true,
@@ -334,7 +353,7 @@ const App: React.FC = () => {
                      });
                 } else {
                     addLog('🎞️ Initializing FFmpeg engine... This may take a moment.');
-                    const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur);
+                    const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur, scriptResult?.scriptText);
 
                     setVideoResult(prev => ({
                         success: true,

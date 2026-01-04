@@ -6,26 +6,25 @@ class FFmpegService {
   public async assembleVideo(
     audioUrl: string,
     images: GeneratedImage[],
-    totalDuration: number
+    totalDuration: number,
+    script?: string
   ): Promise<string> {
     try {
-        console.log("Starting backend video assembly...");
+        console.log("Starting backend video assembly... Subtitles:", !!script);
 
         const formData = new FormData();
 
         // 1. Fetch and append Audio
-        // audioUrl is likely a blob URL or a remote URL.
-        // If it's a blob URL, fetching it gives the blob.
         const audioResp = await fetch(audioUrl);
         const audioBlob = await audioResp.blob();
         formData.append('audio', audioBlob, 'audio.wav');
 
-        // 2. Append total duration (if available)
-        // Note: The frontend uses 'totalDuration' which might be the target duration,
-        // but typically we want the audio duration for exact sync.
-        // We pass it if available.
+        // 2. Append total duration and script
         if (totalDuration) {
             formData.append('duration', totalDuration.toString());
+        }
+        if (script) {
+            formData.append('script', script);
         }
 
         // 3. Fetch and append Images

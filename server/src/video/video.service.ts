@@ -16,30 +16,104 @@ if (ffmpegPath) {
         ffmpeg.setFfmpegPath(ffmpegPath);
     } catch (e) {
         console.warn("Could not load @ffmpeg-installer/ffmpeg, assuming native ffmpeg is available in PATH.");
-        ffmpegPath = 'ffmpeg (system)';
+        ffmpegPath = 'ffmpeg';
     }
 }
+// Attempt to set ffprobe path (assuming system install in this environment)
+try {
+    ffmpeg.setFfprobePath('ffprobe');
+} catch (e) {
+    console.warn("Could not set ffprobe path.");
+}
+
 console.log(`[VideoService] Using FFmpeg path: ${ffmpegPath}`);
 
 @Injectable()
 export class VideoService {
-  assembleVideo(audioFile: Express.Multer.File, imageFiles: Express.Multer.File[], duration?: number): Promise<string> {
+  private generateSrt(text: string, totalDuration: number): string {
+    const words = text.split(/\s+/);
+    const wordsPerSrt = 5; // Group 5 words per subtitle entry
+    const groups = [];
+    
+    for (let i = 0; i < words.length; i += wordsPerSrt) {
+        groups.push(words.slice(i, i + wordsPerSrt).join(' '));
+    }
+
+    const durationPerGroup = totalDuration / groups.length;
+    let srtContent = '';
+
+    groups.forEach((group, index) => {
+        const start = index * durationPerGroup;
+        const end = (index + 1) * durationPerGroup;
+
+        const formatTime = (seconds: number) => {
+            const date = new Date(0);
+            date.setSeconds(seconds);
+            const ms = Math.floor((seconds % 1) * 1000);
+            return date.toISOString().substr(11, 8) + ',' + ms.toString().padStart(3, '0');
+        };
+
+        srtContent += `${index + 1}\n`;
+        srtContent += `${formatTime(start)} --> ${formatTime(end)}\n`;
+        srtContent += `${group}\n\n`;
+    });
+
+    return srtContent;
+  }
+
+  async assembleVideo(audioFile: Express.Multer.File, imageFiles: Express.Multer.File[], duration?: number, scriptText?: string, bgMusicFile?: Express.Multer.File): Promise<string> {
+    console.log(`[VideoService] Starting assembly with ${imageFiles.length} images, audio: ${audioFile.path}, BG Music: ${!!bgMusicFile}`);
+    
+    const tempDir = path.dirname(audioFile.path);
+    const outputFilename = `output-${Date.now()}.mp4`;
+    const outputPath = path.join(tempDir, outputFilename);
+    let srtPath: string | null = null;
+    let finalAudioInput = audioFile.path;
+
+    // ... (rest of duration detection)
+    // Prefer actual audio duration to ensure images are distributed evenly over the audio.
+    let totalDuration = duration || 30;
+    
+    try {
+        const metadata = await new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
+            ffmpeg.ffprobe(audioFile.path, (err, data) => {
+                if (err) reject(err);
+                else resolve(data);
+            });
+        });
+        if (metadata.format && metadata.format.duration) {
+            totalDuration = metadata.format.duration;
+            console.log(`[VideoService] Probed audio duration: ${totalDuration}s (Overriding provided: ${duration})`);
+        }
+    } catch (e) {
+        console.warn(`[VideoService] Failed to probe audio duration: ${e.message}.`);
+        
+        // Intelligent Fallback:
+        // If probing failed, and we have a "suspiciously default" long duration (like 480s) 
+        // with a small number of images, it's likely a config error (Dev Mode bug).
+        // We revert to a safe estimate: ~5-10 seconds per image.
+        if (totalDuration > 300 && imageFiles.length < 20) {
+            const safeDuration = imageFiles.length * 5; // 5 seconds per image
+            console.warn(`[VideoService] Suspicious duration (${totalDuration}s) with low image count. Fallback to safe estimate: ${safeDuration}s`);
+            totalDuration = safeDuration;
+        } else {
+             console.warn(`[VideoService] Using provided/default duration: ${totalDuration}s`);
+        }
+    }
+
+    // 2. Calculate duration per image
+    const imageDuration = totalDuration / imageFiles.length;
+    const fps = 30;
+
+    console.log(`[VideoService] Final configuration: Duration=${totalDuration}s, Images=${imageFiles.length}, Per Image=${imageDuration}s`);
+    imageFiles.forEach((f, idx) => console.log(`  - Image ${idx}: ${f.originalname} (${f.size} bytes)`));
+
     return new Promise((resolve, reject) => {
-      console.log(`[VideoService] Starting assembly with ${imageFiles.length} images and audio: ${audioFile.path}`);
-      
-      const tempDir = path.dirname(audioFile.path);
-      const outputFilename = `output-${Date.now()}.mp4`;
-      const outputPath = path.join(tempDir, outputFilename);
-
-      // 1. Calculate duration per image
-      let totalDuration = duration || 30; // Default to 30s if not provided
-      const imageDuration = totalDuration / imageFiles.length;
-      const fps = 30;
-
-      // 2. Build FFmpeg command
+      // 3. Build FFmpeg command
       let command = ffmpeg();
+      const complexFilter = [];
+      const videoOutputs = [];
 
-      console.log(`[VideoService] Duration: ${totalDuration}s, Images: ${imageFiles.length}, Per Image: ${imageDuration}s`);
 
       // Add image inputs
       imageFiles.forEach((img) => {
@@ -48,10 +122,38 @@ export class VideoService {
 
       // Add audio input
       command = command.input(audioFile.path);
+      
+      const narrationIdx = imageFiles.length;
+      let audioMap = `${narrationIdx}:a`;
+
+      if (bgMusicFile) {
+          command = command.input(bgMusicFile.path);
+          const bgMusicIdx = imageFiles.length + 1;
+          
+          // Mix narration and background music
+          // Narration (volume=1.0), BG Music (volume=0.2)
+          complexFilter.push({
+              filter: 'volume',
+              options: '1.0',
+              inputs: `${narrationIdx}:a`,
+              outputs: 'voice'
+          });
+          complexFilter.push({
+              filter: 'volume',
+              options: '0.15', // Lower background music volume
+              inputs: `${bgMusicIdx}:a`,
+              outputs: 'bgm'
+          });
+          complexFilter.push({
+              filter: 'amix',
+              options: { inputs: 2, duration: 'first' },
+              inputs: ['voice', 'bgm'],
+              outputs: 'mixed_audio'
+          });
+          audioMap = '[mixed_audio]';
+      }
 
       // 3. Create complex filter for Ken Burns effect
-      const complexFilter = [];
-      const videoOutputs = [];
 
       imageFiles.forEach((_, i) => {
         const inputLabel = `${i}:v`;
@@ -133,11 +235,38 @@ export class VideoService {
         outputs: 'outv'
       });
 
+      // Handle Subtitles
+      let videoMap = '[outv]';
+      if (scriptText) {
+          try {
+              const srtContent = this.generateSrt(scriptText, totalDuration);
+              srtPath = path.join(tempDir, `subtitles-${Date.now()}.srt`);
+              fs.writeFileSync(srtPath, srtContent);
+              console.log(`[VideoService] Subtitles generated at: ${srtPath}`);
+
+              // Burn-in subtitles
+              // Note: subtitles filter in ffmpeg needs escaped path on Windows, but on Linux/Docker it's usually fine.
+              // We use a separate filter step for subtitles to keep it clean.
+              complexFilter.push({
+                  filter: 'subtitles',
+                  options: {
+                      filename: srtPath,
+                      force_style: 'Alignment=2,FontSize=24,PrimaryColour=&H00FFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2'
+                  },
+                  inputs: 'outv',
+                  outputs: 'subs'
+              });
+              videoMap = '[subs]';
+          } catch (e) {
+              console.error(`[VideoService] Failed to generate/apply subtitles: ${e.message}`);
+          }
+      }
+
       command
         .complexFilter(complexFilter)
         .outputOptions([
-          '-map [outv]',
-          `-map ${imageFiles.length}:a`,
+          `-map ${videoMap}`,
+          `-map ${audioMap}`,
           '-c:v libx264',
           '-pix_fmt yuv420p',
           '-shortest',
@@ -145,14 +274,16 @@ export class VideoService {
         ])
         .output(outputPath)
         .on('start', (commandLine) => {
-          console.log('Spawned FFmpeg with Ken Burns effect: ' + commandLine);
+          console.log('Spawned FFmpeg with effects: ' + commandLine);
         })
         .on('error', (err) => {
           console.error('An error occurred: ' + err.message);
+          if (srtPath && fs.existsSync(srtPath)) fs.unlinkSync(srtPath);
           reject(err);
         })
         .on('end', () => {
           console.log('Processing finished !');
+          if (srtPath && fs.existsSync(srtPath)) fs.unlinkSync(srtPath);
           resolve(outputPath);
         })
         .run();

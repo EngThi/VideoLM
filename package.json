@@ -4,11 +4,11 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"vite\" \"npm run server:dev\"",
+    "dev": "concurrently \"PORT=5173 vite\" \"npm run server:dev\"",
     "build": "npm run server:build && vite build",
     "preview": "vite preview",
     "server:install": "cd server && npm install",
-    "server:dev": "cd server && npm run dev",
+    "server:dev": "cd server && PORT=3000 npm run dev",
     "server:build": "cd server && npm run build",
     "server:start": "cd server && npm run start:prod",
     "postinstall": "npm run server:install"

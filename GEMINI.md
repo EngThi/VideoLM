@@ -39,3 +39,17 @@
 ## 📝 Comandos
 - **Gravar:** `~/devlog.sh`
 - **Dev:** `npm run dev` (Front) / `npm run start:dev` (Back)
+
+## 🏆 DIRETRIZES DE CONCURSO & POSTURA (CRÍTICO)
+
+### 1. 📸 Coleta de Evidências (DevLog)
+**Sempre que completarmos uma tarefa funcional ou visual:**
+- **Exija Provas:** Me lembre explicitamente: *"Tire um print agora do [Recurso]"* ou *"Grave um clipe de 10s mostrando isso funcionando"*.
+- **Contexto:** Isso é vital para o vídeo final do Hackathon. Sem provas, não há prêmio.
+
+### 2. 👻 "Ghost Mode" (Postura de Trabalho)
+**Ao fornecer código ou soluções:**
+- **Zero Conversa Fiada:** Não diga "Eu fiz isso para você".
+- **Código Pronto:** Entregue blocos de código completos e prontos para copiar/colar.
+- **Narrativa de Autoria:** O texto deve soar técnico e direto. Use frases como *"A implementação no arquivo X fica assim:"*.
+- **Objetivo:** Facilitar que eu copie o código e pareça que estou produzindo muito.

@@ -89,6 +89,7 @@ export class VideoController {
   async assemble(
     @UploadedFiles() files: { audio?: Express.Multer.File[], images?: Express.Multer.File[] },
     @Body('duration') durationStr: string,
+    @Body('script') scriptText: string,
     @Res() res: Response
   ) {
     if (!files.audio || files.audio.length === 0) {
@@ -98,6 +99,8 @@ export class VideoController {
       throw new BadRequestException('Image files are required');
     }
 
+    console.log(`[Assemble] Received ${files.images.length} images and 1 audio file. Subtitles: ${!!scriptText}`);
+
     const audioFile = files.audio[0];
     const imageFiles = files.images;
     const duration = durationStr ? parseFloat(durationStr) : undefined;
@@ -105,7 +108,7 @@ export class VideoController {
     const filesToDelete: string[] = [audioFile.path, ...imageFiles.map(f => f.path)];
 
     try {
-      const videoPath = await this.videoService.assembleVideo(audioFile, imageFiles, duration);
+      const videoPath = await this.videoService.assembleVideo(audioFile, imageFiles, duration, scriptText);
       filesToDelete.push(videoPath);
 
       res.download(videoPath, 'output.mp4', (err) => {
