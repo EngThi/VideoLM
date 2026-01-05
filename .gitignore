@@ -49,6 +49,7 @@ FLAVORTOWN_GUIDE.md
 coisas.txt
 
 # Media & Temporary Assets (CRITICAL)
+public/temp_assets/
 devlogs/
 debug_frames/
 temp_test_assets/
