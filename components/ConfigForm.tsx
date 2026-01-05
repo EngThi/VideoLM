@@ -30,7 +30,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
   const [config, setConfig] = useState<VideoConfig>({
     topic: 'mistérios brasileiros',
     quality: '4K',
-    duration: 480,
+    duration: 60,
     style: 'cinematic',
     upload: true,
     seoOptimize: true,
