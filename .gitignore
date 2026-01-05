@@ -29,34 +29,39 @@ desktop.ini
 *.log
 logs/
 .eslintcache
-.turbo/# Logs
-logs
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.turbo/
 pnpm-debug.log*
 lerna-debug.log*
-
-node_modules
-dist
 dist-ssr
 *.local
 
 # Editor directories and files
-.vscode/*
 !.vscode/extensions.json
-.idea
-.DS_Store
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
-*.sw?
+
+# Project specific documentation & guides (Keep local)
 GEMINI.md
-# Project specific ignores
-devlogs/
-*.zip
-.gitignore_project
-project_root
+API_ROTATION_GUIDE.md
+FLAVORTOWN_GUIDE.md
 coisas.txt
+
+# Media & Temporary Assets (CRITICAL)
+devlogs/
+debug_frames/
+temp_test_assets/
+final_debug_video.mp4
+final_test_video_2.mp4
+*.mp4
+*.zip
+*.wav
+*.png
+*.jpg
+*.jpeg
+*.srt
+
+# Backups
+*.backup
+*.backup.*

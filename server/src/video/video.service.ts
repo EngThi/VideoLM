@@ -291,7 +291,12 @@ export class VideoService {
         .on('end', () => {
           console.log('Processing finished !');
           if (srtPath && fs.existsSync(srtPath)) fs.unlinkSync(srtPath);
-          resolve(outputPath);
+          
+          if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
+              resolve(outputPath);
+          } else {
+              reject(new Error(`FFmpeg finished but output file is missing or empty: ${outputPath}`));
+          }
         })
         .run();
     });
