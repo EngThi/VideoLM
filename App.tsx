@@ -255,7 +255,7 @@ const App: React.FC = () => {
 
                 // --- OPTIMIZATION START: BATCH PROCESSING ---
                 const newImages: GeneratedImage[] = [];
-                const BATCH_SIZE = 3; // Process 3 images at a time
+                const BATCH_SIZE = 5; // Process 5 images at a time (Aggressive Parallelism)
                 
                 for (let i = 0; i < prompts.length; i += BATCH_SIZE) {
                     const batchPrompts = prompts.slice(i, i + BATCH_SIZE);
