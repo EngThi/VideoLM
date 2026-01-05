@@ -149,16 +149,35 @@ async function generateImageGemini(prompt: string, options?: ImageOptions): Prom
   return null;
 }
 
+
+async function fetchWithTimeout(resource: string, options: RequestInit = {}): Promise<Response> {
+  const { timeout = 25000 } = options as any;
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+      const response = await fetch(resource, {
+        ...options,
+        signal: controller.signal
+      });
+      clearTimeout(id);
+      return response;
+  } catch (error) {
+      clearTimeout(id);
+      throw error;
+  }
+}
+
 // 2️⃣ POLLINATIONS
 async function generateImagePollinations(prompt: string, options?: ImageOptions): Promise<string | null> {
   logger.info('Attempting: Pollinations.AI')
   try {
     const width = options?.width || 1024;
     const height = options?.height || 1024;
-    const model = options?.model || 'flux'; // Default to flux as requested
+    const model = options?.model || 'flux'; 
 
     const url = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&model=${model}`
-    const response = await fetch(url)
+    const response = await fetchWithTimeout(url)
 
     if (!response.ok) throw new Error(`HTTP ${response.status}`)
 
@@ -169,7 +188,7 @@ async function generateImagePollinations(prompt: string, options?: ImageOptions)
     logger.success(`Pollinations (${model}): Image generated`)
     return objectUrl
   } catch (error) {
-    logger.error('Pollinations failed', error)
+    logger.error('Pollinations failed or timed out', error)
     return null
   }
 }
@@ -189,7 +208,7 @@ async function generateImageHuggingFace(prompt: string, options?: ImageOptions):
             return null
         }
 
-        const response = await fetch(
+        const response = await fetchWithTimeout(
         'https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0',
         {
             headers: { Authorization: `Bearer ${hfToken}` },
@@ -237,7 +256,7 @@ async function generateImageStableDiffusion(prompt: string, options?: ImageOptio
             return null
         }
 
-        const response = await fetch('https://stablediffusionapi.com/api/v3/text2img', {
+        const response = await fetchWithTimeout('https://stablediffusionapi.com/api/v3/text2img', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -298,7 +317,7 @@ async function generateImageReplicate(prompt: string, options?: ImageOptions): P
 
         // Note: Calling Replicate directly from browser might fail due to CORS unless using a proxy
         // but we will implement it as requested.
-        const response = await fetch('https://api.replicate.com/v1/predictions', {
+        const response = await fetchWithTimeout('https://api.replicate.com/v1/predictions', {
         method: 'POST',
         headers: {
             'Authorization': `Token ${replicateToken}`,
