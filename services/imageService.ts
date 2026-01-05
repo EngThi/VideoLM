@@ -151,7 +151,7 @@ async function generateImageGemini(prompt: string, options?: ImageOptions): Prom
 
 
 async function fetchWithTimeout(resource: string, options: RequestInit = {}): Promise<Response> {
-  const { timeout = 25000 } = options as any;
+  const { timeout = 120000 } = options as any; // 2 minutes default (High Quality takes time)
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
   
