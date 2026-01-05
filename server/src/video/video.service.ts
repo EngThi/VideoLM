@@ -107,16 +107,23 @@ export class VideoService {
 
     console.log(`[VideoService] Final configuration: Duration=${totalDuration}s, Images=${imageFiles.length}, Per Image=${imageDuration}s`);
     imageFiles.forEach((f, idx) => console.log(`  - Image ${idx}: ${f.originalname} (${f.size} bytes)`));
+    
+    if (imageFiles.length > 1 && imageDuration < 0.5) {
+        console.warn(`[VideoService] ⚠️ WARNING: Image duration is extremely short (${imageDuration}s). Video might look glitchy.`);
+    }
 
     return new Promise((resolve, reject) => {
       // 3. Build FFmpeg command
       let command = ffmpeg();
       const complexFilter = [];
       const videoOutputs = [];
-
+      
+      console.log(`[VideoService] Building FFmpeg filter graph for ${imageFiles.length} images...`);
 
       // Add image inputs
-      imageFiles.forEach((img) => {
+      imageFiles.forEach((img, idx) => {
+        // Log input addition
+        // console.log(`  Adding input ${idx}: ${img.path}`);
         command = command.input(img.path).inputOptions(['-loop 1', '-framerate 30', `-t ${imageDuration}`]);
       });
 

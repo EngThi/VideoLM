@@ -242,7 +242,7 @@ const App: React.FC = () => {
                      if (!audioUrl || !images || images.length === 0) {
                         addLog("⚠️ Missing local assets for assembly, but marking stage complete.");
                      } else {
-                        addLog('🎞️ Initializing FFmpeg engine with local assets...');
+                        addLog(`🎞️ Initializing FFmpeg engine with ${images.length} images and audio (${audioDur}s)...`);
                         const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur, scriptResult?.scriptText);
 
                         setVideoResult(prev => ({
