@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"PORT=5173 vite\" \"npm run server:dev\"",
+    "dev": "concurrently \"vite --port ${PORT:-5173} --host\" \"npm run server:dev\"",
     "build": "npm run server:build && vite build",
     "preview": "vite preview",
     "server:install": "cd server && npm install",
