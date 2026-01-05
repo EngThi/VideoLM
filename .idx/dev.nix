@@ -41,7 +41,7 @@
           # Command to run the dev server. 
           # We use the standard npm run dev. 
           # The PORT env var is automatically set by IDX and passed to the command.
-          command = ["npm" "run" "dev" "--" "--port" "$PORT" "--host" "0.0.0.0"];
+          command = ["npm" "run" "dev"];
           manager = "web";
           env = {
             # Default to 5173 if not set, but IDX usually sets $PORT
