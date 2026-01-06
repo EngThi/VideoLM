@@ -9,7 +9,8 @@ async function bootstrap() {
   app.enableCors();
 
   const port = process.env.PORT || 3000;
-  await app.listen(port);
+  const server = await app.listen(port);
+  server.setTimeout(300000); // 5 minutes timeout
   console.log(`Application is running on: ${await app.getUrl()}`);
 }
 bootstrap();

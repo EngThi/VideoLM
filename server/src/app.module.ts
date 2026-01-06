@@ -1,6 +1,8 @@
-
 import { Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigModule } from '@nestjs/config';
 import { ServeStaticModule } from '@nestjs/serve-static';
+import { ProjectsModule } from './projects/projects.module';
 import { VideoModule } from './video/video.module';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -9,9 +11,6 @@ import * as fs from 'fs';
 const dockerClientPath = path.join(__dirname, '../../client/dist');
 const localClientPath = path.join(__dirname, '../../dist');
 
-// We need to pass a valid rootPath to ServeStaticModule.
-// If neither exists (e.g. during simple server build without frontend), we might need a dummy or conditional.
-// However, `rootPath` is required. We can default to localClientPath.
 let rootPath = localClientPath;
 if (fs.existsSync(dockerClientPath)) {
   rootPath = dockerClientPath;
@@ -19,12 +18,23 @@ if (fs.existsSync(dockerClientPath)) {
 
 @Module({
   imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath: '.env.local',
+    }),
+    TypeOrmModule.forRoot({
+      type: 'sqlite',
+      database: 'homes.db',
+      entities: ['dist/**/*.entity{.ts,.js}'],
+      synchronize: true, // Auto-create tables (Dev only)
+    }),
+    ProjectsModule,
     VideoModule,
     ServeStaticModule.forRoot({
       rootPath: rootPath,
-      exclude: ['/api/(.*)'], // Exclude API routes from static serving
+      exclude: ['/api/(.*)'],
       serveStaticOptions: {
-         fallthrough: true // If file not found, fall through (useful for SPA routing if we had a catch-all)
+         fallthrough: true
       }
     }),
   ],

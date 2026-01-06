@@ -71,6 +71,7 @@ export class VideoController {
   @UseInterceptors(FileFieldsInterceptor([
     { name: 'audio', maxCount: 1 },
     { name: 'images' },
+    { name: 'bgMusic', maxCount: 1 }
   ], {
     storage: diskStorage({
       destination: (req, file, cb) => {
@@ -87,7 +88,7 @@ export class VideoController {
     })
   }))
   async assemble(
-    @UploadedFiles() files: { audio?: Express.Multer.File[], images?: Express.Multer.File[] },
+    @UploadedFiles() files: { audio?: Express.Multer.File[], images?: Express.Multer.File[], bgMusic?: Express.Multer.File[] },
     @Body('duration') durationStr: string,
     @Body('script') scriptText: string,
     @Res() res: Response
@@ -103,12 +104,14 @@ export class VideoController {
 
     const audioFile = files.audio[0];
     const imageFiles = files.images;
+    const bgMusicFile = files.bgMusic ? files.bgMusic[0] : undefined;
     const duration = durationStr ? parseFloat(durationStr) : undefined;
 
     const filesToDelete: string[] = [audioFile.path, ...imageFiles.map(f => f.path)];
+    if (bgMusicFile) filesToDelete.push(bgMusicFile.path);
 
     try {
-      const videoPath = await this.videoService.assembleVideo(audioFile, imageFiles, duration, scriptText);
+      const videoPath = await this.videoService.assembleVideo(audioFile, imageFiles, duration, scriptText, bgMusicFile);
       filesToDelete.push(videoPath);
 
       res.download(videoPath, 'output.mp4', (err) => {
