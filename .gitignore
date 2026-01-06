@@ -65,4 +65,11 @@ final_test_video_2.mp4
 
 # Backups
 *.backup
-*.backup.*
+*.backup.*PROJECT_TOUR.js
+
+# Activity Generator
+ghost_coder.cjs
+sandbox.ts
+temp_utils.js
+App.backup.tsx
+ghost.log
