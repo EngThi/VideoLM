@@ -103,11 +103,20 @@ const App: React.FC = () => {
     if (isLoading || isGenerating) return;
 
     resetState();
-    setConfig(newConfig);
+    
+    // Handle Background Music URL creation
+    let processedConfig = { ...newConfig };
+    if (newConfig.bgMusicFile) {
+        const bgMusicUrl = URL.createObjectURL(newConfig.bgMusicFile);
+        processedConfig.bgMusicUrl = bgMusicUrl;
+        addLog(`🎵 Background music loaded: ${newConfig.bgMusicFile.name}`);
+    }
+
+    setConfig(processedConfig);
     setIsLoading(true);
     addLog('🚀 Pipeline initiated. Configuration received.');
 
-    if (newConfig.useLocalAssets) {
+    if (processedConfig.useLocalAssets) {
         addLog('🛠️ Dev Mode Active: Skipping idea generation.');
         setSelectedIdea({ title: newConfig.topic || "Local Project", outline: "Generated from local assets" });
         setIsGenerating(true);
@@ -314,6 +323,7 @@ const App: React.FC = () => {
                 const audioUrl = generatedAudioUrlRef.current;
                 const images = generatedImagesRef.current;
                 const audioDur = generatedAudioDurationRef.current;
+                const bgMusicUrl = config.bgMusicUrl;
 
                 if (!audioUrl || !images || images.length === 0) {
                     addLog(`⚠️ Skipping video assembly: Missing assets.`);
@@ -325,8 +335,14 @@ const App: React.FC = () => {
                          script: scriptResult ?? undefined,
                      });
                 } else {
-                    addLog('🎞️ Initializing FFmpeg engine...');
-                    const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur, scriptResult?.scriptText);
+                    addLog(`🎞️ Initializing FFmpeg engine... ${bgMusicUrl ? '(with BGM)' : ''}`);
+                    const videoUrl = await ffmpegService.assembleVideo(
+                        audioUrl, 
+                        images, 
+                        audioDur, 
+                        scriptResult?.scriptText,
+                        bgMusicUrl
+                    );
 
                     setVideoResult(prev => ({
                         success: true,

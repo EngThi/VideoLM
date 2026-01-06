@@ -1,8 +1,14 @@
 
 export type Quality = '4K' | '1080p_premium' | '1080p_fast';
 export type Style = 'cinematic' | 'documentary' | 'vlog' | 'minimalist';
-// Updated to match actual Gemini Voice names including extended list
-export type VoiceProvider = 'Puck' | 'Kore' | 'Fenrir' | 'Charon' | 'Aoede' | 'Zephyr' | 'Lore' | 'Orion' | 'Pegasus' | 'Vega';
+// Updated to match actual Gemini Voice names from the error message
+export type VoiceProvider = 
+  | 'puck' | 'kore' | 'fenrir' | 'charon' | 'aoede' | 'zephyr' 
+  | 'orus' | 'achernar' | 'alnilam' | 'gacrux' | 'achird' | 'algenib' 
+  | 'algieba' | 'autonoe' | 'callirrhoe' | 'despina' | 'enceladus' 
+  | 'erinome' | 'iapetus' | 'laomedeia' | 'leda' | 'pulcherrima' 
+  | 'rasalgethi' | 'sadachbia' | 'sadaltager' | 'schedar' | 'sulafat' 
+  | 'umbriel' | 'vindemiatrix' | 'zubenelgenubi';
 export type ThumbnailStyle = 'dramatic' | 'clean' | 'vibrant' | 'meme';
 
 export interface VideoConfig {
@@ -20,6 +26,8 @@ export interface VideoConfig {
   localScript?: string;
   localAudioUrl?: string;
   localImages?: GeneratedImage[];
+  bgMusicFile?: File | null;
+  bgMusicUrl?: string;
 }
 
 export type StageStatus = 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED';

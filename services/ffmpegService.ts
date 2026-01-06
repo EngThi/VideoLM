@@ -7,10 +7,11 @@ class FFmpegService {
     audioUrl: string,
     images: GeneratedImage[],
     totalDuration: number,
-    script?: string
+    script?: string,
+    bgMusicUrl?: string
   ): Promise<string> {
     try {
-        console.log("Starting backend video assembly... Subtitles:", !!script);
+        console.log(`Starting backend video assembly... Subtitles: ${!!script}, BGM: ${!!bgMusicUrl}`);
 
         const formData = new FormData();
 
@@ -27,7 +28,18 @@ class FFmpegService {
             formData.append('script', script);
         }
 
-        // 3. Fetch and append Images
+        // 3. Fetch and append Background Music (if any)
+        if (bgMusicUrl) {
+            try {
+                const bgmResp = await fetch(bgMusicUrl);
+                const bgmBlob = await bgmResp.blob();
+                formData.append('bgMusic', bgmBlob, 'bg_music.mp3');
+            } catch (e) {
+                console.error("Failed to fetch background music, skipping:", e);
+            }
+        }
+
+        // 4. Fetch and append Images
         for (let i = 0; i < images.length; i++) {
             const img = images[i];
             const imgResp = await fetch(img.url);
@@ -35,7 +47,7 @@ class FFmpegService {
             formData.append('images', imgBlob, `image${i}.png`);
         }
 
-        // 4. Send to Backend
+        // 5. Send to Backend
         // Use relative path so it works with proxy (dev) and same-origin (production)
         const response = await fetch('/api/assemble', {
             method: 'POST',
@@ -47,13 +59,13 @@ class FFmpegService {
             throw new Error(`Backend error: ${response.status} ${errorText}`);
         }
 
-        // 4. Get Result
+        // 6. Get Result
         const videoBlob = await response.blob();
         return URL.createObjectURL(videoBlob);
 
     } catch (error) {
         console.error("Video Assembly Error:", error);
-        throw new Error("Failed to assemble video. See console for details.");
+        throw error;
     }
   }
 }

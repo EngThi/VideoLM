@@ -34,7 +34,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
     style: 'cinematic',
     upload: true,
     seoOptimize: true,
-    voice: 'Kore',
+    voice: 'kore',
     thumbnailStyle: 'dramatic',
   });
 
@@ -232,6 +232,19 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                 <select value={config.thumbnailStyle} onChange={e => handleChange('thumbnailStyle', e.target.value)} className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
                 {THUMBNAIL_STYLE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
+        </FormField>
+
+        <FormField label="Background Music (Optional)">
+            <input
+                type="file"
+                accept="audio/*"
+                disabled={!!config.useLocalAssets}
+                onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    handleChange('bgMusicFile', file || null);
+                }}
+                className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            />
         </FormField>
 
         <div className="flex items-center gap-2 mt-4 p-3 bg-gray-700/30 rounded-lg border border-gray-700">
