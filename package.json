@@ -8,7 +8,7 @@
     "build": "npm run server:build && vite build",
     "preview": "vite preview",
     "server:install": "cd server && npm install",
-    "server:dev": "cd server && PORT=3000 npm run dev",
+    "server:dev": "cd server && PORT=3001 npm run dev",
     "server:build": "cd server && npm run build",
     "server:start": "cd server && npm run start:prod",
     "postinstall": "npm run server:install"
@@ -16,9 +16,11 @@
   "dependencies": {
     "@google/genai": "^1.19.0",
     "dom": "^0.0.3",
+    "esbuild": "^0.27.2",
     "jszip": "3.10.1",
     "react": "^19.1.1",
-    "react-dom": "^19.1.1"
+    "react-dom": "^19.1.1",
+    "socket.io-client": "^4.8.3"
   },
   "devDependencies": {
     "@types/node": "^22.19.3",

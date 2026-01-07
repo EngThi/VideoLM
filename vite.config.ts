@@ -26,13 +26,23 @@ export default defineConfig(({ mode }) => {
     return {
       server: {
         port: process.env.PORT ? parseInt(process.env.PORT) : 5173,
+        strictPort: true,
         host: '0.0.0.0',
+        allowedHosts: true, // Allow all hosts for cloud preview
+        hmr: {
+          port: process.env.HMR_PORT ? parseInt(process.env.HMR_PORT) : undefined,
+        },
         proxy: {
             '/api': {
-                target: 'http://localhost:3000',
+                target: 'http://localhost:3001',
                 changeOrigin: true,
-                timeout: 300000, // 5 minutes (for long video generation)
-                proxyTimeout: 300000,
+                timeout: 900000, // 15 minutes
+                proxyTimeout: 900000, // 15 minutes
+            },
+            '/socket.io': {
+                target: 'http://localhost:3001',
+                ws: true,
+                changeOrigin: true
             }
         }
       },

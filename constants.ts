@@ -15,16 +15,16 @@ export const STYLE_OPTIONS: { value: Style; label: string }[] = [
 ];
 
 export const VOICE_PROVIDER_OPTIONS: { value: VoiceProvider; label: string }[] = [
-  { value: 'Puck', label: 'Puck (Male, Assertive)' },
-  { value: 'Kore', label: 'Kore (Female, Calm)' },
-  { value: 'Fenrir', label: 'Fenrir (Male, Deep)' },
-  { value: 'Charon', label: 'Charon (Male, Narrative)' },
-  { value: 'Aoede', label: 'Aoede (Female, Expressive)' },
-  { value: 'Zephyr', label: 'Zephyr (Female, Serene)' },
-  { value: 'Lore', label: 'Lore (Male, Storyteller)' },
-  { value: 'Orion', label: 'Orion (Male, Resonant)' },
-  { value: 'Pegasus', label: 'Pegasus (Male, Engaging)' },
-  { value: 'Vega', label: 'Vega (Female, Bright)' },
+  { value: 'puck', label: 'Puck (Male, Assertive)' },
+  { value: 'kore', label: 'Kore (Female, Calm)' },
+  { value: 'fenrir', label: 'Fenrir (Male, Deep)' },
+  { value: 'charon', label: 'Charon (Male, Narrative)' },
+  { value: 'aoede', label: 'Aoede (Female, Expressive)' },
+  { value: 'zephyr', label: 'Zephyr (Female, Serene)' },
+  { value: 'orus', label: 'Orus (Male, Resonant)' },
+  { value: 'alnilam', label: 'Alnilam (Male, Engaging)' },
+  { value: 'achernar', label: 'Achernar (Male, Storyteller)' },
+  { value: 'gacrux', label: 'Gacrux (Female, Bright)' },
 ];
 
 export const THUMBNAIL_STYLE_OPTIONS: { value: ThumbnailStyle; label: string }[] = [

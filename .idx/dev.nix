@@ -38,14 +38,13 @@
       previews = {
         # The web preview configuration
         web = {
-          # Command to run the dev server. 
-          # We use the standard npm run dev. 
-          # The PORT env var is automatically set by IDX and passed to the command.
+          # Command to run the dev server.
           command = ["npm" "run" "dev"];
           manager = "web";
           env = {
-            # Default to 5173 if not set, but IDX usually sets $PORT
+            # Use the port assigned by IDX
             PORT = "$PORT";
+            HMR_PORT = "$PORT";
           };
         };
       };

@@ -1,6 +1,7 @@
-/// <reference lib="dom" />
-import React, { useRef, useEffect } from 'react';
+
+import React, { useRef, useEffect, useState } from 'react';
 import type { PipelineStage, ScriptResult } from '../types';
+import { io } from 'socket.io-client';
 
 interface StatusDisplayProps {
   stages: PipelineStage[];
@@ -35,6 +36,7 @@ const StatusIcon: React.FC<{ status: PipelineStage['status'] }> = ({ status }) =
 
 export const StatusDisplay: React.FC<StatusDisplayProps> = ({ stages, logs, scriptResult }) => {
     const logContainerRef = useRef<HTMLDivElement>(null);
+    const [progress, setProgress] = useState(0);
 
     useEffect(() => {
         if (logContainerRef.current) {
@@ -42,10 +44,54 @@ export const StatusDisplay: React.FC<StatusDisplayProps> = ({ stages, logs, scri
         }
     }, [logs]);
 
+    useEffect(() => {
+      // Connect to WebSocket only if Video Assembly is in progress
+      const assemblyStage = stages.find(s => s.id === 'VIDEO_ASSEMBLY');
+      
+      if (assemblyStage?.status === 'IN_PROGRESS') {
+          // Connect to current host (proxied by Vite to backend)
+          const socket = io(); 
+
+          socket.on('connect', () => {
+              console.log('Connected to Progress WebSocket');
+              socket.emit('subscribe', 'dev-session');
+          });
+
+          socket.on('progress:dev-session', (data: { progress: number, stage: string }) => {
+              setProgress(data.progress);
+          });
+
+          return () => {
+              socket.disconnect();
+          };
+      } else if (assemblyStage?.status === 'COMPLETED') {
+          setProgress(100);
+      } else {
+          setProgress(0);
+      }
+  }, [stages]);
+
   return (
     <div className="bg-gray-800/50 rounded-2xl shadow-2xl p-6 flex flex-col gap-6">
       <div>
         <h2 className="text-xl font-semibold text-white border-b border-gray-700 pb-3 mb-4">Pipeline Status</h2>
+        
+         {/* Progress Bar (Visible only during assembly or when done) */}
+         {(stages.find(s => s.id === 'VIDEO_ASSEMBLY')?.status === 'IN_PROGRESS' || progress > 0) && (
+          <div className="mb-6 animate-fade-in">
+              <div className="flex justify-between text-xs text-blue-300 mb-1">
+                  <span>Rendering Video (Ken Burns Engine)</span>
+                  <span>{progress}%</span>
+              </div>
+              <div className="w-full bg-gray-700 rounded-full h-2.5 overflow-hidden">
+                  <div 
+                      className="bg-gradient-to-r from-blue-600 to-purple-500 h-2.5 rounded-full transition-all duration-300 ease-out shadow-[0_0_10px_rgba(59,130,246,0.5)]" 
+                      style={{ width: `${progress}%` }}
+                  ></div>
+              </div>
+          </div>
+      )}
+
         <ul className="space-y-3">
           {stages.map((stage) => (
             <li key={stage.id} className="flex items-center justify-between text-sm">

@@ -404,7 +404,7 @@ export const generateVeoVideo = async (promptText: string): Promise<string> => {
     });
 }
 
-export const generateNarration = async (text: string, voiceName: string = 'Kore'): Promise<{url: string, duration: number}> => {
+export const generateNarration = async (text: string, voiceName: string = 'kore'): Promise<{url: string, duration: number}> => {
     return withGeminiRetry(async (ai) => {
         try {
             // 1. Chunk the text to handle long scripts

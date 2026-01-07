@@ -1,304 +1,291 @@
 
-import { Injectable } from '@nestjs/common';
-import * as ffmpeg from 'fluent-ffmpeg';
+import { Injectable, BadRequestException } from '@nestjs/common';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as ffmpeg from 'fluent-ffmpeg';
+import { PassThrough } from 'stream';
+import { ProjectsService } from '../projects/projects.service';
+import { VideoGateway } from './video.gateway';
 
-// Set ffmpeg path
-let ffmpegPath = process.env.FFMPEG_PATH;
-if (ffmpegPath) {
-    ffmpeg.setFfmpegPath(ffmpegPath);
-} else {
-    try {
-        // eslint-disable-next-line @typescript-eslint/no-var-requires
-        const ffmpegInstaller = require('@ffmpeg-installer/ffmpeg');
-        ffmpegPath = ffmpegInstaller.path;
-        ffmpeg.setFfmpegPath(ffmpegPath);
-    } catch (e) {
-        console.warn("Could not load @ffmpeg-installer/ffmpeg, assuming native ffmpeg is available in PATH.");
-        ffmpegPath = 'ffmpeg';
-    }
-}
-// Attempt to set ffprobe path (assuming system install in this environment)
-try {
-    ffmpeg.setFfprobePath('ffprobe');
-} catch (e) {
-    console.warn("Could not set ffprobe path.");
-}
-
-console.log(`[VideoService] Using FFmpeg path: ${ffmpegPath}`);
+const execAsync = promisify(exec);
 
 @Injectable()
 export class VideoService {
-  private generateSrt(text: string, totalDuration: number): string {
-    const words = text.split(/\s+/);
-    const wordsPerSrt = 5; // Group 5 words per subtitle entry
-    const groups = [];
+  private enginesPath = process.env.HOMES_ENGINE_PATH || '/path/to/HOMES-Engine';
+
+  constructor(
+    private projectsService: ProjectsService,
+    private videoGateway: VideoGateway
+  ) {}
+
+  private generateSrt(script: string, totalDuration: number): string {
+    const lines = script.split(/[.!?]+(?=\s|$)/).filter(l => l.trim().length > 0);
+    const durationPerLine = totalDuration / lines.length;
     
-    for (let i = 0; i < words.length; i += wordsPerSrt) {
-        groups.push(words.slice(i, i + wordsPerSrt).join(' '));
-    }
-
-    const durationPerGroup = totalDuration / groups.length;
     let srtContent = '';
+    
+    lines.forEach((line, i) => {
+      const start = i * durationPerLine;
+      const end = (i + 1) * durationPerLine;
+      
+      const formatTime = (seconds: number) => {
+        const date = new Date(0);
+        date.setSeconds(seconds);
+        const ms = Math.floor((seconds % 1) * 1000);
+        return date.toISOString().substr(11, 8) + ',' + ms.toString().padStart(3, '0');
+      };
 
-    groups.forEach((group, index) => {
-        const start = index * durationPerGroup;
-        const end = (index + 1) * durationPerGroup;
-
-        const formatTime = (seconds: number) => {
-            const date = new Date(0);
-            date.setSeconds(seconds);
-            const ms = Math.floor((seconds % 1) * 1000);
-            return date.toISOString().substr(11, 8) + ',' + ms.toString().padStart(3, '0');
-        };
-
-        srtContent += `${index + 1}\n`;
-        srtContent += `${formatTime(start)} --> ${formatTime(end)}\n`;
-        srtContent += `${group}\n\n`;
+      srtContent += `${i + 1}\n`;
+      srtContent += `${formatTime(start)} --> ${formatTime(end)}\n`;
+      srtContent += `${line.trim()}\n\n`;
     });
 
     return srtContent;
   }
 
-  async assembleVideo(audioFile: Express.Multer.File, imageFiles: Express.Multer.File[], duration?: number, scriptText?: string, bgMusicFile?: Express.Multer.File): Promise<string> {
-    console.log(`[VideoService] Starting assembly with ${imageFiles.length} images, audio: ${audioFile.path}, BG Music: ${!!bgMusicFile}`);
-    
-    const tempDir = path.dirname(audioFile.path);
-    const outputFilename = `output-${Date.now()}.mp4`;
-    const outputPath = path.join(tempDir, outputFilename);
-    let srtPath: string | null = null;
-    let finalAudioInput = audioFile.path;
+  async assembleVideo(
+    audioFile: Express.Multer.File,
+    imageFiles: Express.Multer.File[],
+    totalDuration: number,
+    script?: string,
+    bgMusicFile?: Express.Multer.File,
+  ): Promise<PassThrough> {
+    const tempDir = path.join(process.cwd(), 'temp', `assemble_${Date.now()}`);
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
 
-    // ... (rest of duration detection)
-    // Prefer actual audio duration to ensure images are distributed evenly over the audio.
-    let totalDuration = duration || 30;
-    
     try {
-        const metadata = await new Promise<ffmpeg.FfprobeData>((resolve, reject) => {
-            ffmpeg.ffprobe(audioFile.path, (err, data) => {
-                if (err) reject(err);
-                else resolve(data);
-            });
-        });
-        if (metadata.format && metadata.format.duration) {
-            totalDuration = metadata.format.duration;
-            console.log(`[VideoService] Probed audio duration: ${totalDuration}s (Overriding provided: ${duration})`);
-        }
-    } catch (e) {
-        console.warn(`[VideoService] Failed to probe audio duration: ${e.message}.`);
-        
-        // Intelligent Fallback:
-        // If probing failed, and we have a "suspiciously default" long duration (like 480s) 
-        // with a small number of images, it's likely a config error (Dev Mode bug).
-        // We revert to a safe estimate: ~5-10 seconds per image.
-        if (totalDuration > 300 && imageFiles.length < 20) {
-            const safeDuration = imageFiles.length * 5; // 5 seconds per image
-            console.warn(`[VideoService] Suspicious duration (${totalDuration}s) with low image count. Fallback to safe estimate: ${safeDuration}s`);
-            totalDuration = safeDuration;
-        } else {
-             console.warn(`[VideoService] Using provided/default duration: ${totalDuration}s`);
-        }
-    }
+      const audioPath = path.join(tempDir, 'audio.wav');
+      fs.writeFileSync(audioPath, audioFile.buffer);
 
-    // 2. Calculate duration per image
-    const imageDuration = totalDuration / imageFiles.length;
-    const fps = 30;
-
-    console.log(`[VideoService] Final configuration: Duration=${totalDuration}s, Images=${imageFiles.length}, Per Image=${imageDuration}s`);
-    imageFiles.forEach((f, idx) => console.log(`  - Image ${idx}: ${f.originalname} (${f.size} bytes)`));
-    
-    if (imageFiles.length > 1 && imageDuration < 0.5) {
-        console.warn(`[VideoService] ⚠️ WARNING: Image duration is extremely short (${imageDuration}s). Video might look glitchy.`);
-    }
-
-    return new Promise((resolve, reject) => {
-      // 3. Build FFmpeg command
-      let command = ffmpeg();
-      const complexFilter = [];
-      const videoOutputs = [];
-      
-      console.log(`[VideoService] Building FFmpeg filter graph for ${imageFiles.length} images...`);
-
-      // Add image inputs
-      imageFiles.forEach((img, idx) => {
-        // Log input addition
-        // console.log(`  Adding input ${idx}: ${img.path}`);
-        command = command.input(img.path).inputOptions(['-loop 1', '-framerate 30', `-t ${imageDuration}`]);
-      });
-
-      // Add audio input
-      command = command.input(audioFile.path);
-      
-      const narrationIdx = imageFiles.length;
-      let audioMap = `${narrationIdx}:a`;
-
-      if (bgMusicFile) {
-          command = command.input(bgMusicFile.path);
-          const bgMusicIdx = imageFiles.length + 1;
-          
-          // Mix narration and background music
-          // Narration (volume=1.0), BG Music (volume=0.2)
-          complexFilter.push({
-              filter: 'volume',
-              options: '1.0',
-              inputs: `${narrationIdx}:a`,
-              outputs: 'voice'
-          });
-          complexFilter.push({
-              filter: 'volume',
-              options: '0.15', // Lower background music volume
-              inputs: `${bgMusicIdx}:a`,
-              outputs: 'bgm'
-          });
-          complexFilter.push({
-              filter: 'amix',
-              options: { inputs: 2, duration: 'first' },
-              inputs: ['voice', 'bgm'],
-              outputs: 'mixed_audio'
-          });
-          audioMap = '[mixed_audio]';
+      let srtPath: string | undefined;
+      if (script) {
+          srtPath = path.join(tempDir, 'subtitles.srt');
+          const srtContent = this.generateSrt(script, totalDuration);
+          fs.writeFileSync(srtPath, srtContent, 'utf-8');
       }
 
-      // 3. Create complex filter for Ken Burns effect
+      let bgMusicPath: string | undefined;
+      if (bgMusicFile) {
+        bgMusicPath = path.join(tempDir, 'bg_music.mp3');
+        fs.writeFileSync(bgMusicPath, bgMusicFile.buffer);
+      }
 
-      imageFiles.forEach((_, i) => {
-        const inputLabel = `${i}:v`;
-        const scaledLabel = `scaled${i}`;
-        const croppedLabel = `cropped${i}`;
-        const zoomRawLabel = `z${i}_raw`; // Intermediate label
-        const zoomLabel = `z${i}`; // Final normalized label
-        videoOutputs.push(zoomLabel);
-
-        const frames = Math.ceil(imageDuration * fps);
-        const isZoomIn = i % 2 === 0;
-        const zoomExpr = isZoomIn ? 'min(zoom+0.0015,1.5)' : 'max(1.5-0.0015*on,1.0)';
-
-        // Scale
-        complexFilter.push({
-          filter: 'scale',
-          options: '1280:720:force_original_aspect_ratio=increase',
-          inputs: inputLabel,
-          outputs: scaledLabel
-        });
-
-        // Crop
-        complexFilter.push({
-          filter: 'crop',
-          options: '1280:720',
-          inputs: scaledLabel,
-          outputs: croppedLabel
-        });
-
-        // ZoomPan
-        complexFilter.push({
-          filter: 'zoompan',
-          options: {
-            z: zoomExpr,
-            d: frames,
-            s: '1280x720',
-            x: 'iw/2-(iw/zoom/2)',
-            y: 'ih/2-(ih/zoom/2)',
-            fps: fps
-          },
-          inputs: croppedLabel,
-          outputs: zoomRawLabel
-        });
-
-        // Normalize SAR and Pixel Format before Concat
-        // This prevents "Error reinitializing filters" if inputs differ
-        complexFilter.push({
-            filter: 'setsar',
-            options: '1',
-            inputs: zoomRawLabel,
-            outputs: `${zoomRawLabel}_sar`
-        });
-
-        // Reset PTS to ensure concat works correctly
-        complexFilter.push({
-            filter: 'setpts',
-            options: 'PTS-STARTPTS',
-            inputs: `${zoomRawLabel}_sar`,
-            outputs: `${zoomRawLabel}_pts`
-        });
-
-        complexFilter.push({
-            filter: 'format',
-            options: 'yuv420p',
-            inputs: `${zoomRawLabel}_pts`,
-            outputs: zoomLabel
-        });
+      const imagePaths: string[] = [];
+      imageFiles.forEach((file, i) => {
+        const imgPath = path.join(tempDir, `img_${i}.png`);
+        fs.writeFileSync(imgPath, file.buffer);
+        imagePaths.push(imgPath);
       });
 
-      // Concat all images
-      complexFilter.push({
+      const outStream = new PassThrough();
+      const durationPerImage = totalDuration / imagePaths.length;
+      const fps = 25;
+      const totalFrames = Math.ceil(totalDuration * fps);
+
+      let command = ffmpeg();
+
+      // Add image inputs
+      imagePaths.forEach((img) => {
+        command = command
+          .input(img)
+          .inputOptions([`-loop 1`, `-t ${durationPerImage}`]);
+      });
+
+      // Add audio inputs
+      command = command.input(audioPath);
+      if (bgMusicPath) {
+        command = command.input(bgMusicPath);
+      }
+
+      // KEN BURNS ENGINE (Zoom & Pan)
+      const filterComplex: any[] = [];
+      const durationFrames = Math.ceil(durationPerImage * fps);
+      
+      imagePaths.forEach((_, i) => {
+          // Ken Burns Effect Optimized (Safer version):
+          // scale=1280:-2 ensures width is 1280 and height is proportional and even (required by x264)
+          filterComplex.push({
+              filter: 'scale',
+              options: '1280:-2',
+              inputs: `${i}:v`,
+              outputs: `v_scaled${i}`
+          });
+
+          filterComplex.push({
+              filter: 'zoompan',
+              options: {
+                  z: 'min(zoom+0.001,1.3)',
+                  d: durationFrames,
+                  x: 'iw/2-(iw/zoom/2)',
+                  y: 'ih/2-(ih/zoom/2)',
+                  s: '1280x720',
+                  fps: fps
+              },
+              inputs: `v_scaled${i}`,
+              outputs: `v${i}`
+          });
+      });
+
+      // Concatenate processed video segments
+      const concatInputs = imagePaths.map((_, i) => `[v${i}]`).join('');
+      filterComplex.push({
         filter: 'concat',
-        options: {
-          n: imageFiles.length,
-          v: 1,
-          a: 0
-        },
-        inputs: videoOutputs,
-        outputs: 'outv'
+        options: { n: imagePaths.length, v: 1, a: 0 },
+        inputs: concatInputs,
+        outputs: 'vconcat_raw',
       });
 
-      // Handle Subtitles
-      let videoMap = '[outv]';
-      if (scriptText) {
-          try {
-              const srtContent = this.generateSrt(scriptText, totalDuration);
-              srtPath = path.join(tempDir, `subtitles-${Date.now()}.srt`);
-              fs.writeFileSync(srtPath, srtContent);
-              console.log(`[VideoService] Subtitles generated at: ${srtPath}`);
+      // BURN-IN SUBTITLES
+      let finalVideoLabel = 'vconcat_raw';
+      if (srtPath) {
+          const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
+          filterComplex.push({
+              filter: 'subtitles',
+              options: {
+                  filename: escapedSrtPath,
+                  force_style: 'Alignment=2,OutlineColour=&H00000000,BorderStyle=3,Outline=1,Shadow=0,Fontname=Arial,FontSize=24,PrimaryColour=&H0000FFFF,Bold=1'
+              },
+              inputs: 'vconcat_raw',
+              outputs: 'vsubtitled'
+          });
+          finalVideoLabel = 'vsubtitled';
+      }
 
-              // Burn-in subtitles
-              // Note: subtitles filter in ffmpeg needs escaped path on Windows, but on Linux/Docker it's usually fine.
-              // We use a separate filter step for subtitles to keep it clean.
-              complexFilter.push({
-                  filter: 'subtitles',
-                  options: {
-                      filename: srtPath,
-                      force_style: 'Alignment=2,FontSize=24,PrimaryColour=&H00FFFF,OutlineColour=&H000000,BorderStyle=1,Outline=2'
-                  },
-                  inputs: 'outv',
-                  outputs: 'subs'
-              });
-              videoMap = '[subs]';
-          } catch (e) {
-              console.error(`[VideoService] Failed to generate/apply subtitles: ${e.message}`);
-          }
+      // Audio mixing
+      let finalAudioLabel = 'aconcat';
+      if (bgMusicPath) {
+          filterComplex.push({
+              filter: 'volume',
+              options: '0.2',
+              inputs: [`${imagePaths.length + 1}:a`],
+              outputs: 'bgmusic_low'
+          });
+
+          filterComplex.push({
+            filter: 'amix',
+            options: { inputs: 2, duration: 'first' },
+            inputs: [`${imagePaths.length}:a`, 'bgmusic_low'],
+            outputs: 'aconcat',
+          });
+      } else {
+        filterComplex.push({
+            filter: 'anull',
+            inputs: [`${imagePaths.length}:a`],
+            outputs: 'aconcat',
+        });
       }
 
       command
-        .complexFilter(complexFilter)
+        .complexFilter(filterComplex)
         .outputOptions([
-          `-map ${videoMap}`,
-          `-map ${audioMap}`,
+          `-map [${finalVideoLabel}]`,
+          `-map [${finalAudioLabel}]`,
           '-c:v libx264',
+          '-preset superfast',
+          '-threads 0',
           '-pix_fmt yuv420p',
+          '-r 25',
           '-shortest',
-          '-r 30'
+          '-movflags frag_keyframe+empty_moov' // Important for streaming MP4
         ])
-        .output(outputPath)
-        .on('start', (commandLine) => {
-          console.log('Spawned FFmpeg with effects: ' + commandLine);
+        .format('mp4')
+        .on('start', (cmdLine) => {
+            console.log('Spawned Ffmpeg with command: ' + cmdLine);
+            this.videoGateway.broadcastProgress('dev-session', 1, 'started');
         })
-        .on('error', (err) => {
-          console.error('An error occurred: ' + err.message);
-          if (srtPath && fs.existsSync(srtPath)) fs.unlinkSync(srtPath);
-          reject(err);
+        .on('progress', (progress) => {
+            if (progress.frames) {
+                const percent = Math.min(Math.round((progress.frames / totalFrames) * 100), 99);
+                this.videoGateway.broadcastProgress('dev-session', percent, 'rendering');
+            }
         })
-        .on('end', () => {
-          console.log('Processing finished !');
-          if (srtPath && fs.existsSync(srtPath)) fs.unlinkSync(srtPath);
-          
-          if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
-              resolve(outputPath);
-          } else {
-              reject(new Error(`FFmpeg finished but output file is missing or empty: ${outputPath}`));
+        .on('error', (err, stdout, stderr) => {
+          console.error('❌ FFmpeg error:', err.message);
+          console.error('❌ FFmpeg stderr:', stderr);
+          this.videoGateway.broadcastProgress('dev-session', 0, 'error');
+          if (!outStream.destroyed) {
+              outStream.emit('error', err);
+              outStream.end();
           }
         })
-        .run();
-    });
+        .on('end', () => {
+          console.log('✅ FFmpeg finished assembly successfully');
+          this.videoGateway.broadcastProgress('dev-session', 100, 'completed');
+        })
+        .pipe(outStream, { end: true });
+
+      // Basic cleanup after some time
+      setTimeout(() => {
+        try {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        } catch (e) {}
+      }, 600000); // 10 minutes
+
+      return outStream;
+    } catch (error) {
+      console.error('Video assembly setup error:', error);
+      throw error;
+    }
+  }
+
+  async generateVideo(
+    projectId: string,
+    theme: string = 'yellow_punch',
+  ): Promise<{ status: string; videoPath?: string; error?: string }> {
+    try {
+      // Validar projeto
+      const project = await this.projectsService.findOne(projectId);
+      
+      if (!project.script) {
+        throw new BadRequestException('Project has no script');
+      }
+
+      // Atualizar status
+      await this.projectsService.updateStatus(projectId, 'processing');
+
+      // Criar arquivo temporário com script
+      const scriptFile = path.join(this.enginesPath, 'scripts', `${projectId}.txt`);
+      fs.writeFileSync(scriptFile, project.script, 'utf-8');
+
+      // Executar HOMES-Engine
+      const cmd = `cd ${this.enginesPath} && python main.py --script ${scriptFile} --theme ${theme}`;
+      const { stdout, stderr } = await execAsync(cmd, { timeout: 600000 }); // 10 min timeout
+
+      // Parse output (esperado: caminho do vídeo)
+      const videoPath = stdout.trim();
+
+      if (!fs.existsSync(videoPath)) {
+        throw new Error(`Video file not found at ${videoPath}`);
+      }
+
+      // Atualizar status
+      await this.projectsService.updateStatus(projectId, 'done', videoPath);
+
+      return {
+        status: 'done',
+        videoPath,
+      };
+    } catch (error) {
+      const errorMsg = error.message || 'Unknown error';
+      await this.projectsService.updateStatus(projectId, 'error', undefined, errorMsg);
+
+      return {
+        status: 'error',
+        error: errorMsg,
+      };
+    }
+  }
+
+  async getStatus(projectId: string): Promise<any> {
+    const project = await this.projectsService.findOne(projectId);
+    return {
+      status: project.status,
+      videoPath: project.videoPath,
+      error: project.error,
+    };
   }
 }

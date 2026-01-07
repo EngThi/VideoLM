@@ -73,3 +73,7 @@ sandbox.ts
 temp_utils.js
 App.backup.tsx
 ghost.log
+
+# Database files
+*.db
+*.db-journal

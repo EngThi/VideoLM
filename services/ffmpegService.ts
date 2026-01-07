@@ -40,16 +40,19 @@ class FFmpegService {
         }
 
         // 4. Fetch and append Images
+        console.log(`Preparing ${images.length} images for assembly...`);
         for (let i = 0; i < images.length; i++) {
             const img = images[i];
+            console.log(`Fetching asset for scene ${i + 1}/${images.length}...`);
             const imgResp = await fetch(img.url);
             const imgBlob = await imgResp.blob();
             formData.append('images', imgBlob, `image${i}.png`);
         }
 
         // 5. Send to Backend
+        console.log("Sending all assets to backend FFmpeg engine...");
         // Use relative path so it works with proxy (dev) and same-origin (production)
-        const response = await fetch('/api/assemble', {
+        const response = await fetch('/api/video/assemble', {
             method: 'POST',
             body: formData,
         });
