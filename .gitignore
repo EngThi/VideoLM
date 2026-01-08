@@ -72,6 +72,9 @@ ghost_coder.cjs
 sandbox.ts
 temp_utils.js
 App.backup.tsx
+utils.ts
+api_types.ts
+helper_functions.ts
 ghost.log
 
 # Database files

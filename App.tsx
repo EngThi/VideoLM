@@ -11,6 +11,16 @@ import { generateContentIdeas, generateScriptWithGoogleSearch, generateNarration
 import { generateImage } from './services/imageService';
 import { ffmpegService } from './services/ffmpegService';
 
+// Helper to detect real audio duration from URL
+const getAudioDuration = (url: string): Promise<number> => {
+    return new Promise((resolve) => {
+        const audio = new Audio();
+        audio.onloadedmetadata = () => resolve(audio.duration);
+        audio.onerror = () => resolve(30); // Fallback
+        audio.src = url;
+    });
+};
+
 const App: React.FC = () => {
   const [config, setConfig] = useState<VideoConfig | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<ContentIdea | null>(null);
@@ -188,11 +198,13 @@ const App: React.FC = () => {
                      addLog('🛠️ DEV MODE: Loading local audio...');
                      if (config.localAudioUrl) {
                          const audioPath = config.localAudioUrl;
+                         const detectedDur = await getAudioDuration(audioPath);
+                         
                          setGeneratedAudioUrl(audioPath);
                          generatedAudioUrlRef.current = audioPath;
-                         setGeneratedAudioDuration(config.duration || 30);
-                         generatedAudioDurationRef.current = config.duration || 30;
-                         addLog(`✅ Local audio loaded (Assuming ${config.duration || 30}s).`);
+                         setGeneratedAudioDuration(detectedDur);
+                         generatedAudioDurationRef.current = detectedDur;
+                         addLog(`✅ Local audio loaded (${detectedDur.toFixed(1)}s detected).`);
                      } else {
                          addLog('⚠️ No audio found in config. Skipping.');
                      }

@@ -1,15 +1,13 @@
 /**
  * GHOST ACTIVITY - AUTOMATED SESSION
  * File: App.backup.tsx
- * Last Edit: 2026-01-07T21:28:17.369Z
+ * Last Edit: 2026-01-08T19:14:49.478Z
  */
 
-export const LoadingSpinner = () => (
-    <div className="spinner">
-        <div className="bounce1"></div>
-        <div className="bounce2"></div>
-        <div className="bounce3"></div>
-    </div>
+const Header = ({ title }: { title: string }) => (
+    <header className="bg-gray-800 text-white p-4">
+        <h1 className="text-xl font-bold">{title}</h1>
+    </header>
 );
 
 // End of active session block

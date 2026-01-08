@@ -9,6 +9,43 @@ interface ResultViewProps {
   onReset: () => void;
 }
 
+
+// Helper for SRT generation (mirrors backend logic)
+const generateSrt = (script: string, totalDuration: number): string => {
+    // Better splitting: split by sentence terminators but keep them, and respect newlines
+    const rawLines = script.match(/[^.!?\n]+[.!?]+|[^.!?\n]+$/g) || [];
+    const lines = rawLines.map(l => l.trim()).filter(l => l.length > 0);
+    
+    // Calculate total weight (characters)
+    const totalChars = lines.reduce((sum, line) => sum + line.length, 0);
+    
+    let srtContent = '';
+    let currentTime = 0;
+    
+    lines.forEach((line, i) => {
+      // Proportional duration based on character count
+      const weight = line.length / totalChars;
+      const duration = weight * totalDuration;
+      
+      const start = currentTime;
+      const end = currentTime + duration;
+      currentTime = end;
+      
+      const formatTime = (seconds: number) => {
+        const date = new Date(0);
+        date.setSeconds(seconds);
+        const ms = Math.floor((seconds % 1) * 1000);
+        return date.toISOString().substr(11, 8) + ',' + ms.toString().padStart(3, '0');
+      };
+
+      srtContent += `${i + 1}\n`;
+      srtContent += `${formatTime(start)} --> ${formatTime(end)}\n`;
+      srtContent += `${line.trim()}\n\n`;
+    });
+
+    return srtContent;
+};
+
 export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
   const [isZipping, setIsZipping] = useState(false);
 
@@ -21,10 +58,16 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
         const folderName = "video_project_assets";
         const root = zip.folder(folderName);
 
-        // 1. Add Script
+        // 1. Add Script & Subtitles
         if (result.script) {
             root.file("script.txt", result.script.scriptText);
             root.file("sources.json", JSON.stringify(result.script.sources, null, 2));
+            
+            // Generate SRT for the ZIP
+            if (result.audioDuration) {
+                const srtContent = generateSrt(result.script.scriptText, result.audioDuration);
+                root.file("subtitles.srt", srtContent);
+            }
         }
 
         // 2. Add Audio
