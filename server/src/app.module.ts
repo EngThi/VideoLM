@@ -1,4 +1,3 @@
-
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigModule } from '@nestjs/config';
@@ -14,7 +13,7 @@ import { AiModule } from './ai/ai.module';
     }),
     TypeOrmModule.forRoot({
       type: 'sqlite',
-      database: 'homes.db',
+      database: process.env.DATABASE_PATH,
       autoLoadEntities: true,
       synchronize: process.env.NODE_ENV !== 'production',
       logging: process.env.NODE_ENV === 'development',

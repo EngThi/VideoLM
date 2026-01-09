@@ -9,7 +9,11 @@
     pkgs.nodejs_20
     pkgs.python3
     pkgs.ffmpeg
+    pkgs.docker-compose
   ];
+
+  # Enable the Docker daemon
+  services.docker.enable = true;
 
   # Sets environment variables in the workspace
   env = {};
