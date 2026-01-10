@@ -34,13 +34,13 @@ export default defineConfig(({ mode }) => {
         },
         proxy: {
             '/api': {
-                target: 'http://localhost:3001',
+                target: 'http://backend:3000',
                 changeOrigin: true,
                 timeout: 900000, // 15 minutes
                 proxyTimeout: 900000, // 15 minutes
             },
             '/socket.io': {
-                target: 'http://localhost:3001',
+                target: 'http://backend:3000',
                 ws: true,
                 changeOrigin: true
             }
