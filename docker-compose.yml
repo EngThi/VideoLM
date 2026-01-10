@@ -27,16 +27,3 @@ services:
 
 volumes:
   homes_db:
-# [GW] Last check at Fri Jan  9 06:27:28 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:29:19 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:30:09 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:31:29 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:32:09 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:32:19 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:33:09 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:34:00 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:39:12 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:39:32 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:39:52 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:40:02 PM UTC 2026
-# [GW] Last check at Fri Jan  9 06:43:23 PM UTC 2026

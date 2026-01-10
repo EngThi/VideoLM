@@ -16,13 +16,37 @@ exports.VideoController = void 0;
 const common_1 = require("@nestjs/common");
 const platform_express_1 = require("@nestjs/platform-express");
 const video_service_1 = require("./video.service");
+const path = require("path");
+const fs = require("fs");
 let VideoController = class VideoController {
     constructor(videoService) {
         this.videoService = videoService;
     }
+    async getMusicList() {
+        return this.videoService.getMusicList();
+    }
     async assembleVideo(files, body, res) {
         var _a, _b;
-        const videoStream = await this.videoService.assembleVideo((_a = files.audio) === null || _a === void 0 ? void 0 : _a[0], files.images || [], parseFloat(body.duration || '0'), body.script, (_b = files.bgMusic) === null || _b === void 0 ? void 0 : _b[0]);
+        let bgMusicFile = (_a = files.bgMusic) === null || _a === void 0 ? void 0 : _a[0];
+        if (!bgMusicFile && body.bgMusicId) {
+            const musicPath = path.join(process.cwd(), 'data/music', body.bgMusicId);
+            if (fs.existsSync(musicPath)) {
+                const buffer = fs.readFileSync(musicPath);
+                bgMusicFile = {
+                    buffer,
+                    originalname: body.bgMusicId,
+                    mimetype: 'audio/mpeg',
+                    fieldname: 'bgMusic',
+                    encoding: '7bit',
+                    size: buffer.length,
+                    stream: null,
+                    destination: '',
+                    filename: '',
+                    path: ''
+                };
+            }
+        }
+        const videoStream = await this.videoService.assembleVideo((_b = files.audio) === null || _b === void 0 ? void 0 : _b[0], files.images || [], parseFloat(body.duration || '0'), body.script, bgMusicFile);
         res.set({
             'Content-Type': 'video/mp4',
             'Content-Disposition': 'attachment; filename="video.mp4"',
@@ -37,6 +61,12 @@ let VideoController = class VideoController {
     }
 };
 exports.VideoController = VideoController;
+__decorate([
+    (0, common_1.Get)('music'),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], VideoController.prototype, "getMusicList", null);
 __decorate([
     (0, common_1.Post)('assemble'),
     (0, common_1.UseInterceptors)((0, platform_express_1.FileFieldsInterceptor)([

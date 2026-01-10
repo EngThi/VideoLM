@@ -11,7 +11,8 @@
     "server:dev": "cd server && PORT=3001 npm run dev",
     "server:build": "cd server && npm run build",
     "server:start": "cd server && npm run start:prod",
-    "postinstall": "npm run server:install"
+    "postinstall": "npm run server:install",
+    "test": "cd server && npm test"
   },
   "dependencies": {
     "@google/genai": "^1.19.0",

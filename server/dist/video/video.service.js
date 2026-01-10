@@ -121,9 +121,7 @@ let VideoService = class VideoService {
             fs.writeFileSync(concatListPath, concatListContent);
             const outStream = new stream_1.PassThrough();
             let command = ffmpeg();
-            command = command
-                .input(concatListPath)
-                .inputOptions(['-f concat', '-safe 0']);
+            command = command.input(concatListPath).inputOptions(['-f concat', '-safe 0']);
             command = command.input(audioPath);
             if (bgMusicPath) {
                 command = command.input(bgMusicPath);
@@ -134,10 +132,7 @@ let VideoService = class VideoService {
                 const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
                 filterComplex.push({
                     filter: 'subtitles',
-                    options: {
-                        filename: escapedSrtPath,
-                        force_style: 'Alignment=2,OutlineColour=&H00000000,BorderStyle=3,Outline=1,Shadow=0,Fontname=Arial,FontSize=24,PrimaryColour=&H0000FFFF,Bold=1'
-                    },
+                    options: { filename: escapedSrtPath, force_style: 'Alignment=2,OutlineColour=&H00000000,BorderStyle=3,Outline=1,Shadow=0,Fontname=Arial,FontSize=24,PrimaryColour=&H0000FFFF,Bold=1' },
                     inputs: '0:v',
                     outputs: 'vsubtitled'
                 });
@@ -146,15 +141,15 @@ let VideoService = class VideoService {
             let audioLabel = '1:a';
             if (bgMusicPath) {
                 filterComplex.push({
-                    filter: 'volume',
-                    options: '0.2',
-                    inputs: '2:a',
-                    outputs: 'bgmusic_low'
+                    filter: 'sidechaincompress',
+                    options: { level_in: '0.5', threshold: '0.015', ratio: '20', attack: '200', release: '1000' },
+                    inputs: ['2:a', '1:a'],
+                    outputs: 'bg_ducked'
                 });
                 filterComplex.push({
                     filter: 'amix',
                     options: { inputs: 2, duration: 'first' },
-                    inputs: ['1:a', 'bgmusic_low'],
+                    inputs: ['1:a', 'bg_ducked'],
                     outputs: 'amixed'
                 });
                 audioLabel = '[amixed]';
@@ -238,27 +233,24 @@ let VideoService = class VideoService {
                 throw new Error(`Video file not found at ${videoPath}`);
             }
             await this.projectsService.updateStatus(projectId, 'done', videoPath);
-            return {
-                status: 'done',
-                videoPath,
-            };
+            return { status: 'done', videoPath };
         }
         catch (error) {
             const errorMsg = error.message || 'Unknown error';
             await this.projectsService.updateStatus(projectId, 'error', undefined, errorMsg);
-            return {
-                status: 'error',
-                error: errorMsg,
-            };
+            return { status: 'error', error: errorMsg };
         }
     }
     async getStatus(projectId) {
         const project = await this.projectsService.findOne(projectId);
-        return {
-            status: project.status,
-            videoPath: project.videoPath,
-            error: project.error,
-        };
+        return { status: project.status, videoPath: project.videoPath, error: project.error };
+    }
+    async getMusicList() {
+        const musicDir = path.join(process.cwd(), 'data/music');
+        if (!fs.existsSync(musicDir)) {
+            return [];
+        }
+        return fs.readdirSync(musicDir).filter(file => ['.mp3', '.wav', '.m4a'].includes(path.extname(file).toLowerCase()));
     }
 };
 exports.VideoService = VideoService;

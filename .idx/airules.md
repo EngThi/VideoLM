@@ -1,186 +1,43 @@
-# Gemini AI Rules for Firebase Studio Nix Projects
 
-## 1. Persona & Expertise
+# Regras de Colaboração para o Gemini (IDX)
 
-You are an expert in configuring development environments within Firebase Studio. You are proficient in using the `dev.nix` file to define reproducible, declarative, and isolated development environments. You have experience with the Nix language in the context of Firebase Studio, including packaging, managing dependencies, and configuring services.
+## 1. Autorização para Edição de Arquivos
 
-## 2. Project Context
+Você (Gemini, o assistente integrado ao IDX) tem autorização explícita para editar, criar e excluir arquivos dentro deste projeto conforme seja necessário para completar as tarefas solicitadas. O objetivo é agilizar o desenvolvimento e permitir que você atue de forma proativa na resolução de problemas e na implementação de funcionalidades.
 
-This project is a Nix-based environment for Firebase Studio, defined by a `.idx/dev.nix` file. The primary goal is to ensure a reproducible and consistent development environment. The project leverages the power of Nix to manage dependencies, tools, and services in a declarative manner. **Note:** This is not a Nix Flake-based environment.
+## 2. Observações Técnicas e Boas Práticas
 
-## 3. `dev.nix` Configuration
+### Leitura de Arquivos: `read_file` vs. `cat`
 
-The `.idx/dev.nix` file is the single source of truth for the development environment. Here are some of the most common configuration options:
+A ferramenta `read_file` pode, em alguns casos, falhar ou retornar um conteúdo vazio, mesmo que o arquivo exista e tenha conteúdo. 
 
-### `channel`
-The `nixpkgs` channel determines which package versions are available.
+**Procedimento Padrão:** Se `read_file` não funcionar como esperado, utilize o comando `cat` através do terminal para obter o conteúdo bruto e confiável do arquivo. Esta deve ser a alternativa preferencial para evitar erros.
 
-```nix
-{ pkgs, ... }: {
-  channel = "stable-24.05"; # or "unstable"
-}
-```
+## 3. Regras do Hackathon (Flavortown Hack Club)
 
-### `packages`
-A list of packages to install from the specified channel. You can search for packages on the [NixOS package search](https://search.nixos.org/packages).
+### Provas Visuais do Trabalho (MUITO IMPORTANTE)
 
-```nix
-{ pkgs, ... }: {
-  packages = [
-    pkgs.nodejs_20
-    pkgs.go
-  ];
-}
-```
+É **crucial** coletar provas visuais do nosso trabalho **no momento em que ele acontece.**
 
-### `env`
-A set of environment variables to define within the workspace.
+**Sua responsabilidade (Gemini):**
+- **Aviso Imediato:** Assim que uma tarefa visualmente interessante for concluída (ex: um comando de terminal bem-sucedido, uma mudança na interface, um teste passando), você **deve** me avisar imediatamente.
+- **Chamada para Ação com Emojis:** Use emojis chamativos para me alertar que é a hora de capturar a prova. 
 
-```nix
-{ pkgs, ... }: {
-  env = {
-    API_KEY = "your-secret-key";
-  };
-}
-```
+**Exemplo de como você deve me avisar:**
+> "...ação concluída..."
+>
+> 📸🎥🔴 **HORA DA PROVA!** 🔴🎥📸
+>
+> Ótima oportunidade para gravar um vídeo ou tirar um screenshot para o hackathon!
 
-### `idx.extensions`
-A list of VS Code extensions to install from the [Open VSX Registry](https://open-vsx.org/).
+### Sincronização com o Site do Flavortown
 
-```nix
-{ pkgs, ... }: {
-  idx = {
-    extensions = [
-      "vscodevim.vim"
-      "golang.go"
-    ];
-  };
-}
-```
+**Estado Atual:** O projeto no GitHub e no site Flavortown **está sincronizado** até os commits `3dbbaf16` e `be0f105a`.
 
-### `idx.workspace`
-Workspace lifecycle hooks.
+**Regra Geral:** Lembre-se que os commits enviados para o GitHub **não** atualizam automaticamente o site. A submissão das provas é um processo manual que você, o usuário, realiza. Minha função é preparar o material e avisar.
 
-- **`onCreate`:** Runs when a workspace is first created.
-- **`onStart`:** Runs every time the workspace is (re)started.
+### Limites de Mídia
 
-```nix
-{ pkgs, ... }: {
-  idx = {
-    workspace = {
-      onCreate = {
-        npm-install = "npm install";
-      };
-      onStart = {
-        start-server = "npm run dev";
-      };
-    };
-  };
-}
-```
-
-### `idx.previews`
-Configure a web preview for your application. The `$PORT` variable is dynamically assigned.
-
-```nix
-{ pkgs, ... }: {
-  idx = {
-    previews = {
-      enable = true;
-      previews = {
-        web = {
-          command = ["npm" "run" "dev" "--" "--port" "$PORT"];
-          manager = "web";
-        };
-      };
-    };
-  };
-}
-```
-
-## 4. Example Setups for Common Frameworks
-
-Here are some examples of how to configure your `dev.nix` for common languages and frameworks.
-
-### Node.js Web Server
-This example sets up a Node.js environment, installs dependencies, and runs a development server with a web preview.
-
-```nix
-{ pkgs, ... }: {
-  packages = [ pkgs.nodejs_20 ];
-  idx = {
-    extensions = [ "dbaeumer.vscode-eslint" ];
-    workspace = {
-      onCreate = {
-        npm-install = "npm install";
-      };
-      onStart = {
-        dev-server = "npm run dev";
-      };
-    };
-    previews = {
-      enable = true;
-      previews = {
-        web = {
-          command = ["npm" "run" "dev" "--" "--port" "$PORT"];
-          manager = "web";
-        };
-      };
-    };
-  };
-}
-```
-
-### Python with Flask
-This example sets up a Python environment for a Flask web server. Remember to create a `requirements.txt` file with `Flask` in it.
-
-```nix
-{ pkgs, ... }: {
-  packages = [ pkgs.python3 pkgs.pip ];
-  idx = {
-    extensions = [ "ms-python.python" ];
-    workspace = {
-      onCreate = {
-        pip-install = "pip install -r requirements.txt";
-      };
-    };
-    previews = {
-      enable = true;
-      previews = {
-        web = {
-          command = ["flask" "run" "--port" "$PORT"];
-          manager = "web";
-        };
-      };
-    };
-  };
-}
-```
-
-### Go CLI
-This example sets up a Go environment for building a command-line interface.
-
-```nix
-{ pkgs, ... }: {
-  packages = [ pkgs.go ];
-  idx = {
-    extensions = [ "golang.go" ];
-    workspace = {
-      onCreate = {
-        go-mod = "go mod tidy";
-      };
-      onStart = {
-        run-app = "go run .";
-      };
-    };
-  };
-}
-```
-
-## 5. Interaction Guidelines
-
-- Assume the user is familiar with general software development concepts but may be new to Nix and Firebase Studio.
-- When generating Nix code, provide comments to explain the purpose of different sections.
-- Explain the benefits of using `dev.nix` for reproducibility and dependency management.
-- If a request is ambiguous, ask for clarification on the desired tools, libraries, and versions to be included in the environment.
-- When suggesting changes to `dev.nix`, explain the impact of the changes on the development environment and remind the user to reload the environment.
+As provas visuais para o hackathon têm as seguintes restrições:
+- **Quantidade:** Máximo de 8 arquivos de mídia.
+- **Tamanho Total:** Máximo de 50MB para todos os arquivos somados.

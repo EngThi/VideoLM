@@ -3,6 +3,7 @@ import { Response } from 'express';
 export declare class VideoController {
     private videoService;
     constructor(videoService: VideoService);
+    getMusicList(): Promise<string[]>;
     assembleVideo(files: {
         audio?: Express.Multer.File[];
         bgMusic?: Express.Multer.File[];
@@ -10,6 +11,7 @@ export declare class VideoController {
     }, body: {
         duration?: string;
         script?: string;
+        bgMusicId?: string;
     }, res: Response): Promise<void>;
     generateVideo(projectId: string, { theme }: {
         theme?: string;

@@ -16,4 +16,5 @@ export declare class VideoService {
         error?: string;
     }>;
     getStatus(projectId: string): Promise<any>;
+    getMusicList(): Promise<string[]>;
 }
