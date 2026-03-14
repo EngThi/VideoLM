@@ -8,6 +8,7 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
 var __metadata = (this && this.__metadata) || function (k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 };
+var VideoService_1;
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VideoService = void 0;
 const common_1 = require("@nestjs/common");
@@ -20,10 +21,11 @@ const stream_1 = require("stream");
 const projects_service_1 = require("../projects/projects.service");
 const video_gateway_1 = require("./video.gateway");
 const execAsync = (0, util_1.promisify)(child_process_1.exec);
-let VideoService = class VideoService {
+let VideoService = VideoService_1 = class VideoService {
     constructor(projectsService, videoGateway) {
         this.projectsService = projectsService;
         this.videoGateway = videoGateway;
+        this.logger = new common_1.Logger(VideoService_1.name);
         this.enginesPath = process.env.HOMES_ENGINE_PATH || '/path/to/HOMES-Engine';
     }
     generateSrt(script, totalDuration) {
@@ -83,7 +85,7 @@ let VideoService = class VideoService {
             const audioPath = path.join(tempDir, 'audio.wav');
             fs.writeFileSync(audioPath, audioFile.buffer);
             const totalDuration = await this.getAudioDuration(audioPath);
-            console.log(`Audio Duration detected: ${totalDuration}s (Input was: ${inputDuration}s)`);
+            this.logger.log(`Audio Duration detected: ${totalDuration}s (Input was: ${inputDuration}s)`);
             let srtPath;
             if (script) {
                 srtPath = path.join(tempDir, 'subtitles.srt');
@@ -97,7 +99,7 @@ let VideoService = class VideoService {
             }
             const clipPaths = [];
             const durationPerImage = totalDuration / imageFiles.length;
-            console.log(`Rendering ${imageFiles.length} clips...`);
+            this.logger.log(`Rendering ${imageFiles.length} clips...`);
             this.videoGateway.broadcastProgress('dev-session', 5, 'rendering_clips');
             for (let i = 0; i < imageFiles.length; i++) {
                 const file = imageFiles[i];
@@ -176,7 +178,7 @@ let VideoService = class VideoService {
                 .outputOptions(outputOptions)
                 .format('mp4')
                 .on('start', (cmdLine) => {
-                console.log('Spawned Final Assembly Ffmpeg: ' + cmdLine);
+                this.logger.log('Spawned Final Assembly Ffmpeg: ' + cmdLine);
                 this.videoGateway.broadcastProgress('dev-session', 50, 'assembling');
             })
                 .on('progress', (progress) => {
@@ -192,7 +194,7 @@ let VideoService = class VideoService {
                 }
             })
                 .on('end', () => {
-                console.log('✅ Video successfully assembled!');
+                this.logger.log('✅ Video successfully assembled!');
                 this.videoGateway.broadcastProgress('dev-session', 100, 'completed');
             })
                 .pipe(outStream, { end: true });
@@ -254,7 +256,7 @@ let VideoService = class VideoService {
     }
 };
 exports.VideoService = VideoService;
-exports.VideoService = VideoService = __decorate([
+exports.VideoService = VideoService = VideoService_1 = __decorate([
     (0, common_1.Injectable)(),
     __metadata("design:paramtypes", [projects_service_1.ProjectsService,
         video_gateway_1.VideoGateway])

@@ -4,6 +4,7 @@ import { VideoGateway } from './video.gateway';
 export declare class VideoService {
     private projectsService;
     private videoGateway;
+    private readonly logger;
     private enginesPath;
     constructor(projectsService: ProjectsService, videoGateway: VideoGateway);
     private generateSrt;

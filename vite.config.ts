@@ -23,24 +23,29 @@ export default defineConfig(({ mode }) => {
         return keys;
     };
 
+    const isCloud = !!(process.env.CLOUD_WORKSTATIONS_URL || process.env.CODER_URL || process.env.HMR_PORT);
+
     return {
       server: {
         port: process.env.PORT ? parseInt(process.env.PORT) : 5173,
         strictPort: true,
         host: '0.0.0.0',
         allowedHosts: true, // Allow all hosts for cloud preview
-        hmr: {
+        hmr: isCloud ? {
+          protocol: 'wss',
+          clientPort: 443,
+        } : {
           port: process.env.HMR_PORT ? parseInt(process.env.HMR_PORT) : undefined,
         },
         proxy: {
             '/api': {
-                target: 'http://backend:3000',
+                target: 'http://localhost:3001',
                 changeOrigin: true,
                 timeout: 900000, // 15 minutes
                 proxyTimeout: 900000, // 15 minutes
             },
             '/socket.io': {
-                target: 'http://backend:3000',
+                target: 'http://localhost:3001',
                 ws: true,
                 changeOrigin: true
             }

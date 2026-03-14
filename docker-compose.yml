@@ -1,26 +1,16 @@
 version: '3.8'
 
 services:
-  frontend:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8080:5173"
-    environment:
-      - VITE_API_URL=http://localhost:3000
-    depends_on:
-      - backend
-
-  backend:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
+      - "3001:3001" # Frontend will be served from backend on this port
     environment:
       - NODE_ENV=production
       - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY} # Add OpenRouter key
       - DATABASE_PATH=/app/data/homes.db
     volumes:
       - homes_db:/app/data

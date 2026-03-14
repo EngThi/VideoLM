@@ -1,0 +1,40 @@
+name: NestJS CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v3
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+
+    - name: Install Dependencies
+      run: npm install
+
+    - name: Install Server Dependencies
+      run: npm run server:install
+
+    - name: Build Server
+      run: npm run server:build
+
+    - name: Run Tests
+      run: npm run test
+      env:
+        CI: true
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY_STUB }}
+        OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY_STUB }}

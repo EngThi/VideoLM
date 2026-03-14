@@ -2,7 +2,18 @@
 
 > **Automate YouTube video creation from topic to upload.**
 
+[![Build Status](https://github.com/EngThi/ai-video-factory/actions/workflows/ci.yml/badge.svg)](https://github.com/EngThi/ai-video-factory/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+![Node.js Version](https://img.shields.io/badge/node-18%2B-blue.svg)
+
+*<p align="center">[YOUR 20-SECOND DEMO GIF HERE]</p>*
+
 Transform any topic into a polished, ready-to-upload YouTube video automatically. AI generates scripts with real web sources, creates natural narration, designs custom visuals, and assembles the final video—all in minutes.
+
+## ⚠️ Known Issues
+
+- **TTS Requires API Key**: The Text-to-Speech functionality currently relies on the Gemini API, which requires a valid key. Future versions may incorporate a key-free alternative.
+- **FFmpeg Dependency**: Requires FFmpeg to be installed and available in the system's PATH. Future versions may bundle it in the Docker container.
 
 ## ✨ Features
 

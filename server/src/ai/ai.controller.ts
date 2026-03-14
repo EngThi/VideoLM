@@ -1,18 +1,84 @@
 
-import { Controller, Post, Body } from '@nestjs/common';
-import { AiService } from './ai.service';
+import { Controller, Post, Body, Res } from '@nestjs/common';
+import { AiService, ImageOptions } from './ai.service';
+import { VideoService } from '../video/video.service';
+import { Response } from 'express';
 
 @Controller('api/ai')
 export class AiController {
-  constructor(private aiService: AiService) {}
+  constructor(
+    private aiService: AiService,
+    private videoService: VideoService,
+  ) {}
 
   @Post('script')
   generateScript(@Body() { topic }: { topic: string }) {
     return this.aiService.generateScript(topic);
   }
 
+  @Post('ideas')
+  generateIdeas(@Body() { topic }: { topic: string }) {
+    return this.aiService.generateContentIdeas(topic);
+  }
+
   @Post('image-prompts')
   generateImagePrompts(@Body() { script }: { script: string }) {
     return this.aiService.generateImagePrompts(script);
+  }
+
+  @Post('image')
+  async generateImage(@Body() { prompt, options }: { prompt: string; options?: ImageOptions }) {
+    return this.aiService.generateSingleImage(prompt, options);
+  }
+
+  @Post('generate-video')
+  async generateVideo(
+    @Body() { topic }: { topic: string },
+    @Res() res: Response,
+  ) {
+    // 1. Generate Script
+    const script = await this.aiService.generateScript(topic);
+
+    // 2. Generate Image Prompts
+    const imagePrompts = await this.aiService.generateImagePrompts(script);
+
+    // 3. Generate Image URLs
+    const imageUrls = await this.aiService.generateImages(imagePrompts);
+
+    // 4. Generate Audio (TTS)
+    const { audioBuffer, duration } = await this.aiService.generateVoiceover(
+      script,
+    );
+
+    // 5. Download images
+    const imageBuffers = await this.aiService.downloadImages(imageUrls);
+    const imageFiles = imageBuffers.map((buffer, i) => ({
+      buffer,
+      originalname: `image-${i}.jpg`,
+      mimetype: 'image/jpeg',
+    })) as Express.Multer.File[];
+
+
+    // 6. Assemble Video
+    const audioFile = {
+      buffer: audioBuffer,
+      originalname: 'audio.wav',
+      mimetype: 'audio/wav',
+    } as Express.Multer.File;
+    
+    const videoStream = await this.videoService.assembleVideo(
+      audioFile,
+      imageFiles,
+      duration,
+      script,
+      null, // No background music for now
+    );
+
+    // 7. Stream video back to client
+    res.set({
+      'Content-Type': 'video/mp4',
+      'Content-Disposition': 'attachment; filename="video.mp4"',
+    });
+    videoStream.pipe(res);
   }
 }

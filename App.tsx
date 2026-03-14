@@ -274,9 +274,9 @@ const App: React.FC = () => {
                 const prompts = await generateImagePrompts(scriptResult.scriptText, audioDur);
                 addLog(`📝 Generated ${prompts.length} image prompts.`);
 
-                // --- OPTIMIZATION START: BATCH PROCESSING ---
+                // --- OPTIMIZATION START: RESILIENT BATCH PROCESSING ---
                 const newImages: GeneratedImage[] = [];
-                const BATCH_SIZE = 5; // Process 5 images at a time (Aggressive Parallelism)
+                const BATCH_SIZE = 2; // Reduced batch size to avoid rate limiting
                 
                 for (let i = 0; i < prompts.length; i += BATCH_SIZE) {
                     const batchPrompts = prompts.slice(i, i + BATCH_SIZE);
@@ -284,14 +284,20 @@ const App: React.FC = () => {
                     
                     addLog(`🎨 Generating batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(prompts.length/BATCH_SIZE)} (Images ${i+1}-${Math.min(i+BATCH_SIZE, prompts.length)})...`);
                     
-                    // Create promises for the batch
-                    const batchPromises = batchPrompts.map((prompt, relativeIdx) => 
-                        generateImage(prompt).then(result => ({
-                            result,
-                            originalIdx: batchStartIdx + relativeIdx,
-                            prompt
-                        }))
-                    );
+                    // Create promises for the batch with individual retry logic
+                    const batchPromises = batchPrompts.map(async (prompt, relativeIdx) => {
+                        const originalIdx = batchStartIdx + relativeIdx;
+                        let result = await generateImage(prompt);
+                        
+                        // Retry once after a short delay if failed
+                        if (!result.success) {
+                            addLog(`🔄 Retrying image ${originalIdx + 1} after failure...`);
+                            await new Promise(r => setTimeout(r, 2000));
+                            result = await generateImage(prompt);
+                        }
+                        
+                        return { result, originalIdx, prompt };
+                    });
 
                     // Wait for all in batch
                     const batchResults = await Promise.all(batchPromises);
@@ -306,7 +312,8 @@ const App: React.FC = () => {
                             });
                         } else {
                             addLog(`⚠️ Failed to generate image ${originalIdx + 1}. Attempting simple fallback...`);
-                            const fallbackResult = await generateImage(`Cinematic illustration of ${config.topic}`);
+                            // Try a much simpler prompt as last resort
+                            const fallbackResult = await generateImage(`Cinematic high quality 4k background of ${config.topic}`);
                             if (fallbackResult.success && fallbackResult.url) {
                                 newImages.push({
                                     url: fallbackResult.url,
@@ -317,9 +324,9 @@ const App: React.FC = () => {
                         }
                     }
                     
-                    // Optional: Small cooldown between batches to be nice to API
+                    // Cooldown between batches to be nice to API
                     if (i + BATCH_SIZE < prompts.length) {
-                        await new Promise(r => setTimeout(r, 1000));
+                        await new Promise(r => setTimeout(r, 3000));
                     }
                 }
                 

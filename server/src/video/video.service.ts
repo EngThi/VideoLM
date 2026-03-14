@@ -1,5 +1,5 @@
 
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import * as fs from 'fs';
@@ -13,6 +13,7 @@ const execAsync = promisify(exec);
 
 @Injectable()
 export class VideoService {
+  private readonly logger = new Logger(VideoService.name);
   private enginesPath = process.env.HOMES_ENGINE_PATH || '/path/to/HOMES-Engine';
 
   constructor(
@@ -92,7 +93,7 @@ export class VideoService {
       fs.writeFileSync(audioPath, audioFile.buffer);
 
       const totalDuration = await this.getAudioDuration(audioPath);
-      console.log(`Audio Duration detected: ${totalDuration}s (Input was: ${inputDuration}s)`);
+      this.logger.log(`Audio Duration detected: ${totalDuration}s (Input was: ${inputDuration}s)`);
 
       let srtPath: string | undefined;
       if (script) {
@@ -110,7 +111,7 @@ export class VideoService {
       const clipPaths: string[] = [];
       const durationPerImage = totalDuration / imageFiles.length;
       
-      console.log(`Rendering ${imageFiles.length} clips...`);
+      this.logger.log(`Rendering ${imageFiles.length} clips...`);
       this.videoGateway.broadcastProgress('dev-session', 5, 'rendering_clips');
 
       for (let i = 0; i < imageFiles.length; i++) {
@@ -202,7 +203,7 @@ export class VideoService {
         .outputOptions(outputOptions)
         .format('mp4')
         .on('start', (cmdLine) => {
-            console.log('Spawned Final Assembly Ffmpeg: ' + cmdLine);
+            this.logger.log('Spawned Final Assembly Ffmpeg: ' + cmdLine);
             this.videoGateway.broadcastProgress('dev-session', 50, 'assembling');
         })
         .on('progress', (progress) => {
@@ -218,7 +219,7 @@ export class VideoService {
           }
         })
         .on('end', () => {
-          console.log('✅ Video successfully assembled!');
+          this.logger.log('✅ Video successfully assembled!');
           this.videoGateway.broadcastProgress('dev-session', 100, 'completed');
         })
         .pipe(outStream, { end: true });

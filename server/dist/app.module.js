@@ -13,12 +13,18 @@ const config_1 = require("@nestjs/config");
 const projects_module_1 = require("./projects/projects.module");
 const video_module_1 = require("./video/video.module");
 const ai_module_1 = require("./ai/ai.module");
+const serve_static_1 = require("@nestjs/serve-static");
+const path_1 = require("path");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
 exports.AppModule = AppModule = __decorate([
     (0, common_1.Module)({
         imports: [
+            serve_static_1.ServeStaticModule.forRoot({
+                rootPath: (0, path_1.join)(__dirname, '..', 'frontend'),
+                exclude: ['/api*'],
+            }),
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
                 envFilePath: '.env.local',
