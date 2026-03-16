@@ -1,6 +1,6 @@
 
 import { Injectable, Logger } from '@nestjs/common';
-import { GoogleGenAI, Modality } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 
 // ──────────────────────────────────────────────
 // Types
@@ -36,7 +36,7 @@ export class AiService {
   private readonly logger = new Logger(AiService.name);
 
   private readonly openRouterKey = process.env.OPENROUTER_API_KEY ?? '';
-  private readonly geminiKey = process.env.GEMINI_API_KEY ?? '';
+  private readonly geminiKey = (process.env.GEMINI_API_KEY ?? '').split(',')[0].trim();
   private readonly hfToken = process.env.HF_TOKEN ?? '';
   private readonly replicateToken = process.env.REPLICATE_TOKEN ?? '';
 
@@ -70,7 +70,7 @@ export class AiService {
 
     const ai = new GoogleGenAI({ apiKey: this.geminiKey });
     const result = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: 'gemini-2.0-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
     });
     return result.text;
@@ -187,10 +187,10 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
       this.logger.log(`Processing chunk ${index + 1}/${chunks.length}`);
       try {
         const response = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-preview-tts',
-          contents: { parts: [{ text: chunk }] },
+          model: 'gemini-2.0-flash', // Use stable multimodal model for audio
+          contents: [{ role: 'user', parts: [{ text: chunk }] }],
           config: {
-            responseModalities: [Modality.AUDIO],
+            responseModalities: ['AUDIO'],
             speechConfig: {
               voiceConfig: {
                 prebuiltVoiceConfig: { voiceName: voiceName },
@@ -199,13 +199,12 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
           },
         });
 
-        const base64Audio = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-        if (base64Audio) {
-          audioParts.push(Buffer.from(base64Audio, 'base64'));
+        const part = response.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (part?.inlineData?.data) {
+          audioParts.push(Buffer.from(part.inlineData.data, 'base64'));
         }
       } catch (error) {
         this.logger.error(`TTS chunk failed for voice ${voiceName}: ${error.message}`);
-        // Skip chunk on error to avoid full failure
       }
     }
 
@@ -213,11 +212,7 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
       throw new Error('No audio data could be generated from Gemini TTS.');
     }
 
-    // 3. Merge Audio Buffers
     const mergedAudio = Buffer.concat(audioParts);
-
-    // 4. Calculate Duration
-    // Sample Rate: 24000, 1 channel, 16-bit (2 bytes) per sample -> 48000 bytes/sec
     const duration = mergedAudio.length / 48000;
 
     this.logger.log(`TTS generation complete. Total duration: ${duration.toFixed(2)}s`);
@@ -228,60 +223,90 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
 
   async generateSingleImage(prompt: string, options?: ImageOptions): Promise<ImageGenerationResult> {
     const providers = [
-      { name: 'Pollinations', fn: this.generateImagePollinations.bind(this) },
+      { name: 'Gemini', fn: this.generateImageGemini.bind(this) },
       { name: 'HuggingFace', fn: this.generateImageHuggingFace.bind(this) },
+      { name: 'Pollinations', fn: this.generateImagePollinations.bind(this) },
     ];
 
     for (const provider of providers) {
       try {
         const url = await provider.fn(prompt, options);
         if (url) {
+          this.logger.log(`✅ Image generated via ${provider.name}`);
           return { success: true, url, provider: provider.name, timestamp: new Date().toISOString() };
         }
       } catch (error) {
-        this.logger.warn(`${provider.name} failed: ${error.message}`);
+        this.logger.warn(`⚠️ ${provider.name} failed: ${error.message}`);
       }
     }
 
     return { success: false, provider: 'none', timestamp: new Date().toISOString(), error: 'All image providers failed' };
   }
 
+  private async generateImageGemini(prompt: string, options?: ImageOptions): Promise<string | null> {
+    if (!this.geminiKey) return null;
+    this.logger.log('Attempting: Gemini 2.5 Flash-image (Native Generation)');
+    try {
+      const ai = new GoogleGenAI({ apiKey: this.geminiKey });
+      const result = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image', // Native image generation model
+        config: {
+          responseModalities: ['IMAGE', 'TEXT'],
+        },
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      });
+
+      const part = result.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (part?.inlineData) {
+        return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+      }
+      return null;
+    } catch (error) {
+      this.logger.error(`Gemini Image Error: ${error.message}`);
+      return null;
+    }
+  }
+
   private async generateImagePollinations(prompt: string, options?: ImageOptions): Promise<string | null> {
-    this.logger.log('Attempting: Pollinations.AI');
+    this.logger.log('Attempting: Pollinations.AI (Emergency Fallback)');
     const width = options?.width || 1280;
     const height = options?.height || 720;
-    return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${Date.now()}`;
+    const seed = Math.floor(Math.random() * 1000000);
+    return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
   }
 
   private async generateImageHuggingFace(prompt: string, options?: ImageOptions): Promise<string | null> {
     if (!this.hfToken) return null;
-    this.logger.log('Attempting: Hugging Face');
+    this.logger.log('Attempting: Hugging Face (SDXL Router)');
     try {
-      const response = await fetch('https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0', {
+      const response = await fetch('https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0', {
         headers: { Authorization: `Bearer ${this.hfToken}`, 'Content-Type': 'application/json' },
         method: 'POST',
         body: JSON.stringify({ inputs: prompt }),
       });
 
-      if (!response.ok) return null;
+      if (!response.ok) {
+        const err = await response.text();
+        throw new Error(err);
+      }
       const buffer = await response.arrayBuffer();
       const base64 = Buffer.from(buffer).toString('base64');
       return `data:image/jpeg;base64,${base64}`;
     } catch (error) {
+      this.logger.warn(`HuggingFace Error: ${error.message}`);
       return null;
     }
   }
 
   async generateImages(prompts: string[]): Promise<string[]> {
-    // This is the legacy method for the controller's orchestration
-    const imageUrls = prompts.map((prompt, i) => {
-      const encoded = encodeURIComponent(prompt);
-      const seed = Date.now() + i;
-      return `https://image.pollinations.ai/prompt/${encoded}?width=1280&height=720&seed=${seed}&nologo=true`;
-    });
-
-    this.logger.log(`Generated ${imageUrls.length} image URLs via Pollinations`);
-    return imageUrls;
+    this.logger.log(`Generating ${prompts.length} images via orchestrator...`);
+    const urls: string[] = [];
+    for (const prompt of prompts) {
+        const res = await this.generateSingleImage(prompt);
+        if (res.url) urls.push(res.url);
+        await new Promise(r => setTimeout(r, 500));
+    }
+    return urls;
   }
 
   // ── Helpers ───────────────────────────────────
@@ -313,7 +338,6 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
 
   private async downloadImageAsBuffer(url: string): Promise<Buffer> {
     try {
-      // If it's a data URL, decode it
       if (url.startsWith('data:image')) {
         const base64 = url.split(',')[1];
         return Buffer.from(base64, 'base64');
@@ -341,6 +365,3 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
     ];
   }
 }
-
-
-  

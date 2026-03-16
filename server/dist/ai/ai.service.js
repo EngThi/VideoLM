@@ -15,7 +15,7 @@ let AiService = AiService_1 = class AiService {
         var _a, _b, _c, _d;
         this.logger = new common_1.Logger(AiService_1.name);
         this.openRouterKey = (_a = process.env.OPENROUTER_API_KEY) !== null && _a !== void 0 ? _a : '';
-        this.geminiKey = (_b = process.env.GEMINI_API_KEY) !== null && _b !== void 0 ? _b : '';
+        this.geminiKey = ((_b = process.env.GEMINI_API_KEY) !== null && _b !== void 0 ? _b : '').split(',')[0].trim();
         this.hfToken = (_c = process.env.HF_TOKEN) !== null && _c !== void 0 ? _c : '';
         this.replicateToken = (_d = process.env.REPLICATE_TOKEN) !== null && _d !== void 0 ? _d : '';
     }
@@ -42,7 +42,7 @@ let AiService = AiService_1 = class AiService {
             throw new Error('GEMINI_API_KEY not set');
         const ai = new genai_1.GoogleGenAI({ apiKey: this.geminiKey });
         const result = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-2.0-flash',
             contents: [{ role: 'user', parts: [{ text: prompt }] }],
         });
         return result.text;
@@ -124,7 +124,7 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
         }
     }
     async generateVoiceover(script, voiceName = 'echo') {
-        var _a, _b, _c, _d, _e, _f;
+        var _a, _b, _c, _d, _e;
         this.logger.log(`Starting TTS generation with voice: ${voiceName}`);
         const cleanedScript = script
             .replace(/\[.*?\]/g, '')
@@ -139,10 +139,10 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
             this.logger.log(`Processing chunk ${index + 1}/${chunks.length}`);
             try {
                 const response = await ai.models.generateContent({
-                    model: 'gemini-2.5-flash-preview-tts',
-                    contents: { parts: [{ text: chunk }] },
+                    model: 'gemini-2.0-flash',
+                    contents: [{ role: 'user', parts: [{ text: chunk }] }],
                     config: {
-                        responseModalities: [genai_1.Modality.AUDIO],
+                        responseModalities: ['AUDIO'],
                         speechConfig: {
                             voiceConfig: {
                                 prebuiltVoiceConfig: { voiceName: voiceName },
@@ -150,9 +150,9 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
                         },
                     },
                 });
-                const base64Audio = (_f = (_e = (_d = (_c = (_b = (_a = response.candidates) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.content) === null || _c === void 0 ? void 0 : _c.parts) === null || _d === void 0 ? void 0 : _d[0]) === null || _e === void 0 ? void 0 : _e.inlineData) === null || _f === void 0 ? void 0 : _f.data;
-                if (base64Audio) {
-                    audioParts.push(Buffer.from(base64Audio, 'base64'));
+                const part = (_d = (_c = (_b = (_a = response.candidates) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.content) === null || _c === void 0 ? void 0 : _c.parts) === null || _d === void 0 ? void 0 : _d.find(p => p.inlineData);
+                if ((_e = part === null || part === void 0 ? void 0 : part.inlineData) === null || _e === void 0 ? void 0 : _e.data) {
+                    audioParts.push(Buffer.from(part.inlineData.data, 'base64'));
                 }
             }
             catch (error) {
@@ -169,56 +169,89 @@ Example: ["prompt 1", "prompt 2", "prompt 3", "prompt 4", "prompt 5"]`;
     }
     async generateSingleImage(prompt, options) {
         const providers = [
-            { name: 'Pollinations', fn: this.generateImagePollinations.bind(this) },
+            { name: 'Gemini', fn: this.generateImageGemini.bind(this) },
             { name: 'HuggingFace', fn: this.generateImageHuggingFace.bind(this) },
+            { name: 'Pollinations', fn: this.generateImagePollinations.bind(this) },
         ];
         for (const provider of providers) {
             try {
                 const url = await provider.fn(prompt, options);
                 if (url) {
+                    this.logger.log(`✅ Image generated via ${provider.name}`);
                     return { success: true, url, provider: provider.name, timestamp: new Date().toISOString() };
                 }
             }
             catch (error) {
-                this.logger.warn(`${provider.name} failed: ${error.message}`);
+                this.logger.warn(`⚠️ ${provider.name} failed: ${error.message}`);
             }
         }
         return { success: false, provider: 'none', timestamp: new Date().toISOString(), error: 'All image providers failed' };
     }
+    async generateImageGemini(prompt, options) {
+        var _a, _b, _c, _d;
+        if (!this.geminiKey)
+            return null;
+        this.logger.log('Attempting: Gemini 2.5 Flash-image (Native Generation)');
+        try {
+            const ai = new genai_1.GoogleGenAI({ apiKey: this.geminiKey });
+            const result = await ai.models.generateContent({
+                model: 'gemini-2.5-flash-image',
+                config: {
+                    responseModalities: ['IMAGE', 'TEXT'],
+                },
+                contents: [{ role: 'user', parts: [{ text: prompt }] }],
+            });
+            const part = (_d = (_c = (_b = (_a = result.candidates) === null || _a === void 0 ? void 0 : _a[0]) === null || _b === void 0 ? void 0 : _b.content) === null || _c === void 0 ? void 0 : _c.parts) === null || _d === void 0 ? void 0 : _d.find(p => p.inlineData);
+            if (part === null || part === void 0 ? void 0 : part.inlineData) {
+                return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+            }
+            return null;
+        }
+        catch (error) {
+            this.logger.error(`Gemini Image Error: ${error.message}`);
+            return null;
+        }
+    }
     async generateImagePollinations(prompt, options) {
-        this.logger.log('Attempting: Pollinations.AI');
+        this.logger.log('Attempting: Pollinations.AI (Emergency Fallback)');
         const width = (options === null || options === void 0 ? void 0 : options.width) || 1280;
         const height = (options === null || options === void 0 ? void 0 : options.height) || 720;
-        return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${Date.now()}`;
+        const seed = Math.floor(Math.random() * 1000000);
+        return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}`;
     }
     async generateImageHuggingFace(prompt, options) {
         if (!this.hfToken)
             return null;
-        this.logger.log('Attempting: Hugging Face');
+        this.logger.log('Attempting: Hugging Face (SDXL Router)');
         try {
-            const response = await fetch('https://api-inference.huggingface.co/models/stabilityai/stable-diffusion-xl-base-1.0', {
+            const response = await fetch('https://router.huggingface.co/hf-inference/models/stabilityai/stable-diffusion-xl-base-1.0', {
                 headers: { Authorization: `Bearer ${this.hfToken}`, 'Content-Type': 'application/json' },
                 method: 'POST',
                 body: JSON.stringify({ inputs: prompt }),
             });
-            if (!response.ok)
-                return null;
+            if (!response.ok) {
+                const err = await response.text();
+                throw new Error(err);
+            }
             const buffer = await response.arrayBuffer();
             const base64 = Buffer.from(buffer).toString('base64');
             return `data:image/jpeg;base64,${base64}`;
         }
         catch (error) {
+            this.logger.warn(`HuggingFace Error: ${error.message}`);
             return null;
         }
     }
     async generateImages(prompts) {
-        const imageUrls = prompts.map((prompt, i) => {
-            const encoded = encodeURIComponent(prompt);
-            const seed = Date.now() + i;
-            return `https://image.pollinations.ai/prompt/${encoded}?width=1280&height=720&seed=${seed}&nologo=true`;
-        });
-        this.logger.log(`Generated ${imageUrls.length} image URLs via Pollinations`);
-        return imageUrls;
+        this.logger.log(`Generating ${prompts.length} images via orchestrator...`);
+        const urls = [];
+        for (const prompt of prompts) {
+            const res = await this.generateSingleImage(prompt);
+            if (res.url)
+                urls.push(res.url);
+            await new Promise(r => setTimeout(r, 500));
+        }
+        return urls;
     }
     textToBlocks(fullText, maxWords = 500) {
         const words = fullText.split(/\s+/);

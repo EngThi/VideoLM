@@ -2,20 +2,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { Logger } from '@nestjs/common';
-// ... (keep existing imports)
-
-// ... (keep existing code until bootstrap function)
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, {
-    // Explicitly create a logger to use during bootstrap
-    logger: new Logger('Bootstrap'),
-  });
+  const logger = new Logger('Bootstrap');
+  const app = await NestFactory.create(AppModule);
   
-  // ... (keep existing app setup)
+  app.enableCors(); // Ensure CORS is enabled for the frontend
 
   const port = process.env.PORT && process.env.PORT !== '3000' ? process.env.PORT : 3001;
   await app.listen(port);
-  app.get(Logger).log(`✅ Backend running on http://localhost:${port}`, 'Bootstrap');
+  logger.log(`✅ Backend running on http://localhost:${port}`);
 }
 bootstrap();

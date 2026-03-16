@@ -30,6 +30,7 @@ export declare class AiService {
         duration: number;
     }>;
     generateSingleImage(prompt: string, options?: ImageOptions): Promise<ImageGenerationResult>;
+    private generateImageGemini;
     private generateImagePollinations;
     private generateImageHuggingFace;
     generateImages(prompts: string[]): Promise<string[]>;
