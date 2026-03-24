@@ -31,13 +31,13 @@ echo "[$(date)] 👍 Idea Selected: $IDEA_TITLE" | tee -a $LOG_FILE
 # 2. Run the Full Pipeline in Background
 # We use the generate-video endpoint which now handles script -> audio -> images -> video
 echo "[$(date)] 🎬 Stage 2: Running full pipeline in background (Script, Audio, Images, FFmpeg)..." | tee -a $LOG_FILE
+echo "Duration requested: 5 minutes" | tee -a $LOG_FILE
 echo "This may take several minutes. Follow progress in pipeline_test.log" | tee -a $LOG_FILE
 
 # Start the full generation and pipe the output (binary mp4) to a file
-# Note: Using '&' to run in background as requested
 curl -s -X POST "$API_URL/generate-video" \
   -H "Content-Type: application/json" \
-  -d "{\"topic\": \"$IDEA_TITLE\"}" \
+  -d "{\"topic\": \"$IDEA_TITLE\", \"durationMinutes\": 5}" \
   --output "test_output_video.mp4" >> $LOG_FILE 2>&1 &
 
 PID=$!

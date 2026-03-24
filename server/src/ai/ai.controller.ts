@@ -33,11 +33,11 @@ export class AiController {
 
   @Post('generate-video')
   async generateVideo(
-    @Body() { topic }: { topic: string },
+    @Body() { topic, durationMinutes }: { topic: string; durationMinutes?: number },
     @Res() res: Response,
   ) {
     // 1. Generate Script
-    const script = await this.aiService.generateScript(topic);
+    const script = await this.aiService.generateScript(topic, durationMinutes);
 
     // 2. Generate Image Prompts
     const imagePrompts = await this.aiService.generateImagePrompts(script);
