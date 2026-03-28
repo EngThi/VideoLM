@@ -46,6 +46,12 @@ export class ProjectsService {
     return this.projectRepo.save(project);
   }
 
+  async updateMetadata(id: string, metadata: any): Promise<ProjectEntity> {
+    const project = await this.findOne(id);
+    project.metadata = { ...project.metadata, ...metadata };
+    return this.projectRepo.save(project);
+  }
+
   async delete(id: string): Promise<void> {
     const result = await this.projectRepo.delete(id);
     if (result.affected === 0) {

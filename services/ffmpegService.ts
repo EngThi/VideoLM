@@ -42,12 +42,14 @@ class FFmpegService {
     images: GeneratedImage[],
     totalDuration: number,
     script?: string,
-    bgMusicUrl?: string
+    bgMusicUrl?: string,
+    projectId: string = 'dev-session'
   ): Promise<string> {
     try {
-        console.log(`Starting backend video assembly... Subtitles: ${!!script}, BGM: ${!!bgMusicUrl}`);
+        console.log(`Starting backend video assembly for project: ${projectId}`);
 
         const formData = new FormData();
+        formData.append('projectId', projectId);
 
         // 1. Fetch and append Audio
         const audioResp = await fetch(audioUrl);
@@ -79,7 +81,7 @@ class FFmpegService {
             const img = images[i];
             console.log(`Fetching asset for scene ${i + 1}/${images.length}...`);
             try {
-                const imgBlob = await this.fetchWithRetry(img.url, i, images.length);
+                const imgBlob = await this.fetchWithRetry(img.url, i, images.length, img.prompt || '');
                 formData.append('images', imgBlob, `image${i}.png`);
             } catch (e) {
                 console.error(`Giving up on image ${i + 1}, using dummy placeholder.`);

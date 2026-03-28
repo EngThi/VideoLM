@@ -27,6 +27,9 @@ export class ProjectEntity {
   @Column('text', { nullable: true })
   error: string;
 
+  @Column('simple-json', { nullable: true })
+  metadata: any;
+
   @CreateDateColumn()
   createdAt: Date;
 

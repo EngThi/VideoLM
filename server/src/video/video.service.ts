@@ -101,9 +101,33 @@ export class VideoService {
     const finalDurationFrames = Math.ceil(outputDuration * fps);
     const finalZoomCmd = zoomCmd.replace(`d=${targetDurationFrames}`, `d=${finalDurationFrames}`);
     
-    const cmd = `ffmpeg -y -loop 1 -i "${imagePath}" -vf "scale=1920:-2,${finalZoomCmd},fade=t=in:st=0:d=0.5,fade=t=out:st=${outputDuration-0.5}:d=0.5" -c:v libx264 -t ${outputDuration} -pix_fmt yuv420p -preset superfast "${outputPath}"`;
+    const cmd = `ffmpeg -y -loop 1 -i "${imagePath}" -vf "scale=1920:-2,${finalZoomCmd},fade=t=in:st=0:d=0.5,fade=t=out:st=${outputDuration-0.5}:d=0.5" -c:v libx264 -t ${outputDuration} -pix_fmt yuv420p -preset ultrafast "${outputPath}"`;
     
     await execAsync(cmd);
+  }
+
+  private async runInParallel<T, R>(
+    items: T[], 
+    concurrency: number, 
+    task: (item: T, index: number) => Promise<R>
+  ): Promise<R[]> {
+    const results: any[] = new Array(items.length);
+    const executing = new Set<Promise<any>>();
+    
+    for (let i = 0; i < items.length; i++) {
+      const p = Promise.resolve().then(() => task(items[i], i));
+      results[i] = p;
+      executing.add(p);
+      
+      const clean = () => executing.delete(p);
+      p.then(clean).catch(clean);
+      
+      if (executing.size >= concurrency) {
+        await Promise.race(executing);
+      }
+    }
+    
+    return Promise.all(results);
   }
 
   private async renderAllClips(
@@ -111,14 +135,15 @@ export class VideoService {
     imageFiles: Express.Multer.File[], 
     totalDuration: number
   ): Promise<string[]> {
-    const clipPaths: string[] = [];
     const durationPerImage = totalDuration / imageFiles.length;
+    const concurrencyLimit = 3; // Limit to 3 concurrent FFmpeg processes to avoid CPU exhaustion
     
-    this.logger.log(`Rendering ${imageFiles.length} clips...`);
+    this.logger.log(`Rendering ${imageFiles.length} clips in parallel (limit: ${concurrencyLimit})...`);
     this.videoGateway.broadcastProgress('dev-session', 5, 'rendering_clips');
 
-    for (let i = 0; i < imageFiles.length; i++) {
-      const file = imageFiles[i];
+    let completed = 0;
+
+    const renderTask = async (file: Express.Multer.File, i: number) => {
       const imgPath = path.join(tempDir, `source_${i}.png`);
       const clipPath = path.join(tempDir, `clip_${i}.mp4`);
       const isLast = i === imageFiles.length - 1;
@@ -127,16 +152,17 @@ export class VideoService {
       
       try {
           await this.createClip(imgPath, clipPath, durationPerImage, i, isLast);
-          clipPaths.push(clipPath);
-          const percent = 5 + Math.round((i / imageFiles.length) * 40);
+          completed++;
+          const percent = 5 + Math.round((completed / imageFiles.length) * 40);
           this.videoGateway.broadcastProgress('dev-session', percent, 'rendering_clips');
+          return clipPath;
       } catch (e) {
           this.logger.error(`Failed to render clip ${i}:`, e);
           throw e; 
       }
-    }
-    
-    return clipPaths;
+    };
+
+    return this.runInParallel(imageFiles, concurrencyLimit, renderTask);
   }
 
   // =========================================================================
@@ -188,6 +214,30 @@ export class VideoService {
   // MAIN PIPELINE
   // =========================================================================
 
+  private async cleanupOldTempFolders() {
+    try {
+      const tempRoot = path.join(process.cwd(), 'temp');
+      if (!fs.existsSync(tempRoot)) return;
+
+      const folders = fs.readdirSync(tempRoot);
+      const now = Date.now();
+      const expirationTime = 24 * 60 * 60 * 1000; // 24 hours
+
+      for (const folder of folders) {
+        const folderPath = path.join(tempRoot, folder);
+        if (fs.lstatSync(folderPath).isDirectory() && folder.startsWith('assemble_')) {
+          const stats = fs.statSync(folderPath);
+          if (now - stats.mtimeMs > expirationTime) {
+            this.logger.log(`Cleaning up old temp folder: ${folder}`);
+            fs.rmSync(folderPath, { recursive: true, force: true });
+          }
+        }
+      }
+    } catch (e) {
+      this.logger.error('Failed to cleanup old temp folders', e.stack);
+    }
+  }
+
   async assembleVideo(
     audioFile: Express.Multer.File,
     imageFiles: Express.Multer.File[],
@@ -195,7 +245,10 @@ export class VideoService {
     script?: string,
     bgMusicFile?: Express.Multer.File,
     externalTempDir?: string,
+    projectId: string = 'dev-session',
   ): Promise<PassThrough> {
+    await this.cleanupOldTempFolders();
+
     const tempDir = externalTempDir || path.join(process.cwd(), 'temp', `assemble_${Date.now()}`);
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
@@ -212,6 +265,16 @@ export class VideoService {
           totalDuration = inputDuration;
       }
       this.logger.log(`Using Video Duration: ${totalDuration}s`);
+
+      // Store initial metadata
+      if (projectId !== 'dev-session') {
+        await this.projectsService.updateMetadata(projectId, {
+          totalDuration,
+          assemblyStartedAt: new Date().toISOString(),
+          tempDir: tempDir.replace(process.cwd(), ''),
+          sceneCount: imageFiles.length
+        });
+      }
 
       // 2. Prepare Subtitles (SRT)
       let srtPath: string | undefined;

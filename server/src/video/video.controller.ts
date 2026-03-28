@@ -23,10 +23,11 @@ export class VideoController {
   ]))
   async assembleVideo(
     @UploadedFiles() files: { audio?: Express.Multer.File[], bgMusic?: Express.Multer.File[], images?: Express.Multer.File[] },
-    @Body() body: { duration?: string; script?: string; bgMusicId?: string },
+    @Body() body: { duration?: string; script?: string; bgMusicId?: string; projectId?: string },
     @Res() res: Response
   ) {
     let bgMusicFile = files.bgMusic?.[0];
+    const projectId = body.projectId || 'dev-session';
 
     // If no file uploaded but bgMusicId provided, try to load from local storage
     if (!bgMusicFile && body.bgMusicId) {
@@ -53,7 +54,9 @@ export class VideoController {
       files.images || [],
       parseFloat(body.duration || '0'),
       body.script,
-      bgMusicFile
+      bgMusicFile,
+      undefined,
+      projectId
     );
 
     res.set({
