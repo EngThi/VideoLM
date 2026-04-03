@@ -10,7 +10,11 @@ import { join } from 'path';
 @Module({
   imports: [
     ServeStaticModule.forRoot({
-      rootPath: join(__dirname, '..', 'frontend'),
+      rootPath: join(process.cwd(), '..', 'dist'),
+      exclude: ['/api*'],
+    }, {
+      rootPath: join(process.cwd(), 'public/videos'),
+      serveRoot: '/videos',
       exclude: ['/api*'],
     }),
     ConfigModule.forRoot({

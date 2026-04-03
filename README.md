@@ -1,207 +1,90 @@
-# 🎬 AI Video Factory
+# AI Video Factory: Automated YouTube Production Pipeline
 
-> **Automate YouTube video creation from topic to upload.**
+AI Video Factory is a full-stack automation tool designed to transform a single topic into a fully rendered YouTube video. Unlike simple wrappers, this project implements a resilient background processing architecture to handle heavy video encoding tasks without compromising user experience.
 
-[![Build Status](https://github.com/EngThi/ai-video-factory/actions/workflows/ci.yml/badge.svg)](https://github.com/EngThi/ai-video-factory/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-![Node.js Version](https://img.shields.io/badge/node-18%2B-blue.svg)
-
-*<p align="center">[YOUR 20-SECOND DEMO GIF HERE]</p>*
-
-Transform any topic into a polished, ready-to-upload YouTube video automatically. AI generates scripts with real web sources, creates natural narration, designs custom visuals, and assembles the final video—all in minutes.
-
-## ⚠️ Known Issues
-
-- **TTS Requires API Key**: The Text-to-Speech functionality currently relies on the Gemini API, which requires a valid key. Future versions may incorporate a key-free alternative.
-- **FFmpeg Dependency**: Requires FFmpeg to be installed and available in the system's PATH. Future versions may bundle it in the Docker container.
-
-## ✨ Features
-
-- 🧠 **AI-Powered Script Generation** - Gemini creates scripts with real web sources and citations
-- 🎙️ **Natural Voice Narration** - Google Text-to-Speech with multiple voices
-- 🎨 **Automated Visuals** - AI generates custom images that match your script
-- 🎬 **One-Click Video Assembly** - FFmpeg handles video composition seamlessly
-- 🔄 **End-to-End Pipeline** - 7-stage automated workflow from idea to video
-- 💾 **Production-Ready** - Docker support, TypeScript, full error handling
-
-## 🎯 How It Works
-
-1. **Enter a Topic** → System generates content ideas
-2. **Pick an Idea** → AI creates a detailed script with web sources
-3. **Generate Assets** → Automatic narration and custom visuals
-4. **Assemble Video** → FFmpeg combines everything into MP4
-5. **Download & Upload** → Ready for YouTube
-
-## 🛠️ Tech Stack
-
-**Frontend:**
-- React 19 + TypeScript
-- Vite (fast dev server)
-- Real-time pipeline monitoring
-
-**Backend:**
-- NestJS (Node.js framework)
-- Express + TypeORM
-- SQLite (dev) / PostgreSQL (production)
-
-**AI & Video:**
-- Google Gemini API (text, images, video, TTS)
-- Fluent-FFmpeg (video processing)
-- FFmpeg (system dependency)
-
-## 🚀 Quick Start
-
-### Prerequisites
-- Node.js 18+
-- FFmpeg installed
-- Google Gemini API key
-
-### Installation
-
-```bash
-# Clone the repo
-git clone https://github.com/EngThi/ai-video-factory.git
-cd ai-video-factory
-
-# Install dependencies
-npm install
-```
-
-### Environment Setup
-
-Create `.env.local` in the root directory:
-
-```env
-GEMINI_API_KEY=your_api_key_here
-VITE_BACKEND_URL=http://localhost:3000
-```
-
-### Running Locally
-
-```bash
-# Development (frontend on 5173, backend on 3000)
-npm run dev
-
-# Production build
-npm run build
-
-# Production start
-npm run server:start
-```
-
-## 🐳 Docker Deployment
-
-```bash
-# Build image
-docker build -t ai-video-factory .
-
-# Run container
-docker run -p 3000:3000 ai-video-factory
-
-# Access at http://localhost:3000
-```
-
-## 📊 Pipeline Architecture
-
-```
-Topic Input
-    ↓
-💡 Ideation (Generate 3-5 content ideas)
-    ↓
-📄 Script Generation (Web research + AI writing)
-    ↓
-🎙️ Audio Generation (TTS narration)
-    ↓
-🎨 Visual Generation (Image prompts + AI images)
-    ↓
-🎬 Video Assembly (FFmpeg concatenation)
-    ↓
-✅ Quality Check (Auto-validation)
-    ↓
-📤 Upload Ready (Download or auto-upload)
-```
-
-## 📁 Project Structure
-
-```
-.
-├── Frontend (React + Vite)
-│   ├── App.tsx
-│   ├── components/
-│   ├── services/
-│   └── types.ts
-│
-├── Backend (NestJS)
-│   └── server/src/
-│       ├── ai/          (Gemini integration)
-│       ├── video/       (FFmpeg service)
-│       └── projects/    (Database)
-│
-└── Docker & Config
-    ├── Dockerfile
-    └── package.json
-```
-
-## 🔌 API Endpoints
-
-### AI Service (`/api/ai/`)
-
-- `POST /ideas` - Generate content ideas
-- `POST /script` - Generate script with web sources
-- `POST /image-prompts` - Generate image prompts from script
-- `POST /image` - Generate image from prompt
-- `POST /narration` - Generate audio narration
-- `POST /veo` - Generate video with Veo 2.0
-- `POST /thumbnail` - Generate thumbnail
-
-### Video Service (`/api/`)
-
-- `POST /assemble` - Assemble video from audio + images
-
-## 📋 Requirements
-
-### System
-- Linux, macOS, or Windows
-- 2GB+ RAM recommended
-- FFmpeg available in PATH
-
-### API Keys
-- Google Gemini API key
-- Optional: YouTube API for auto-upload
-
-## 🎓 Learning Resources
-
-- [Gemini API Docs](https://ai.google.dev/)
-- [NestJS Documentation](https://docs.nestjs.com/)
-- [FFmpeg Wiki](https://trac.ffmpeg.org/wiki)
-- [React Documentation](https://react.dev/)
-
-## 📝 License
-
-MIT License - feel free to use this for your projects!
-
-## 🤝 Contributing
-
-Contributions welcome! Please feel free to submit PRs or open issues.
-
-## 📧 Questions?
-
-Have questions about the project? Open an issue on GitHub!
+Built for the **Hack Club Flavortown** marathon, the project focuses on deep integration between Large Language Models (Gemini) and native media processing tools (FFmpeg).
 
 ---
 
-# 🚀 Participação no Hackatime (Flavortown)
+## 🏗 System Architecture
 
-Este repositório faz parte do evento [Flavortown](https://flavortown.hackclub.com/), uma iniciativa incrível do Hack Club para criadores brilhantes testarem ideias inovadoras, explorarem soluções criativas e compartilharem progresso técnico.
+The project is split into a decoupled Frontend/Backend architecture to ensure scalability and separation of concerns.
 
-💡 **Criado durante o Hackatime**
-O projeto foi desenvolvido como parte da competição **Hackatime**, uma maratona dedicada a valorizar o processo criativo e técnico por meio de **devlogs** e **projetos documentados**. A ideia é registrar cada passo do progresso enquanto entregamos soluções reais e experimentamos conceitos novos!
+### Backend (NestJS + FFmpeg)
+The core logic resides in a NestJS server that orchestrates the "Immortal Pipeline". 
+- **Resilient Rendering**: We migrated to a background worker pattern. The server initiates the FFmpeg process and immediately returns a tracking ID, allowing the render to persist even if the network connection is interrupted.
+- **Static Binary Distribution**: To eliminate the "it works on my machine" problem, we bundle `ffmpeg-static` and `ffprobe-static`. This ensures a zero-dependency deployment where the binary is matched to the OS architecture automatically.
+- **Data Persistence**: Uses TypeORM with SQLite for local development to track project states (`idle`, `processing`, `completed`, `error`) and asset metadata.
 
-🔗 **Saiba mais sobre o evento**
-- [Hackatime no Hack Club](https://hackatime.hackclub.com/)  
-- [Flavortown: Conheça iniciativas como esta](https://flavortown.hackclub.com/)  
+### Frontend (React + Vite)
+- **Real-time Monitoring**: Uses a reactive state machine to track the 7-stage pipeline progress.
+- **Asset Management**: Handles multi-part form uploads for local asset injection (Dev Mode), allowing for rapid testing without burning API credits.
 
-Nosso objetivo é experimentar, documentar e contribuir abertamente para a comunidade tech! 🎯  
-Adoraríamos receber seu feedback – dúvidas, sugestões ou contribuições são super bem-vindas! 😊
+---
 
-**Built with ❤️ for automated content creation**
+## 🚀 Getting Started
+
+### Prerequisites
+- **Node.js 20.x** or higher.
+- **Google Gemini API Key**: Required for script and asset generation.
+
+### Local Installation
+
+1. **Clone and Install**
+   ```bash
+   git clone https://github.com/EngThi/ai-video-factory.git
+   cd ai-video-factory
+   npm install
+   ```
+   *Note: The root install will automatically trigger the server-side dependency installation.*
+
+2. **Configuration**
+   Create a `server/.env.local` file with the following variables:
+   ```env
+   GEMINI_API_KEY=your_key_here
+   DATABASE_PATH=./data/database.sqlite
+   ```
+
+3. **Launch Development Environment**
+   ```bash
+   npm run dev
+   ```
+   - Frontend: `http://localhost:5173`
+   - Backend: `http://localhost:3001`
+
+---
+
+## 🐳 Docker Deployment (One-Click)
+
+The project includes a multi-stage Dockerfile optimized for production. It handles the frontend build (Vite), the backend compilation (TypeScript), and installs the necessary system libraries for FFmpeg's font and image filters.
+
+```bash
+docker build -t video-factory .
+docker run -p 3001:3001 --env-file server/.env.local video-factory
+```
+
+---
+
+## 📂 Project Structure & Navigation
+
+- `/server/src/video`: The "Engine Room". Contains the logic for FFmpeg complex filters, Ken Burns effects, and ducking audio mixing.
+- `/server/src/ai`: Integration with Google Generative AI, including prompt engineering for structured JSON outputs.
+- `/components`: Modular React components for the pipeline UI.
+- `/services/ffmpegService.ts`: Frontend-side orchestrator that prepares the FormData for the backend.
+
+---
+
+## 🗺 Roadmap: The Path to SaaS
+
+This project is currently in **Phase 1 (Hardening)**. Future milestones include:
+
+- **Authentication**: Implementing JWT-based auth to allow per-user project history.
+- **Monetization**: Stripe integration for credit-based video generation.
+- **Advanced Polish**: Transitioning from static images to video clips using Veo 3.1 or Kling, and implementing smart-cut editing based on audio peaks.
+
+---
+
+## ⚖️ License
+Distributed under the MIT License. See `LICENSE` for more information.
+
+**Developed as part of the Hack Club Flavortown Marathon.**

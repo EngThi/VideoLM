@@ -4,6 +4,8 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as ffmpeg from 'fluent-ffmpeg';
+import * as ffmpegPath from 'ffmpeg-static';
+import * as ffprobePath from 'ffprobe-static';
 import { PassThrough } from 'stream';
 import { ProjectsService } from '../projects/projects.service';
 import { VideoGateway } from './video.gateway';
@@ -18,7 +20,17 @@ export class VideoService {
   constructor(
     private projectsService: ProjectsService,
     private videoGateway: VideoGateway
-  ) {}
+  ) {
+    // Configura fluent-ffmpeg para usar binários estáticos
+    if (ffmpegPath) {
+      ffmpeg.setFfmpegPath(ffmpegPath);
+      this.logger.log(`FFmpeg path set to: ${ffmpegPath}`);
+    }
+    if (ffprobePath && ffprobePath.path) {
+      ffmpeg.setFfprobePath(ffprobePath.path);
+      this.logger.log(`FFprobe path set to: ${ffprobePath.path}`);
+    }
+  }
 
   // =========================================================================
   // HELPER METHODS
@@ -99,9 +111,10 @@ export class VideoService {
       : `zoompan=z='min(zoom+0.0015,1.5)':d=${targetDurationFrames}:x='if(eq(on,1),iw/2,x-1)':y='if(eq(on,1),ih/2,y)':s=1280x720:fps=${fps}`;
     
     const finalDurationFrames = Math.ceil(outputDuration * fps);
-    const finalZoomCmd = zoomCmd.replace(`d=${targetDurationFrames}`, `d=${finalDurationFrames}`);
+    const finalZoomCmd = zoomCmd.replace(`d=${targetDurationFrames}`, `d=${finalZoomCmd}`);
     
-    const cmd = `ffmpeg -y -loop 1 -i "${imagePath}" -vf "scale=1920:-2,${finalZoomCmd},fade=t=in:st=0:d=0.5,fade=t=out:st=${outputDuration-0.5}:d=0.5" -c:v libx264 -t ${outputDuration} -pix_fmt yuv420p -preset ultrafast "${outputPath}"`;
+    const ffmpegBin = ffmpegPath || 'ffmpeg';
+    const cmd = `"${ffmpegBin}" -y -loop 1 -i "${imagePath}" -vf "scale=1920:-2,${finalZoomCmd},fade=t=in:st=0:d=0.5,fade=t=out:st=${outputDuration-0.5}:d=0.5" -c:v libx264 -t ${outputDuration} -pix_fmt yuv420p -preset ultrafast "${outputPath}"`;
     
     await execAsync(cmd);
   }
@@ -238,6 +251,7 @@ export class VideoService {
     }
   }
 
+
   async assembleVideo(
     audioFile: Express.Multer.File,
     imageFiles: Express.Multer.File[],
@@ -246,7 +260,7 @@ export class VideoService {
     bgMusicFile?: Express.Multer.File,
     externalTempDir?: string,
     projectId: string = 'dev-session',
-  ): Promise<PassThrough> {
+  ): Promise<string> {
     await this.cleanupOldTempFolders();
 
     const tempDir = externalTempDir || path.join(process.cwd(), 'temp', `assemble_${Date.now()}`);
@@ -254,134 +268,87 @@ export class VideoService {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
-    try {
-      // 1. Prepare Audio
-      const audioPath = path.join(tempDir, 'audio.wav');
-      fs.writeFileSync(audioPath, audioFile.buffer);
+    const finalFileName = `${projectId || 'dev'}_${Date.now()}.mp4`;
+    const finalPath = path.join(process.cwd(), 'public/videos', finalFileName);
+    const videoUrl = `/videos/${finalFileName}`;
 
-      let totalDuration = await this.getAudioDuration(audioPath);
-      if (!totalDuration || isNaN(totalDuration) || totalDuration <= 0) {
-          this.logger.warn(`Could not detect audio duration via ffprobe, using inputDuration: ${inputDuration}`);
-          totalDuration = inputDuration;
-      }
-      this.logger.log(`Using Video Duration: ${totalDuration}s`);
-
-      // Store initial metadata
-      if (projectId !== 'dev-session') {
-        await this.projectsService.updateMetadata(projectId, {
-          totalDuration,
-          assemblyStartedAt: new Date().toISOString(),
-          tempDir: tempDir.replace(process.cwd(), ''),
-          sceneCount: imageFiles.length
-        });
-      }
-
-      // 2. Prepare Subtitles (SRT)
-      let srtPath: string | undefined;
-      if (script && totalDuration > 0) {
-          srtPath = path.join(tempDir, 'subtitles.srt');
-          try {
-              const srtContent = this.generateSrt(script, totalDuration);
-              if (srtContent) {
-                 fs.writeFileSync(srtPath, srtContent, 'utf-8');
-              } else {
-                 srtPath = undefined;
-              }
-          } catch (srtErr) {
-              this.logger.error(`SRT Generation failed: ${srtErr.message}`);
-              srtPath = undefined;
-          }
-      }
-
-      // 3. Prepare Background Music
-      let bgMusicPath: string | undefined;
-      if (bgMusicFile) {
-        bgMusicPath = path.join(tempDir, 'bg_music.mp3');
-        fs.writeFileSync(bgMusicPath, bgMusicFile.buffer);
-      }
-
-      // 4. Render Scene Clips
-      const clipPaths = await this.renderAllClips(tempDir, imageFiles, totalDuration);
-
-      // 5. Create Concat File
-      const concatListPath = path.join(tempDir, 'concat_list.txt');
-      const concatListContent = clipPaths.map(p => `file '${p}'`).join('\n');
-      fs.writeFileSync(concatListPath, concatListContent);
-
-      // 6. Setup Final Ffmpeg Command
-      const outStream = new PassThrough();
-      let command = ffmpeg();
-
-      command = command.input(concatListPath).inputOptions(['-f concat', '-safe 0']);
-      command = command.input(audioPath);
-      if (bgMusicPath) {
-        command = command.input(bgMusicPath);
-      }
-
-      const { filterComplex, videoLabel, audioLabel } = this.buildComplexFilter(srtPath, bgMusicPath);
-
-      if (filterComplex.length > 0) {
-          command.complexFilter(filterComplex);
-      }
-
-      const outputOptions = [
-          '-c:v libx264',
-          '-preset superfast',
-          '-pix_fmt yuv420p',
-          '-movflags frag_keyframe+empty_moov',
-          '-shortest'
-      ];
-      
-      if (filterComplex.length > 0) {
-           outputOptions.push(`-map ${videoLabel}`);
-           outputOptions.push(`-map ${audioLabel}`);
-      } else {
-           outputOptions.push('-map 0:v'); 
-           outputOptions.push('-map 1:a');
-      }
-
-      // 7. Execute Final Assembly
-      command
-        .outputOptions(outputOptions)
-        .format('mp4')
-        .on('start', (cmdLine) => {
-            this.logger.log('Spawned Final Assembly Ffmpeg: ' + cmdLine);
-            this.videoGateway.broadcastProgress('dev-session', 50, 'assembling');
-        })
-        .on('progress', () => {
-             this.videoGateway.broadcastProgress('dev-session', 50 + Math.random() * 40, 'assembling');
-        })
-        .on('error', (err, stdout, stderr) => {
-          this.logger.error(`Final Assembly Error: ${err.message}`, stderr);
-          this.videoGateway.broadcastProgress('dev-session', 0, 'error');
-          if (!outStream.destroyed) {
-              outStream.emit('error', err);
-              outStream.end();
-          }
-        })
-        .on('end', () => {
-          this.logger.log('✅ Video successfully assembled!');
-          this.videoGateway.broadcastProgress('dev-session', 100, 'completed');
-        })
-        .pipe(outStream, { end: true });
-
-      // Only auto-delete if it's a generated temp dir
-      if (!externalTempDir) {
-        setTimeout(() => {
-          try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) {}
-        }, 600000);
-      }
-
-      return outStream;
-
-    } catch (error) {
-      this.logger.error('Video assembly setup error', error.stack);
-      try {
-          const logPath = path.join(__dirname, '../../../server.log');
-          fs.appendFileSync(logPath, `[VideoAssembly Error] ${error.message}\n${error.stack}\n\n`);
-      } catch (e) {}
-      throw error;
+    if (projectId !== 'dev-session') {
+      await this.projectsService.updateStatus(projectId, 'processing');
     }
+
+    const processTask = async () => {
+      try {
+        const audioPath = path.join(tempDir, 'audio.wav');
+        fs.writeFileSync(audioPath, audioFile.buffer);
+
+        let totalDuration = await this.getAudioDuration(audioPath);
+        if (!totalDuration || isNaN(totalDuration) || totalDuration <= 0) {
+            totalDuration = inputDuration;
+        }
+
+        let srtPath: string | undefined;
+        if (script && totalDuration > 0) {
+            srtPath = path.join(tempDir, 'subtitles.srt');
+            const srtContent = this.generateSrt(script, totalDuration);
+            if (srtContent) fs.writeFileSync(srtPath, srtContent, 'utf-8');
+            else srtPath = undefined;
+        }
+
+        let bgMusicPath: string | undefined;
+        if (bgMusicFile) {
+          bgMusicPath = path.join(tempDir, 'bg_music.mp3');
+          fs.writeFileSync(bgMusicPath, bgMusicFile.buffer);
+        }
+
+        const clipPaths = await this.renderAllClips(tempDir, imageFiles, totalDuration);
+
+        const concatListPath = path.join(tempDir, 'concat_list.txt');
+        const concatListContent = clipPaths.map(p => `file '${p}'`).join('\n');
+        fs.writeFileSync(concatListPath, concatListContent);
+
+        const { filterComplex, videoLabel, audioLabel } = this.buildComplexFilter(srtPath, bgMusicPath);
+
+        const command = ffmpeg(concatListPath).inputOptions(['-f concat', '-safe 0']);
+        command.input(audioPath);
+        if (bgMusicPath) command.input(bgMusicPath);
+
+        if (filterComplex.length > 0) command.complexFilter(filterComplex);
+
+        const outputOptions = [
+            '-c:v libx264',
+            '-preset superfast',
+            '-pix_fmt yuv420p',
+            '-shortest'
+        ];
+        
+        if (filterComplex.length > 0) {
+             outputOptions.push(`-map ${videoLabel}`, `-map ${audioLabel}`);
+        } else {
+             outputOptions.push('-map 0:v', '-map 1:a');
+        }
+
+        command
+          .outputOptions(outputOptions)
+          .on('start', (cmd) => this.logger.log('FFmpeg Background Started'))
+          .on('error', (err) => {
+            this.logger.error('Background Assembly Error: ' + err.message);
+            if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, err.message);
+          })
+          .on('end', () => {
+            this.logger.log('✅ Video saved to: ' + finalPath);
+            if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'completed', videoUrl);
+            try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) {}
+          })
+          .save(finalPath);
+
+      } catch (error) {
+        this.logger.error('Assembly setup error', error.stack);
+        if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, error.message);
+      }
+    };
+
+    processTask();
+    return videoUrl;
   }
 
   // =========================================================================

@@ -1,5 +1,5 @@
 
-import { Controller, Post, Get, Param, Body, UseInterceptors, UploadedFiles, Res } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseInterceptors, UploadedFiles, Res, BadRequestException } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { VideoService } from './video.service';
 import { Response } from 'express';
@@ -24,10 +24,13 @@ export class VideoController {
   async assembleVideo(
     @UploadedFiles() files: { audio?: Express.Multer.File[], bgMusic?: Express.Multer.File[], images?: Express.Multer.File[] },
     @Body() body: { duration?: string; script?: string; bgMusicId?: string; projectId?: string },
-    @Res() res: Response
   ) {
     let bgMusicFile = files.bgMusic?.[0];
     const projectId = body.projectId || 'dev-session';
+
+    if (!files.audio?.[0] || !files.images) {
+      throw new BadRequestException('Audio and images are required');
+    }
 
     // If no file uploaded but bgMusicId provided, try to load from local storage
     if (!bgMusicFile && body.bgMusicId) {
@@ -49,9 +52,9 @@ export class VideoController {
       }
     }
 
-    const videoStream = await this.videoService.assembleVideo(
-      files.audio?.[0],
-      files.images || [],
+    const videoUrl = await this.videoService.assembleVideo(
+      files.audio[0],
+      files.images,
       parseFloat(body.duration || '0'),
       body.script,
       bgMusicFile,
@@ -59,12 +62,11 @@ export class VideoController {
       projectId
     );
 
-    res.set({
-      'Content-Type': 'video/mp4',
-      'Content-Disposition': 'attachment; filename="video.mp4"',
-    });
-
-    videoStream.pipe(res);
+    return { 
+      message: 'Video assembly started in background', 
+      projectId,
+      videoUrl // This is the future URL
+    };
   }
 
   @Post(':projectId/generate')

@@ -10,7 +10,11 @@ async function bootstrap() {
   app.enableCors(); // Ensure CORS is enabled for the frontend
 
   const port = process.env.PORT && process.env.PORT !== '3000' ? process.env.PORT : 3001;
-  await app.listen(port);
-  logger.log(`✅ Backend running on http://localhost:${port}`);
+  const server = await app.listen(port);
+  
+  // Aumentar timeout para 15 minutos (900000ms) para renderizações longas
+  server.setTimeout(900000);
+  
+  logger.log(`✅ Backend running on http://localhost:${port} (Timeout: 15m)`);
 }
 bootstrap();
