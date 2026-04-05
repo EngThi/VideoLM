@@ -50,6 +50,12 @@ export class AiController {
       script,
     );
 
+    const audioFile = {
+      buffer: audioBuffer,
+      originalname: 'audio.wav',
+      mimetype: 'audio/wav',
+    } as Express.Multer.File;
+
     // 5. Download images
     const imageBuffers = await this.aiService.downloadImages(imageUrls);
     const imageFiles = imageBuffers.map((buffer, i) => ({
@@ -60,25 +66,18 @@ export class AiController {
 
 
     // 6. Assemble Video
-    const audioFile = {
-      buffer: audioBuffer,
-      originalname: 'audio.wav',
-      mimetype: 'audio/wav',
-    } as Express.Multer.File;
-    
-    const videoStream = await this.videoService.assembleVideo(
+    const videoUrl = await this.videoService.assembleVideo(
       audioFile,
       imageFiles,
       duration,
       script,
-      null, // No background music for now
+      undefined, // No background music for now
     );
 
-    // 7. Stream video back to client
-    res.set({
-      'Content-Type': 'video/mp4',
-      'Content-Disposition': 'attachment; filename="video.mp4"',
+    // 7. Return JSON response
+    return res.json({
+      message: 'Video generation started in background',
+      videoUrl,
     });
-    videoStream.pipe(res);
   }
 }

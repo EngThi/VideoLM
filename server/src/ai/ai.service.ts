@@ -130,6 +130,7 @@ export class AiService {
     }
 
     const providers = [
+      { name: 'Gemini-2.5', fn: this.generateImageGemini.bind(this) },
       { name: 'OpenRouter', fn: this.generateImageOpenRouter.bind(this) },
       { name: 'HuggingFace', fn: this.generateImageHuggingFace.bind(this) },
       { name: 'Pollinations', fn: this.generateImagePollinations.bind(this) },
@@ -243,6 +244,43 @@ export class AiService {
     const seed = Math.floor(Math.random() * 1000000);
     // Use 'turbo' as suggested by documentation and models list
     return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=turbo`;
+  }
+
+  private async generateImageGemini(prompt: string, options?: ImageOptions): Promise<string | null> {
+    const key = this.geminiKeyManager.getCurrentKey();
+    if (!key) return null;
+
+    try {
+      const ai = new GoogleGenAI({ apiKey: key });
+      const result = await ai.models.generateContent({
+        model: 'gemini-2.5-flash-image',
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        config: {
+          // @ts-ignore
+          responseModalities: ["IMAGE"],
+          imageConfig: {
+            aspectRatio: "16:9",
+            imageSize: "1K",
+            outputMimeType: "image/png",
+          },
+          safetySettings: [
+            { category: 'HARM_CATEGORY_HATE_SPEECH' as any, threshold: 'BLOCK_NONE' as any },
+            { category: 'HARM_CATEGORY_DANGEROUS_CONTENT' as any, threshold: 'BLOCK_NONE' as any },
+            { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT' as any, threshold: 'BLOCK_NONE' as any },
+            { category: 'HARM_CATEGORY_HARASSMENT' as any, threshold: 'BLOCK_NONE' as any }
+          ]
+        },
+      });
+
+      const part = result.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+      if (part?.inlineData?.data) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+      return null;
+    } catch (error) {
+      this.logger.error(`Gemini Image Error: ${error.message}`);
+      return null;
+    }
   }
 
   // ── Public Pipeline Methods ───────────────────

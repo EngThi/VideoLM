@@ -74,32 +74,20 @@ async function runTest() {
         } as any;
 
         // Note: We pass testOutputDir as externalTempDir to keep clips/srt/etc.
-        const videoStream = await videoService.assembleVideo(
+        const videoUrl = await videoService.assembleVideo(
             audioFile,
             imageFiles,
             duration,
             script,
-            null,
+            undefined,
             testOutputDir 
         );
 
-        const outPath = path.join(testOutputDir, 'final_video_5min.mp4');
-        const fileStream = fs.createWriteStream(outPath);
+        console.log(`\n✨ Video assembly started in background!`);
+        console.log(`🎥 Future Video URL: ${videoUrl}`);
+        console.log(`📂 Work directory: ${testOutputDir}`);
         
-        videoStream.pipe(fileStream);
-
-        return new Promise((resolve, reject) => {
-            fileStream.on('finish', () => {
-                console.log(`\n✨ SUCCESS!`);
-                console.log(`🎥 Video: ${outPath}`);
-                console.log(`📂 Individual Assets: ${testOutputDir}`);
-                resolve(true);
-            });
-            fileStream.on('error', (err) => {
-                console.error('❌ Error writing video file:', err);
-                reject(err);
-            });
-        });
+        return true;
 
     } catch (error) {
         console.error('❌ Pipeline failed:', error);

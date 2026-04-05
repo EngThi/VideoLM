@@ -4,7 +4,7 @@ import { promisify } from 'util';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as ffmpeg from 'fluent-ffmpeg';
-import * as ffmpegPath from 'ffmpeg-static';
+import ffmpegPath from 'ffmpeg-static';
 import * as ffprobePath from 'ffprobe-static';
 import { PassThrough } from 'stream';
 import { ProjectsService } from '../projects/projects.service';
@@ -23,7 +23,7 @@ export class VideoService {
   ) {
     // Configura fluent-ffmpeg para usar binários estáticos
     if (ffmpegPath) {
-      ffmpeg.setFfmpegPath(ffmpegPath);
+      ffmpeg.setFfmpegPath(ffmpegPath as string);
       this.logger.log(`FFmpeg path set to: ${ffmpegPath}`);
     }
     if (ffprobePath && ffprobePath.path) {
@@ -111,7 +111,7 @@ export class VideoService {
       : `zoompan=z='min(zoom+0.0015,1.5)':d=${targetDurationFrames}:x='if(eq(on,1),iw/2,x-1)':y='if(eq(on,1),ih/2,y)':s=1280x720:fps=${fps}`;
     
     const finalDurationFrames = Math.ceil(outputDuration * fps);
-    const finalZoomCmd = zoomCmd.replace(`d=${targetDurationFrames}`, `d=${finalZoomCmd}`);
+    const finalZoomCmd = zoomCmd.replace(`d=${targetDurationFrames}`, `d=${finalDurationFrames}`);
     
     const ffmpegBin = ffmpegPath || 'ffmpeg';
     const cmd = `"${ffmpegBin}" -y -loop 1 -i "${imagePath}" -vf "scale=1920:-2,${finalZoomCmd},fade=t=in:st=0:d=0.5,fade=t=out:st=${outputDuration-0.5}:d=0.5" -c:v libx264 -t ${outputDuration} -pix_fmt yuv420p -preset ultrafast "${outputPath}"`;
