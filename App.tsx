@@ -34,6 +34,7 @@ const App: React.FC = () => {
   const [videoResult, setVideoResult] = useState<VideoResult | null>(null);
   const [scriptResult, setScriptResult] = useState<ScriptResult | null>(null);
   const [contentIdeas, setContentIdeas] = useState<ContentIdea[]>([]);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
 
   // Assets state
   const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | undefined>(undefined);
@@ -66,6 +67,7 @@ const App: React.FC = () => {
     setContentIdeas([]);
     setConfig(null);
     setSelectedIdea(null);
+    setCurrentProjectId(null);
     
     setGeneratedAudioUrl(undefined);
     generatedAudioUrlRef.current = undefined;
@@ -123,8 +125,10 @@ const App: React.FC = () => {
     }
 
     setConfig(processedConfig);
+    const projectId = `proj_${Date.now()}`;
+    setCurrentProjectId(projectId);
     setIsLoading(true);
-    addLog('🚀 Pipeline initiated. Configuration received.');
+    addLog(`🚀 Pipeline initiated (Project: ${projectId}). Configuration received.`);
 
     if (processedConfig.useLocalAssets) {
         addLog('🛠️ Dev Mode Active: Skipping idea generation.');
@@ -183,7 +187,6 @@ const App: React.FC = () => {
         try {
             // --- DEV MODE: LOCAL ASSETS BYPASS ---
             if (config.useLocalAssets) {
-                 // ... (Dev Mode logic unchanged for brevity, focusing on optimization below)
                  if (currentStage.id === 'SCRIPT_GENERATION') {
                     addLog('🛠️ DEV MODE: Loading local script...');
                     if (config.localScript) {
@@ -223,21 +226,33 @@ const App: React.FC = () => {
                     const audioUrl = generatedAudioUrlRef.current;
                     const images = generatedImagesRef.current;
                     const audioDur = generatedAudioDurationRef.current;
+                    const projectId = currentProjectId || `dev_${Date.now()}`;
+
                      if (!audioUrl || !images || images.length === 0) {
                         addLog("⚠️ Missing local assets for assembly.");
                      } else {
                         addLog(`🎞️ Initializing FFmpeg engine with ${images.length} images...`);
-                        const videoUrl = await ffmpegService.assembleVideo(audioUrl, images, audioDur, scriptResult?.scriptText);
-                        setVideoResult(prev => ({
-                            success: true,
-                            generatedImages: images,
-                            audioUrl: audioUrl,
-                            audioDuration: audioDur,
-                            videoUrl: videoUrl,
-                            localPath: '/output/final_assets',
-                            script: scriptResult ?? undefined,
-                        }));
-                        addLog('✨ Final video rendered successfully (Dev Mode)!');
+                        await ffmpegService.assembleVideo(audioUrl, images, audioDur, scriptResult?.scriptText, undefined, projectId);
+                        
+                        addLog('⏳ Background assembly started (Dev Mode). Polling...');
+                        let isDone = false;
+                        while(!isDone) {
+                            await new Promise(r => setTimeout(r, 5000));
+                            const res = await ffmpegService.pollVideoStatus(projectId);
+                            if (res.status === 'completed' || res.status === 'done') {
+                                setVideoResult({
+                                    success: true,
+                                    generatedImages: images,
+                                    audioUrl: audioUrl,
+                                    audioDuration: audioDur,
+                                    videoUrl: res.videoUrl,
+                                    localPath: '/output/final_assets',
+                                    script: scriptResult ?? undefined,
+                                });
+                                isDone = true;
+                            } else if (res.status === 'error') throw new Error(res.error);
+                        }
+                        addLog('✨ Final video rendered successfully!');
                      }
                 }
                 else {
@@ -274,109 +289,81 @@ const App: React.FC = () => {
                 const prompts = await generateImagePrompts(scriptResult.scriptText, audioDur);
                 addLog(`📝 Generated ${prompts.length} image prompts.`);
 
-                // --- OPTIMIZATION START: RESILIENT BATCH PROCESSING ---
                 const newImages: GeneratedImage[] = [];
-                const BATCH_SIZE = 2; // Reduced batch size to avoid rate limiting
+                const BATCH_SIZE = 2;
                 
                 for (let i = 0; i < prompts.length; i += BATCH_SIZE) {
                     const batchPrompts = prompts.slice(i, i + BATCH_SIZE);
                     const batchStartIdx = i;
+                    addLog(`🎨 Generating batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(prompts.length/BATCH_SIZE)}...`);
                     
-                    addLog(`🎨 Generating batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(prompts.length/BATCH_SIZE)} (Images ${i+1}-${Math.min(i+BATCH_SIZE, prompts.length)})...`);
-                    
-                    // Create promises for the batch with individual retry logic
                     const batchPromises = batchPrompts.map(async (prompt, relativeIdx) => {
                         const originalIdx = batchStartIdx + relativeIdx;
                         let result = await generateImage(prompt);
-                        
-                        // Retry once after a short delay if failed
                         if (!result.success) {
-                            addLog(`🔄 Retrying image ${originalIdx + 1} after failure...`);
                             await new Promise(r => setTimeout(r, 2000));
                             result = await generateImage(prompt);
                         }
-                        
                         return { result, originalIdx, prompt };
                     });
 
-                    // Wait for all in batch
                     const batchResults = await Promise.all(batchPromises);
-
-                    // Process results
                     for (const { result, originalIdx, prompt } of batchResults) {
                         if (result.success && result.url) {
-                            newImages.push({
-                                url: result.url,
-                                prompt: prompt,
-                                index: originalIdx
-                            });
+                            newImages.push({ url: result.url, prompt: prompt, index: originalIdx });
                         } else {
-                            addLog(`⚠️ Failed to generate image ${originalIdx + 1}. Attempting simple fallback...`);
-                            // Try a much simpler prompt as last resort
-                            const fallbackResult = await generateImage(`Cinematic high quality 4k background of ${config.topic}`);
+                            addLog(`⚠️ Fallback for image ${originalIdx + 1}...`);
+                            const fallbackResult = await generateImage(`Cinematic background of ${config.topic}`);
                             if (fallbackResult.success && fallbackResult.url) {
-                                newImages.push({
-                                    url: fallbackResult.url,
-                                    prompt: "Fallback: " + prompt,
-                                    index: originalIdx
-                                });
+                                newImages.push({ url: fallbackResult.url, prompt: "Fallback: " + prompt, index: originalIdx });
                             }
                         }
                     }
-                    
-                    // Cooldown between batches to be nice to API
-                    if (i + BATCH_SIZE < prompts.length) {
-                        await new Promise(r => setTimeout(r, 3000));
-                    }
+                    if (i + BATCH_SIZE < prompts.length) await new Promise(r => setTimeout(r, 2000));
                 }
-                
-                // Sort by index to ensure order is correct after async batching
                 newImages.sort((a, b) => a.index - b.index);
-                // --- OPTIMIZATION END ---
-
                 setGeneratedImages(newImages);
                 generatedImagesRef.current = [...newImages];
-                addLog(`🎬 Successfully generated ${newImages.length} storyboard images.`);
+                addLog(`🎬 Generated ${newImages.length} images.`);
             }
             else if (currentStage.id === 'VIDEO_ASSEMBLY') {
                 const audioUrl = generatedAudioUrlRef.current;
                 const images = generatedImagesRef.current;
                 const audioDur = generatedAudioDurationRef.current;
                 const bgMusicUrl = config.bgMusicUrl;
+                const projectId = currentProjectId || `proj_${Date.now()}`;
 
                 if (!audioUrl || !images || images.length === 0) {
-                    addLog(`⚠️ Skipping video assembly: Missing assets.`);
-                     setVideoResult({
-                         success: true, 
-                         generatedImages: images || [],
-                         audioUrl: audioUrl,
-                         audioDuration: audioDur,
-                         script: scriptResult ?? undefined,
-                     });
+                    throw new Error("Missing assets for assembly.");
                 } else {
-                    addLog(`🎞️ Initializing FFmpeg engine... ${bgMusicUrl ? '(with BGM)' : ''}`);
-                    const videoUrl = await ffmpegService.assembleVideo(
-                        audioUrl, 
-                        images, 
-                        audioDur, 
-                        scriptResult?.scriptText,
-                        bgMusicUrl
-                    );
+                    addLog(`🎞️ Triggering background FFmpeg assembly...`);
+                    await ffmpegService.assembleVideo(audioUrl, images, audioDur, scriptResult?.scriptText, bgMusicUrl, projectId);
 
-                    setVideoResult(prev => ({
-                        success: true,
-                        generatedImages: images,
-                        audioUrl: audioUrl,
-                        audioDuration: audioDur,
-                        videoUrl: videoUrl,
-                        localPath: '/output/final_assets',
-                        script: scriptResult ?? undefined,
-                    }));
-                    addLog('✨ Final video rendered successfully!');
+                    addLog('⏳ Assembly started. Polling status...');
+                    let isDone = false;
+                    let attempts = 0;
+                    while (!isDone && attempts < 60) {
+                        await new Promise(r => setTimeout(r, 10000));
+                        attempts++;
+                        const res = await ffmpegService.pollVideoStatus(projectId);
+                        addLog(`📡 Status Check ${attempts}: ${res.status}`);
+
+                        if (res.status === 'completed' || res.status === 'done') {
+                            setVideoResult({
+                                success: true,
+                                generatedImages: images,
+                                audioUrl: audioUrl,
+                                audioDuration: audioDur,
+                                videoUrl: res.videoPath || res.videoUrl,
+                                localPath: '/output/final_assets',
+                                script: scriptResult ?? undefined,
+                            });
+                            isDone = true;
+                            addLog('✨ Video rendered successfully!');
+                        } else if (res.status === 'error') throw new Error(res.error);
+                    }
+                    if (!isDone) throw new Error("Assembly timed out.");
                 }
-            }
-            else {
-                await new Promise(resolve => setTimeout(resolve, 1000));
             }
 
             addLog(`✅ Completed stage: ${currentStage.name}`);
@@ -395,7 +382,7 @@ const App: React.FC = () => {
 
     runPipeline();
 
-  }, [isGenerating, currentStageIndex, stages, addLog, config, selectedIdea, setStageStatus, scriptResult]);
+  }, [isGenerating, currentStageIndex, stages, addLog, config, selectedIdea, setStageStatus, scriptResult, currentProjectId]);
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 font-sans flex flex-col">

@@ -116,13 +116,35 @@ class FFmpegService {
             throw new Error(`Backend error: ${response.status} ${errorText}`);
         }
 
-        // 6. Get Result
-        const videoBlob = await response.blob();
-        return URL.createObjectURL(videoBlob);
+        // 6. Handle JSON Response (Background Worker Pattern)
+        const data = await response.json();
+        console.log("Background assembly started:", data);
+
+        // If we have an initial URL, we return it, but the UI should poll for completion
+        if (data.videoUrl) {
+            // Prepend origin if needed, but since it's same-origin /videos/ works
+            return data.videoUrl;
+        }
+
+        throw new Error("No video URL returned from backend");
 
     } catch (error) {
         console.error("Video Assembly Error:", error);
         throw error;
+    }
+  }
+
+  /**
+   * Polls the backend to check if the background video assembly is complete.
+   */
+  public async pollVideoStatus(projectId: string): Promise<{ status: string; videoUrl?: string; error?: string }> {
+    try {
+        const response = await fetch(`/api/video/${projectId}/status`);
+        if (!response.ok) throw new Error(`Status check failed: ${response.status}`);
+        return await response.json();
+    } catch (e) {
+        console.error("Polling error:", e);
+        return { status: 'error', error: (e as Error).message };
     }
   }
 }
