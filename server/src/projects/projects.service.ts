@@ -1,5 +1,5 @@
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ProjectEntity } from './project.entity';
@@ -7,6 +7,8 @@ import { CreateProjectDto } from './dto/create-project.dto';
 
 @Injectable()
 export class ProjectsService {
+  private readonly logger = new Logger(ProjectsService.name);
+
   constructor(
     @InjectRepository(ProjectEntity)
     private projectRepo: Repository<ProjectEntity>,
@@ -39,16 +41,40 @@ export class ProjectsService {
     videoPath?: string,
     error?: string,
   ): Promise<ProjectEntity> {
-    const project = await this.findOne(id);
-    project.status = status as any;
+    let project = await this.projectRepo.findOne({ where: { id } });
+    
+    if (!project) {
+      this.logger.log(`Project ${id} not found. Auto-creating during status update.`);
+      project = this.projectRepo.create({
+        id,
+        title: 'Auto-created project',
+        status: status as any,
+      });
+    } else {
+      project.status = status as any;
+    }
+
     if (videoPath) project.videoPath = videoPath;
     if (error) project.error = error;
+    
     return this.projectRepo.save(project);
   }
 
   async updateMetadata(id: string, metadata: any): Promise<ProjectEntity> {
-    const project = await this.findOne(id);
-    project.metadata = { ...project.metadata, ...metadata };
+    let project = await this.projectRepo.findOne({ where: { id } });
+    
+    if (!project) {
+      this.logger.log(`Project ${id} not found. Auto-creating during metadata update.`);
+      project = this.projectRepo.create({
+        id,
+        title: 'Auto-created project',
+        status: 'idle',
+        metadata
+      });
+    } else {
+      project.metadata = { ...project.metadata, ...metadata };
+    }
+    
     return this.projectRepo.save(project);
   }
 

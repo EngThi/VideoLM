@@ -4,6 +4,8 @@ import { ConfigModule } from '@nestjs/config';
 import { ProjectsModule } from './projects/projects.module';
 import { VideoModule } from './video/video.module';
 import { AiModule } from './ai/ai.module';
+import { UsersModule } from './users/users.module';
+import { AuthModule } from './auth/auth.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 
@@ -31,6 +33,8 @@ import { join } from 'path';
     ProjectsModule,
     VideoModule,
     AiModule,
+    UsersModule,
+    AuthModule,
   ],
 })
 export class AppModule {}

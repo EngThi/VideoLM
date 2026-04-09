@@ -261,16 +261,26 @@ export class VideoService {
     externalTempDir?: string,
     projectId: string = 'dev-session',
   ): Promise<string> {
+    this.logger.log(`🎬 Starting assembly for project: ${projectId}`);
     await this.cleanupOldTempFolders();
 
-    const tempDir = externalTempDir || path.join(process.cwd(), 'temp', `assemble_${Date.now()}`);
+    // Ensure essential directories exist
+    const videosDir = path.join(process.cwd(), 'public/videos');
+    const tempRoot = path.join(process.cwd(), 'temp');
+    if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
+    if (!fs.existsSync(tempRoot)) fs.mkdirSync(tempRoot, { recursive: true });
+
+    const tempDir = externalTempDir || path.join(tempRoot, `assemble_${Date.now()}`);
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
     }
 
     const finalFileName = `${projectId || 'dev'}_${Date.now()}.mp4`;
-    const finalPath = path.join(process.cwd(), 'public/videos', finalFileName);
+    const finalPath = path.join(videosDir, finalFileName);
     const videoUrl = `/videos/${finalFileName}`;
+
+    this.logger.log(`📂 Temp Dir: ${tempDir}`);
+    this.logger.log(`🎯 Final Path: ${finalPath}`);
 
     if (projectId !== 'dev-session') {
       await this.projectsService.updateStatus(projectId, 'processing');
@@ -278,11 +288,15 @@ export class VideoService {
 
     const processTask = async () => {
       try {
+        if (!audioFile || !audioFile.buffer) throw new Error("Audio file buffer is missing");
+        
         const audioPath = path.join(tempDir, 'audio.wav');
         fs.writeFileSync(audioPath, audioFile.buffer);
+        this.logger.log(`✅ Audio saved to ${audioPath}`);
 
         let totalDuration = await this.getAudioDuration(audioPath);
         if (!totalDuration || isNaN(totalDuration) || totalDuration <= 0) {
+            this.logger.warn(`ffprobe failed to get duration, using inputDuration: ${inputDuration}`);
             totalDuration = inputDuration;
         }
 
@@ -295,11 +309,12 @@ export class VideoService {
         }
 
         let bgMusicPath: string | undefined;
-        if (bgMusicFile) {
+        if (bgMusicFile && bgMusicFile.buffer) {
           bgMusicPath = path.join(tempDir, 'bg_music.mp3');
           fs.writeFileSync(bgMusicPath, bgMusicFile.buffer);
         }
 
+        this.logger.log(`📸 Rendering ${imageFiles.length} clips...`);
         const clipPaths = await this.renderAllClips(tempDir, imageFiles, totalDuration);
 
         const concatListPath = path.join(tempDir, 'concat_list.txt');
@@ -329,20 +344,20 @@ export class VideoService {
 
         command
           .outputOptions(outputOptions)
-          .on('start', (cmd) => this.logger.log('FFmpeg Background Started'))
+          .on('start', (cmd) => this.logger.log(`🚀 FFmpeg process started: ${cmd}`))
           .on('error', (err) => {
-            this.logger.error('Background Assembly Error: ' + err.message);
+            this.logger.error(`❌ FFmpeg Error: ${err.message}`);
             if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, err.message);
           })
           .on('end', () => {
-            this.logger.log('✅ Video saved to: ' + finalPath);
+            this.logger.log(`✅ Video assembly complete! Saved to ${finalPath}`);
             if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'completed', videoUrl);
             try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) {}
           })
           .save(finalPath);
 
       } catch (error) {
-        this.logger.error('Assembly setup error', error.stack);
+        this.logger.error(`🚨 Fatal Assembly Task Error: ${error.message}`, error.stack);
         if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, error.message);
       }
     };
