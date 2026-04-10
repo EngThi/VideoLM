@@ -369,4 +369,4 @@ export class AiService {
         return Buffer.from(await res.arrayBuffer());
     }));
   }
-}
+} 

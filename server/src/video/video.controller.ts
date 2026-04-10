@@ -19,7 +19,7 @@ export class VideoController {
   @UseInterceptors(FileFieldsInterceptor([
     { name: 'audio', maxCount: 1 },
     { name: 'bgMusic', maxCount: 1 },
-    { name: 'images', maxCount: 20 },
+    { name: 'images', maxCount: 100 },
   ]))
   async assembleVideo(
     @UploadedFiles() files: { audio?: Express.Multer.File[], bgMusic?: Express.Multer.File[], images?: Express.Multer.File[] },
