@@ -31,7 +31,13 @@ export class ProjectsService {
     return project;
   }
 
-  async findAll(): Promise<ProjectEntity[]> {
+  async findAll(userId?: string): Promise<ProjectEntity[]> {
+    if (userId) {
+      return this.projectRepo.find({ 
+        where: { user: { id: userId } },
+        order: { createdAt: 'DESC' } 
+      });
+    }
     return this.projectRepo.find({ order: { createdAt: 'DESC' } });
   }
 
