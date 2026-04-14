@@ -23,13 +23,16 @@ export class ProjectEntity {
   videoPath: string;
 
   @Column({ default: 'idle' })
-  status: 'idle' | 'processing' | 'done' | 'error' | 'completed';
+  status: 'idle' | 'processing' | 'done' | 'error' | 'completed' | 'researching';
 
   @Column('text', { nullable: true })
   error: string;
 
   @Column('simple-json', { nullable: true })
   metadata: any;
+
+  @Column('simple-json', { nullable: true })
+  sources: string[]; // URLs or text snippets for NotebookLM
 
   @ManyToOne(() => UserEntity, (user) => user.projects, { nullable: true })
   user: UserEntity;
