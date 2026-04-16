@@ -1,90 +1,61 @@
-# AI Video Factory: Automated YouTube Production Pipeline
+# YouTubeVideoMaster (Flavortown Edition)
 
-AI Video Factory is a full-stack automation tool designed to transform a single topic into a fully rendered YouTube video. Unlike simple wrappers, this project implements a resilient background processing architecture to handle heavy video encoding tasks without compromising user experience.
+Plataforma full-stack para automação de criação de vídeos para YouTube, integrando IA multimodal e pesquisa factual profunda. O sistema utiliza uma arquitetura híbrida para orquestrar roteirização, geração de ativos e montagem audiovisual.
 
-Built for the **Hack Club Flavortown** marathon, the project focuses on deep integration between Large Language Models (Gemini) and native media processing tools (FFmpeg).
+## 🏗 Arquitetura do Sistema
 
----
+O projeto é dividido em três camadas principais:
 
-## 🏗 System Architecture
+1.  **Frontend (React + Vite):** Interface SPA para gerenciamento de projetos, acompanhamento de status em tempo real e visualização de storyboards.
+2.  **Backend (NestJS):** Core API responsável pela gestão de usuários, persistência em SQLite, proteção de rotas via JWT e orquestração do pipeline.
+3.  **Research Engine (Python/MCP):** Motor de pesquisa profunda baseado no NotebookLM (via `nlm-mcp-cli`), permitindo a ingestão de fontes externas (URLs/PDFs) para geração de Audio e Video Overviews.
 
-The project is split into a decoupled Frontend/Backend architecture to ensure scalability and separation of concerns.
+## 🚀 Funcionalidades Principais
 
-### Backend (NestJS + FFmpeg)
-The core logic resides in a NestJS server that orchestrates the "Immortal Pipeline". 
-- **Resilient Rendering**: We migrated to a background worker pattern. The server initiates the FFmpeg process and immediately returns a tracking ID, allowing the render to persist even if the network connection is interrupted.
-- **Static Binary Distribution**: To eliminate the "it works on my machine" problem, we bundle `ffmpeg-static` and `ffprobe-static`. This ensures a zero-dependency deployment where the binary is matched to the OS architecture automatically.
-- **Data Persistence**: Uses TypeORM with SQLite for local development to track project states (`idle`, `processing`, `completed`, `error`) and asset metadata.
+-   **Pipeline Multimodal (Gemini 2.5 Flash):** Geração sincronizada de roteiro, narração (TTS) e imagens 16:9 em um único fluxo.
+-   **Modo Research:** Integração programática com o Google NotebookLM para criar conteúdo baseado em fontes factuais.
+-   **Immortal Background Renderer:** Sistema de assembly de vídeo via FFmpeg que roda em workers de segundo plano com suporte a polling de status.
+-   **Hardened Infrastructure:** Suporte a payloads de até 100MB e limites de multipart otimizados para processamento de assets em lote.
 
-### Frontend (React + Vite)
-- **Real-time Monitoring**: Uses a reactive state machine to track the 7-stage pipeline progress.
-- **Asset Management**: Handles multi-part form uploads for local asset injection (Dev Mode), allowing for rapid testing without burning API credits.
+## 🔐 Segurança e Identidade
 
----
+-   **Autenticação:** Fluxo completo de Registro/Login utilizando JWT (JSON Web Tokens).
+-   **Proteção de Rotas:** Guards implementados em nível de controlador para proteger endpoints de IA e Pesquisa.
+-   **Isolamento de Dados:** Consultas ao banco de dados filtradas por `userId`, garantindo a privacidade dos projetos entre usuários.
 
-## 🚀 Getting Started
+## 🛠 Configuração e Instalação
 
-### Prerequisites
-- **Node.js 20.x** or higher.
-- **Google Gemini API Key**: Required for script and asset generation.
+### Requisitos
+-   Node.js 20+
+-   Python 3.10+ (com gerenciador `uv`)
+-   FFmpeg
 
-### Local Installation
-
-1. **Clone and Install**
-   ```bash
-   git clone https://github.com/EngThi/ai-video-factory.git
-   cd ai-video-factory
-   npm install
-   ```
-   *Note: The root install will automatically trigger the server-side dependency installation.*
-
-2. **Configuration**
-   Create a `server/.env.local` file with the following variables:
-   ```env
-   GEMINI_API_KEY=your_key_here
-   DATABASE_PATH=./data/database.sqlite
-   ```
-
-3. **Launch Development Environment**
-   ```bash
-   npm run dev
-   ```
-   - Frontend: `http://localhost:5173`
-   - Backend: `http://localhost:3001`
-
----
-
-## 🐳 Docker Deployment (One-Click)
-
-The project includes a multi-stage Dockerfile optimized for production. It handles the frontend build (Vite), the backend compilation (TypeScript), and installs the necessary system libraries for FFmpeg's font and image filters.
-
+### Instalação do Backend
 ```bash
-docker build -t video-factory .
-docker run -p 3001:3001 --env-file server/.env.local video-factory
+cd server
+npm install
+npm run build
 ```
 
+### Instalação do Motor de Pesquisa
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="$HOME/.local/bin:$PATH"
+uvx --from notebooklm-mcp-cli nlm login --manual
+```
+
+### Variáveis de Ambiente (.env.local)
+```env
+DATABASE_PATH=../data/database.sqlite
+GEMINI_API_KEY=sua_chave_aqui
+HF_TOKEN=seu_token_huggingface
+JWT_SECRET=seu_segredo_jwt
+```
+
+## 🚦 Verificação de Sistema
+Para validar a integridade da comunicação entre os motores, utilize os scripts de teste incluídos:
+-   `npm run test:nlm`: Valida a ponte com o NotebookLM.
+-   `npm run test:gemini`: Valida a rotação de chaves e geração multimodal.
+
 ---
-
-## 📂 Project Structure & Navigation
-
-- `/server/src/video`: The "Engine Room". Contains the logic for FFmpeg complex filters, Ken Burns effects, and ducking audio mixing.
-- `/server/src/ai`: Integration with Google Generative AI, including prompt engineering for structured JSON outputs.
-- `/components`: Modular React components for the pipeline UI.
-- `/services/ffmpegService.ts`: Frontend-side orchestrator that prepares the FormData for the backend.
-
----
-
-## 🗺 Roadmap: The Path to SaaS
-
-This project is currently in **Phase 1 (Hardening)**. Future milestones include:
-
-- **Authentication**: Implementing JWT-based auth to allow per-user project history.
-- **Monetization**: Stripe integration for credit-based video generation.
-- **Advanced Polish**: Transitioning from static images to video clips using Veo 3.1 or Kling, and implementing smart-cut editing based on audio peaks.
-
----
-
-## ⚖️ License
-Distributed under the MIT License. See `LICENSE` for more information.
-
-**Developed as part of the Hack Club Flavortown Marathon.**
+**Status:** Fase 2 (SaaS Foundation) Completa.
