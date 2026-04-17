@@ -1,4 +1,5 @@
 
+import { authService } from './authService';
 import type { GeneratedImage } from '../types';
 
 class FFmpegService {
@@ -15,7 +16,10 @@ class FFmpegService {
                 console.log(`🔄 Retry ${attempt} for image ${index + 1} using backend orchestrator...`);
                 const retryResp = await fetch('/api/ai/image', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        ...authService.getAuthHeader()
+                    },
                     body: JSON.stringify({ prompt })
                 });
                 const retryData = await retryResp.json();
@@ -108,6 +112,9 @@ class FFmpegService {
         console.log("Sending all assets to backend FFmpeg engine...");
         const response = await fetch('/api/video/assemble', {
             method: 'POST',
+            headers: {
+                ...authService.getAuthHeader()
+            },
             body: formData,
         });
 
@@ -139,7 +146,11 @@ class FFmpegService {
    */
   public async pollVideoStatus(projectId: string): Promise<{ status: string; videoUrl?: string; error?: string }> {
     try {
-        const response = await fetch(`/api/video/${projectId}/status`);
+        const response = await fetch(`/api/video/${projectId}/status`, {
+            headers: {
+                ...authService.getAuthHeader()
+            }
+        });
         if (!response.ok) throw new Error(`Status check failed: ${response.status}`);
         return await response.json();
     } catch (e) {

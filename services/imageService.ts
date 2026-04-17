@@ -1,3 +1,6 @@
+
+import { authService } from './authService';
+
 export interface ImageGenerationResult {
   success: boolean;
   url?: string;
@@ -21,9 +24,11 @@ export async function generateImage(prompt: string, options?: ImageOptions): Pro
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...authService.getAuthHeader()
       },
       body: JSON.stringify({ prompt, options }),
     });
+
 
     if (!response.ok) {
       throw new Error(`Server error: ${response.statusText}`);

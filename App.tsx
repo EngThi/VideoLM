@@ -21,7 +21,43 @@ const getAudioDuration = (url: string): Promise<number> => {
     });
 };
 
+import { authService, AuthUser } from './services/authService';
+
 const App: React.FC = () => {
+  const [user, setUser] = useState<AuthUser | null>(authService.getUser());
+  const [authEmail, setAuthEmail] = useState('');
+  const [authPass, setAuthPass] = useState('');
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
+
+  const handleLogin = async () => {
+    setIsAuthLoading(true);
+    try {
+      const data = await authService.login(authEmail, authPass);
+      setUser(data.user);
+    } catch (e) {
+      alert('Login failed. Try registering first.');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleRegister = async () => {
+    setIsAuthLoading(true);
+    try {
+      const data = await authService.register(authEmail, authPass);
+      setUser(data.user);
+    } catch (e) {
+      alert('Registration failed.');
+    } finally {
+      setIsAuthLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    authService.logout();
+    setUser(null);
+  };
+
   const [config, setConfig] = useState<VideoConfig | null>(null);
   const [selectedIdea, setSelectedIdea] = useState<ContentIdea | null>(null);
   const [stages, setStages] = useState<PipelineStage[]>(
@@ -386,33 +422,86 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-900 text-gray-200 font-sans flex flex-col">
-      <Header />
-      <main className="flex-grow container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
-        <div className="lg:col-span-2 bg-gray-800/50 rounded-2xl shadow-2xl p-6 h-fit">
-          <ConfigForm
-            onGenerate={handleGenerate}
-            isGenerating={isLoading || isGenerating}
-            onTestVeo={handleTestVeo}
-            isTestLoading={isTestLoading}
-            testVideoUrl={testVideoUrl}
-          />
+      {/* Auth Bar */}
+      <div className="bg-gray-800/80 backdrop-blur-md p-4 flex justify-between items-center border-b border-gray-700 sticky top-0 z-50">
+        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">YouTubeVideoMaster 🎬</h1>
+        {user ? (
+          <div className="flex items-center gap-4">
+            <span className="text-xs md:text-sm text-gray-400 hidden sm:inline">{user.email} (Quota: {user.quota})</span>
+            <button onClick={handleLogout} className="bg-red-900/30 hover:bg-red-800 text-red-400 border border-red-800/50 px-3 py-1 rounded-lg text-xs transition-all">Logout</button>
+          </div>
+        ) : (
+          <div className="flex gap-2">
+            <input 
+              type="email" placeholder="Email" 
+              className="bg-gray-900 px-3 py-1 rounded-lg text-xs outline-none border border-gray-700 focus:border-blue-500 transition-all"
+              value={authEmail} onChange={e => setAuthEmail(e.target.value)}
+            />
+            <input 
+              type="password" placeholder="Pass" 
+              className="bg-gray-900 px-3 py-1 rounded-lg text-xs outline-none border border-gray-700 focus:border-blue-500 transition-all"
+              value={authPass} onChange={e => setAuthPass(e.target.value)}
+            />
+            <button 
+              disabled={isAuthLoading}
+              onClick={handleLogin} className="bg-blue-600 hover:bg-blue-500 px-4 py-1 rounded-lg text-xs font-bold transition-all disabled:opacity-50">
+              Login
+            </button>
+            <button 
+              disabled={isAuthLoading}
+              onClick={handleRegister} className="bg-gray-700 hover:bg-gray-600 px-4 py-1 rounded-lg text-xs font-bold transition-all disabled:opacity-50">
+              Join
+            </button>
+          </div>
+        )}
+      </div>
+
+      {!user ? (
+        <div className="flex flex-col items-center justify-center flex-grow">
+          <div className="text-center p-8 bg-gray-800/30 rounded-3xl border border-gray-700/50 backdrop-blur-sm max-w-lg mx-4">
+            <h2 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent italic">FLAVORTOWN EDITION</h2>
+            <p className="text-gray-400 mb-8 leading-relaxed">
+              The professional AI video factory is now secured. Sign up to start your production journey with Gemini 2.5 Flash and NotebookLM Research.
+            </p>
+            <div className="flex justify-center gap-4 text-xs text-gray-500 font-mono">
+              <span>JWT PROTECTED</span>
+              <span>•</span>
+              <span>100MB PAYLOAD READY</span>
+            </div>
+          </div>
         </div>
-        <div className="lg:col-span-3 flex flex-col gap-8">
-          {contentIdeas.length > 0 && !isGenerating ? (
-            <IdeaSelector ideas={contentIdeas} onSelect={handleIdeaSelection} />
-          ) : (
-            <>
-              <StatusDisplay stages={stages} logs={logs} scriptResult={scriptResult} />
-              {videoResult && <ResultView result={videoResult} onReset={resetState} />}
-            </>
-          )}
-        </div>
-      </main>
+      ) : (
+        /* Original App Content */
+        <main className="flex-grow container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
+          <div className="lg:col-span-2 bg-gray-800/50 rounded-2xl shadow-2xl p-6 h-fit">
+            <ConfigForm
+              onGenerate={handleGenerate}
+              isGenerating={isLoading || isGenerating}
+              onTestVeo={handleTestVeo}
+              isTestLoading={isTestLoading}
+              testVideoUrl={testVideoUrl}
+            />
+          </div>
+          <div className="lg:col-span-3 flex flex-col gap-8">
+            {contentIdeas.length > 0 && !isGenerating ? (
+              <IdeaSelector ideas={contentIdeas} onSelect={handleIdeaSelection} />
+            ) : (
+              <>
+                <StatusDisplay stages={stages} logs={logs} scriptResult={scriptResult} />
+                {videoResult && <ResultView result={videoResult} onReset={resetState} />}
+              </>
+            )}
+          </div>
+        </main>
+      )}
+      
       <footer className="text-center p-4 text-gray-500 text-sm">
         <p>YouTubeVideoMaster AI Pipeline Interface - Created with Gemini</p>
       </footer>
     </div>
   );
 };
+
+export default App;
 
 export default App;

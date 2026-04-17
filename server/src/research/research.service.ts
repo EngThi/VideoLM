@@ -44,18 +44,27 @@ export class ResearchService {
 
     await this.projectsService.updateStatus(projectId, 'researching');
     
-    // Lógica de Recuperação de Notebook
     let notebookId = project.metadata?.notebookId;
 
     try {
-      if (!notebookId) {
-        this.logger.log(`Creating new Notebook for project ${projectId}...`);
-        // TODO: Integrar comando 'nlm create' no NotebookLMEngine
-        // notebookId = await this.notebookLM.createNewNotebook(project.title);
-        notebookId = 'notebook_' + Date.now(); // Mock por enquanto
+      // 1. Criar o Notebook se não existir
+      if (!notebookId || notebookId === 'placeholder-id' || notebookId.startsWith('notebook_')) {
+        this.logger.log(`Creating new Google Notebook for project ${projectId}...`);
+        notebookId = await this.notebookLM.createNotebook(`Factory: ${project.title || project.id}`);
         await this.projectsService.updateMetadata(projectId, { notebookId });
       }
 
+      // 2. Injetar as fontes no Notebook criado
+      this.logger.log(`Feeding ${project.sources.length} sources into notebook ${notebookId}...`);
+      for (const source of project.sources) {
+        try {
+          await this.notebookLM.addSource(notebookId, source);
+        } catch (sourceErr) {
+          this.logger.warn(`Failed to add source ${source}, skipping: ${sourceErr.message}`);
+        }
+      }
+
+      // 3. Disparar a geração (Deep Dive)
       this.logger.log(`Triggering ${type} overview for notebook ${notebookId}`);
       
       if (type === 'video') {
@@ -64,7 +73,7 @@ export class ResearchService {
       return this.notebookLM.createAudioOverview(notebookId);
 
     } catch (error) {
-      this.logger.error(`Failed to trigger NotebookLM: ${error.message}`);
+      this.logger.error(`Failed to execute NotebookLM pipeline: ${error.message}`);
       await this.projectsService.updateStatus(projectId, 'error', undefined, `Research failed: ${error.message}`);
       throw error;
     }

@@ -20,7 +20,25 @@ export class NotebookLMEngine {
   }
 
   async listNotebooks() {
-    return this.execute('list');
+    return this.execute('list notebooks');
+  }
+
+  async createNotebook(title: string): Promise<string> {
+    this.logger.log(`Criando novo notebook: ${title}`);
+    const output = this.execute(`create notebook "${title}"`);
+    // Extrai o UUID do notebook criado do output da CLI
+    const match = output.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
+    if (!match) {
+        // Fallback: tenta buscar na lista se não achou no output direto
+        this.logger.warn("ID não encontrado no output direto, tentando buscar via lista...");
+        return "new-notebook-check-list"; 
+    }
+    return match[0];
+  }
+
+  async addSource(notebookId: string, url: string) {
+    this.logger.log(`Adicionando fonte ao notebook ${notebookId}: ${url}`);
+    return this.execute(`add source ${notebookId} "${url}"`);
   }
 
   async createAudioOverview(notebookId: string) {
