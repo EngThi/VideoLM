@@ -1,6 +1,9 @@
+
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ProjectsService } from '../projects/projects.service';
 import { NotebookLMEngine } from './notebook-lm.engine';
+import * as path from 'path';
+import * as fs from 'fs';
 
 @Injectable()
 export class ResearchService {
@@ -17,19 +20,14 @@ export class ResearchService {
   async addSources(projectId: string, urls: string[]) {
     this.logger.log(`Adding ${urls.length} sources to project ${projectId}`);
     
-    // Atualiza a coluna de fontes e os metadados simultaneamente
+    // 1. Atualiza metadados
     await this.projectsService.updateMetadata(projectId, { 
       lastSourceUpdate: new Date().toISOString(),
       sourceCount: urls.length 
     });
 
-    // Salva as fontes na coluna dedicada da entidade
-    const project = await this.projectsService.findOne(projectId);
-    project.sources = urls;
-    
-    // Usamos o repositório indiretamente via ProjectsService se possível, 
-    // mas aqui o Júnior esperto sabe que precisa garantir a persistência.
-    return this.projectsService.updateStatus(projectId, project.status); 
+    // 2. Persiste as fontes de forma robusta
+    return this.projectsService.updateSources(projectId, urls);
   }
 
   /**
@@ -75,6 +73,51 @@ export class ResearchService {
     } catch (error) {
       this.logger.error(`Failed to execute NotebookLM pipeline: ${error.message}`);
       await this.projectsService.updateStatus(projectId, 'error', undefined, `Research failed: ${error.message}`);
+      throw error;
+    }
+  }
+
+  /**
+   * Verifica o status e baixa o resultado da pesquisa (Áudio ou Vídeo)
+   */
+  async downloadResearchResult(projectId: string) {
+    const project = await this.projectsService.findOne(projectId);
+    const notebookId = project.metadata?.notebookId;
+
+    if (!notebookId) throw new NotFoundException('Notebook ID not found for this project.');
+
+    try {
+      const statusRaw = await this.notebookLM.checkStatus(notebookId);
+      const artifacts = JSON.parse(statusRaw);
+      const latest = artifacts.find((a: any) => a.status === 'completed');
+
+      if (!latest) {
+        return { status: 'processing', message: 'Result is still being generated in Google Studio.' };
+      }
+
+      const extension = latest.type === 'video' ? 'mp4' : 'm4a';
+      const fileName = `research_${projectId}.${extension}`;
+      const publicDir = path.join(process.cwd(), 'public/videos');
+      
+      if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true });
+      
+      const outputPath = path.join(publicDir, fileName);
+
+      this.logger.log(`Downloading ${latest.type} artifact for project ${projectId}...`);
+      
+      if (latest.type === 'video') {
+        await this.notebookLM.downloadVideo(notebookId, outputPath);
+      } else {
+        await this.notebookLM.downloadAudio(notebookId, outputPath);
+      }
+
+      const videoUrl = `/videos/${fileName}`;
+      await this.projectsService.updateStatus(projectId, 'completed', videoUrl);
+      
+      return { status: 'completed', videoUrl, type: latest.type };
+
+    } catch (error) {
+      this.logger.error(`Download failed for project ${projectId}: ${error.message}`);
       throw error;
     }
   }

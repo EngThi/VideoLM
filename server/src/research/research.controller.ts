@@ -1,4 +1,5 @@
-import { Controller, Post, Body, Param, UseGuards, Request, BadRequestException } from '@nestjs/common';
+
+import { Controller, Post, Body, Param, UseGuards, Request, BadRequestException, Get } from '@nestjs/common';
 import { ResearchService } from './research.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
@@ -30,5 +31,13 @@ export class ResearchController {
     @Body('type') type: 'audio' | 'video' = 'audio',
   ) {
     return this.researchService.startNotebookLMResearch(projectId, type);
+  }
+
+  /**
+   * Tenta baixar o resultado da pesquisa do Google Studio para o servidor local
+   */
+  @Get(':projectId/download')
+  async downloadResult(@Param('projectId') projectId: string) {
+    return this.researchService.downloadResearchResult(projectId);
   }
 }

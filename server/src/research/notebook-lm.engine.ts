@@ -13,9 +13,13 @@ export class NotebookLMEngine {
     try {
       const fullCommand = `${this.nlmPath} ${command}`;
       return execSync(fullCommand, { encoding: 'utf-8' });
-    } catch (error) {
-      this.logger.error(`Erro ao executar comando NotebookLM: ${command}`);
-      throw error;
+    } catch (error: any) {
+      const stdout = error.stdout?.toString();
+      const stderr = error.stderr?.toString();
+      this.logger.error(`[NLM EXEC FAIL] Comando: ${command}`);
+      if (stdout) this.logger.error(`[NLM STDOUT]: ${stdout}`);
+      if (stderr) this.logger.error(`[NLM STDERR]: ${stderr}`);
+      throw new Error(`NLM Command Failed: ${stderr || stdout || error.message}`);
     }
   }
 
@@ -38,7 +42,7 @@ export class NotebookLMEngine {
 
   async addSource(notebookId: string, url: string) {
     this.logger.log(`Adicionando fonte ao notebook ${notebookId}: ${url}`);
-    return this.execute(`add source ${notebookId} "${url}"`);
+    return this.execute(`add url ${notebookId} "${url}"`);
   }
 
   async createAudioOverview(notebookId: string) {
@@ -49,5 +53,19 @@ export class NotebookLMEngine {
   async createVideoOverview(notebookId: string, style: string = 'classic') {
     this.logger.log(`Solicitando Video Overview (${style}) para: ${notebookId}`);
     return this.execute(`video create ${notebookId} --style ${style} --confirm`);
+  }
+
+  async downloadAudio(notebookId: string, outputPath: string) {
+    this.logger.log(`Baixando áudio do notebook ${notebookId} para: ${outputPath}`);
+    return this.execute(`download audio ${notebookId} --output "${outputPath}" --no-progress`);
+  }
+
+  async downloadVideo(notebookId: string, outputPath: string) {
+    this.logger.log(`Baixando vídeo do notebook ${notebookId} para: ${outputPath}`);
+    return this.execute(`download video ${notebookId} --output "${outputPath}" --no-progress`);
+  }
+
+  async checkStatus(notebookId: string) {
+    return this.execute(`studio status ${notebookId} --json`);
   }
 }

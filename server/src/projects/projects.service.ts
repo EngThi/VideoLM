@@ -84,6 +84,12 @@ export class ProjectsService {
     return this.projectRepo.save(project);
   }
 
+  async updateSources(id: string, sources: string[]): Promise<ProjectEntity> {
+    const project = await this.findOne(id);
+    project.sources = sources;
+    return this.projectRepo.save(project);
+  }
+
   async delete(id: string): Promise<void> {
     const result = await this.projectRepo.delete(id);
     if (result.affected === 0) {

@@ -26,10 +26,10 @@ import { join } from 'path';
     }),
     TypeOrmModule.forRoot({
       type: 'sqlite',
-      database: process.env.DATABASE_PATH,
+      database: '/home/user/hack-club/server/data/database.sqlite', // Caminho Absoluto Forçado
       autoLoadEntities: true,
-      synchronize: process.env.NODE_ENV !== 'production',
-      logging: process.env.NODE_ENV === 'development',
+      synchronize: true, 
+      logging: true,
     }),
     ProjectsModule,
     VideoModule,
