@@ -39,8 +39,11 @@ export class ResearchController {
   /**
    * Gera o storyboard visual baseado no contexto da pesquisa
    */
-  @Post(':projectId/storyboard')
-  async generateStoryboard(@Param('projectId') projectId: string) {
-    return this.researchService.generateVisualsForResearch(projectId);
+  /**
+   * Dispara a montagem final do vídeo factual
+   */
+  @Post(':projectId/assemble')
+  async assembleVideo(@Param('projectId') projectId: string) {
+    return this.researchService.assembleResearchVideo(projectId);
   }
 }

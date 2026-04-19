@@ -4,6 +4,7 @@ import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ProjectsService } from '../projects/projects.service';
 import { NotebookLMEngine } from './notebook-lm.engine';
 import { AiService } from '../ai/ai.service';
+import { VideoService } from '../video/video.service';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -15,7 +16,18 @@ export class ResearchService {
     private projectsService: ProjectsService,
     private notebookLM: NotebookLMEngine,
     private aiService: AiService,
+    private videoService: VideoService,
   ) {}
+  
+  // ... (rest of methods)
+  
+  /**
+   * Dispara a montagem do vídeo final baseado na pesquisa
+   */
+  async assembleResearchVideo(projectId: string) {
+    return this.videoService.assembleResearchVideo(projectId);
+  }
+}
   
   // ... rest of the class
   

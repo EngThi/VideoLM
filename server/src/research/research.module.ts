@@ -5,7 +5,7 @@ import { ProjectsModule } from '../projects/projects.module';
 import { NotebookLMEngine } from './notebook-lm.engine';
 
 @Module({
-  imports: [ProjectsModule, AiModule],
+  imports: [ProjectsModule, AiModule, VideoModule],
   providers: [ResearchService, NotebookLMEngine],
   controllers: [ResearchController],
   exports: [ResearchService],

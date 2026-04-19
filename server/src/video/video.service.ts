@@ -252,118 +252,78 @@ export class VideoService {
   }
 
 
-  async assembleVideo(
-    audioFile: Express.Multer.File,
-    imageFiles: Express.Multer.File[],
-    inputDuration: number,
-    script?: string,
-    bgMusicFile?: Express.Multer.File,
-    externalTempDir?: string,
-    projectId: string = 'dev-session',
-  ): Promise<string> {
-    this.logger.log(`🎬 Starting assembly for project: ${projectId}`);
-    await this.cleanupOldTempFolders();
-
-    // Ensure essential directories exist
-    const videosDir = path.join(process.cwd(), 'public/videos');
-    const tempRoot = path.join(process.cwd(), 'temp');
-    if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
-    if (!fs.existsSync(tempRoot)) fs.mkdirSync(tempRoot, { recursive: true });
-
-    const tempDir = externalTempDir || path.join(tempRoot, `assemble_${Date.now()}`);
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
+  /**
+   * Orquestra a montagem completa de um vídeo baseado em pesquisa factual
+   */
+  async assembleResearchVideo(projectId: string): Promise<string> {
+    const project = await this.projectsService.findOne(projectId);
+    // Remove the extra 'server/' because the path is already relative to the project root in development
+    const audioPath = path.join(process.cwd(), 'public', project.videoPath); 
+    
+    if (!fs.existsSync(audioPath)) {
+      this.logger.error(`Audio not found at: ${audioPath}`);
+      throw new BadRequestException('Research audio file not found on disk.');
     }
 
-    const finalFileName = `${projectId || 'dev'}_${Date.now()}.mp4`;
-    const finalPath = path.join(videosDir, finalFileName);
-    const videoUrl = `/videos/${finalFileName}`;
-
-    this.logger.log(`📂 Temp Dir: ${tempDir}`);
-    this.logger.log(`🎯 Final Path: ${finalPath}`);
-
-    if (projectId !== 'dev-session') {
-      await this.projectsService.updateStatus(projectId, 'processing');
+    const prompts = project.metadata?.storyboardPrompts;
+    if (!prompts || prompts.length === 0) {
+      throw new BadRequestException('Storyboard prompts not found. Generate storyboard first.');
     }
 
-    const processTask = async () => {
+    this.logger.log(`🎬 Iniciando montagem de vídeo factual para o projeto: ${projectId}`);
+    await this.projectsService.updateStatus(projectId, 'processing');
+
+    const processResearchTask = async () => {
       try {
-        if (!audioFile || !audioFile.buffer) throw new Error("Audio file buffer is missing");
+        const tempDir = path.join(process.cwd(), 'temp', `research_${projectId}_${Date.now()}`);
+        if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+
+        // 1. Gerar Imagens em lote
+        this.logger.log(`🎨 Gerando ${prompts.length} imagens para o storyboard...`);
+        const imageUrls = await this.aiService.generateImages(prompts);
         
-        const audioPath = path.join(tempDir, 'audio.wav');
-        fs.writeFileSync(audioPath, audioFile.buffer);
-        this.logger.log(`✅ Audio saved to ${audioPath}`);
+        // 2. Preparar arquivos de imagem
+        const imageFiles: any[] = await Promise.all(imageUrls.map(async (url, i) => {
+            const buffer = url.startsWith('data:image') 
+              ? Buffer.from(url.split(',')[1], 'base64')
+              : Buffer.from(await (await fetch(url)).arrayBuffer());
+            return { buffer, originalname: `image_${i}.png` };
+        }));
 
-        let totalDuration = await this.getAudioDuration(audioPath);
-        if (!totalDuration || isNaN(totalDuration) || totalDuration <= 0) {
-            this.logger.warn(`ffprobe failed to get duration, using inputDuration: ${inputDuration}`);
-            totalDuration = inputDuration;
-        }
-
-        let srtPath: string | undefined;
-        if (script && totalDuration > 0) {
-            srtPath = path.join(tempDir, 'subtitles.srt');
-            const srtContent = this.generateSrt(script, totalDuration);
-            if (srtContent) fs.writeFileSync(srtPath, srtContent, 'utf-8');
-            else srtPath = undefined;
-        }
-
-        let bgMusicPath: string | undefined;
-        if (bgMusicFile && bgMusicFile.buffer) {
-          bgMusicPath = path.join(tempDir, 'bg_music.mp3');
-          fs.writeFileSync(bgMusicPath, bgMusicFile.buffer);
-        }
-
-        this.logger.log(`📸 Rendering ${imageFiles.length} clips...`);
+        // 3. Renderizar Clipes e Concatenação
+        const totalDuration = await this.getAudioDuration(audioPath);
         const clipPaths = await this.renderAllClips(tempDir, imageFiles, totalDuration);
 
+        const finalFileName = `final_research_${projectId}.mp4`;
+        const finalPath = path.join(process.cwd(), 'public/videos', finalFileName);
+        const videoUrl = `/videos/${finalFileName}`;
+
+        // 4. Concatenação Final com Áudio Factual
         const concatListPath = path.join(tempDir, 'concat_list.txt');
-        const concatListContent = clipPaths.map(p => `file '${p}'`).join('\n');
-        fs.writeFileSync(concatListPath, concatListContent);
+        fs.writeFileSync(concatListPath, clipPaths.map(p => `file '${p}'`).join('\n'));
 
-        const { filterComplex, videoLabel, audioLabel } = this.buildComplexFilter(srtPath, bgMusicPath);
-
-        const command = ffmpeg(concatListPath).inputOptions(['-f concat', '-safe 0']);
-        command.input(audioPath);
-        if (bgMusicPath) command.input(bgMusicPath);
-
-        if (filterComplex.length > 0) command.complexFilter(filterComplex);
-
-        const outputOptions = [
-            '-c:v libx264',
-            '-preset superfast',
-            '-pix_fmt yuv420p',
-            '-shortest'
-        ];
-        
-        if (filterComplex.length > 0) {
-             outputOptions.push(`-map ${videoLabel}`, `-map ${audioLabel}`);
-        } else {
-             outputOptions.push('-map 0:v', '-map 1:a');
-        }
-
-        command
-          .outputOptions(outputOptions)
-          .on('start', (cmd) => this.logger.log(`🚀 FFmpeg process started: ${cmd}`))
-          .on('error', (err) => {
-            this.logger.error(`❌ FFmpeg Error: ${err.message}`);
-            if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, err.message);
-          })
+        ffmpeg(concatListPath)
+          .inputOptions(['-f concat', '-safe 0'])
+          .input(audioPath)
+          .outputOptions(['-c:v libx264', '-preset superfast', '-pix_fmt yuv420p', '-shortest'])
           .on('end', () => {
-            this.logger.log(`✅ Video assembly complete! Saved to ${finalPath}`);
-            if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'completed', videoUrl);
-            try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) {}
+             this.projectsService.updateStatus(projectId, 'completed', videoUrl);
+             this.logger.log(`✅ Vídeo Factual Concluído: ${videoUrl}`);
+          })
+          .on('error', (err) => {
+             this.logger.error(`FFmpeg Error: ${err.message}`);
+             this.projectsService.updateStatus(projectId, 'error', undefined, err.message);
           })
           .save(finalPath);
 
-      } catch (error) {
-        this.logger.error(`🚨 Fatal Assembly Task Error: ${error.message}`, error.stack);
-        if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, error.message);
+      } catch (err) {
+        this.logger.error(`🚨 Falha na montagem factual: ${err.message}`);
+        this.projectsService.updateStatus(projectId, 'error', undefined, err.message);
       }
     };
 
-    processTask();
-    return videoUrl;
+    processResearchTask();
+    return "Assembly started in background";
   }
 
   // =========================================================================
