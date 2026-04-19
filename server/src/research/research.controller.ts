@@ -36,8 +36,11 @@ export class ResearchController {
   /**
    * Tenta baixar o resultado da pesquisa do Google Studio para o servidor local
    */
-  @Get(':projectId/download')
-  async downloadResult(@Param('projectId') projectId: string) {
-    return this.researchService.downloadResearchResult(projectId);
+  /**
+   * Gera o storyboard visual baseado no contexto da pesquisa
+   */
+  @Post(':projectId/storyboard')
+  async generateStoryboard(@Param('projectId') projectId: string) {
+    return this.researchService.generateVisualsForResearch(projectId);
   }
 }

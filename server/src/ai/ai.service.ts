@@ -298,6 +298,38 @@ export class AiService {
     return text;
   }
 
+  /**
+   * Gera prompts de imagem baseados nas fontes de pesquisa do NotebookLM
+   */
+  async generateStoryboardFromResearch(topic: string, sources: string[]): Promise<string[]> {
+    this.logger.log(`Gerando storyboard visual para pesquisa sobre: ${topic}`);
+    
+    const prompt = `
+      Topic: ${topic}
+      Research Sources: ${sources.join(', ')}
+      
+      I have a long audio podcast (Overview) created from these sources.
+      I need to generate 10 highly descriptive, cinematic, and diverse image prompts in ENGLISH for a video.
+      The images should represent the core concepts of the research and create a visual narrative.
+      Format: Return ONLY a JSON array of strings.
+    `;
+
+    const { text } = await this.generate(prompt);
+    
+    try {
+      const cleaned = text.replace(/```json|```/g, '').trim();
+      return JSON.parse(cleaned).slice(0, 10);
+    } catch (e) {
+      this.logger.error("Falha ao processar storyboard de pesquisa, usando fallback.");
+      return [
+        `Cinematic visualization of ${topic}`,
+        `Modern laboratory researching ${topic}`,
+        `Digital data visualization of ${topic}`,
+        `Futuristic presentation of ${topic}`
+      ];
+    }
+  }
+
   async generateImagePrompts(script: string): Promise<string[]> {
     const prompt = `Based on this script, generate exactly 5 cinematic image prompts as a JSON array of strings. SCRIPT: ${script}`;
     const { text } = await this.generate(prompt);

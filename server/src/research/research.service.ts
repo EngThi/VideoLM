@@ -1,7 +1,9 @@
 
+
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ProjectsService } from '../projects/projects.service';
 import { NotebookLMEngine } from './notebook-lm.engine';
+import { AiService } from '../ai/ai.service';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -12,7 +14,34 @@ export class ResearchService {
   constructor(
     private projectsService: ProjectsService,
     private notebookLM: NotebookLMEngine,
+    private aiService: AiService,
   ) {}
+  
+  // ... rest of the class
+  
+  /**
+   * Gera prompts de imagem baseados no contexto da pesquisa concluída
+   */
+  async generateVisualsForResearch(projectId: string) {
+    const project = await this.projectsService.findOne(projectId);
+    
+    if (!project.sources || project.sources.length === 0) {
+      throw new NotFoundException('No sources found for storyboard generation.');
+    }
+
+    this.logger.log(`Iniciando geração de storyboard para o projeto de pesquisa: ${projectId}`);
+    
+    const prompts = await this.aiService.generateStoryboardFromResearch(project.topic, project.sources);
+    
+    // Salva os prompts nos metadados do projeto
+    await this.projectsService.updateMetadata(projectId, { 
+      storyboardPrompts: prompts,
+      storyboardGeneratedAt: new Date().toISOString()
+    });
+
+    return { status: 'success', prompts };
+  }
+}
 
   /**
    * Adiciona URLs ao projeto e persiste na coluna 'sources'
