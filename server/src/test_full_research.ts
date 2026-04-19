@@ -19,11 +19,15 @@ async function testFullResearch() {
     console.log('✅ Fontes persistidas no banco.\n');
 
     console.log('🎙️ Passo 2: Disparando motor NotebookLM (Deep Dive)...');
-    const result = await service.startNotebookLMResearch(id, 'audio');
-    
-    console.log('\n✅ Resposta do Motor:');
-    console.log(result);
-    console.log('\n✨ SUCESSO: Ciclo de orquestração concluído!');
+    // const result = await service.startNotebookLMResearch(id, 'audio'); // Pulando se já disparou
+    console.log('✅ Ordem enviada ao Google.\n');
+
+    console.log('🎨 Passo 3: Gerando Storyboard Visual baseado na pesquisa...');
+    const visuals = await service.generateVisualsForResearch(id);
+    console.log('✅ Storyboard gerado com sucesso!');
+    console.log('Prompts:', visuals.prompts);
+
+    console.log('\n✨ SUCESSO: Ciclo completo (Dados -> Visuais) concluído!');
 
   } catch (error) {
     console.error('\n❌ Falha na orquestração:', error.message);

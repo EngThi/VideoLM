@@ -1,5 +1,5 @@
 
-import { Controller, Post, Body, Res, UseGuards } from '@nestjs/common';
+import { Controller, Post, Body, Res, UseGuards, Inject, forwardRef } from '@nestjs/common';
 import { AiService, ImageOptions } from './ai.service';
 import { VideoService } from '../video/video.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -10,6 +10,7 @@ import { Response } from 'express';
 export class AiController {
   constructor(
     private aiService: AiService,
+    @Inject(forwardRef(() => VideoService))
     private videoService: VideoService,
   ) {}
 
