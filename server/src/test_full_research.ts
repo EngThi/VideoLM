@@ -24,10 +24,31 @@ async function testFullResearch() {
 
     console.log('🎨 Passo 3: Gerando Storyboard Visual baseado na pesquisa...');
     const visuals = await service.generateVisualsForResearch(id);
-    console.log('✅ Storyboard gerado com sucesso!');
-    console.log('Prompts:', visuals.prompts);
+    console.log('✅ Storyboard gerado com sucesso!\n');
 
-    console.log('\n✨ SUCESSO: Ciclo completo (Dados -> Visuais) concluído!');
+    console.log('🎬 Passo 4: Iniciando Montagem Audiovisual (Imagens + Áudio Factual)...');
+    await service.assembleResearchVideo(id);
+    console.log('⏳ Montagem iniciada em background. Iniciando Polling de status...');
+
+    // Polling para o script não fechar antes do FFmpeg terminar
+    let isDone = false;
+    const projectsService = app.get(ProjectsService);
+    
+    while (!isDone) {
+      await new Promise(r => setTimeout(r, 15000)); // Checa a cada 15s
+      const p = await projectsService.findOne(id);
+      process.stdout.write(`\r📡 Status do Processamento: [${p.status}]   `);
+      
+      if (p.status === 'completed' || p.status === 'done') {
+        console.log(`\n\n✅ VÍDEO PRONTO NO DISCO: ${p.videoPath}`);
+        isDone = true;
+      } else if (p.status === 'error') {
+        console.error(`\n\n❌ ERRO DURANTE A RENDERIZAÇÃO: ${p.error}`);
+        isDone = true;
+      }
+    }
+
+    console.log('\n✨ PONTO DE ENTREGA ALCANÇADO: Ciclo de vida estabilizado!');
 
   } catch (error) {
     console.error('\n❌ Falha na orquestração:', error.message);

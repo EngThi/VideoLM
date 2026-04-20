@@ -260,8 +260,7 @@ export class AiService {
           responseModalities: ["IMAGE"],
           imageConfig: {
             aspectRatio: "16:9",
-            imageSize: "1K",
-            outputMimeType: "image/png",
+            imageSize: "1K"
           },
           safetySettings: [
             { category: 'HARM_CATEGORY_HATE_SPEECH' as any, threshold: 'BLOCK_NONE' as any },
