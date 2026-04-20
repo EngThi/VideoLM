@@ -5,6 +5,7 @@ import { ConfigForm } from './components/ConfigForm';
 import { StatusDisplay } from './components/StatusDisplay';
 import { ResultView } from './components/ResultView';
 import { IdeaSelector } from './components/IdeaSelector';
+import { ResearchDashboard } from './components/ResearchDashboard';
 import type { VideoConfig, PipelineStage, VideoResult, ContentIdea, ScriptResult, GeneratedImage } from './types';
 import { PIPELINE_STAGES } from './constants';
 import { generateContentIdeas, generateScriptWithGoogleSearch, generateNarration, generateVeoVideo, generateImagePrompts } from './services/geminiService';
@@ -197,6 +198,16 @@ const App: React.FC = () => {
     setSelectedIdea(idea);
     setContentIdeas([]);
     setIsGenerating(true);
+  };
+
+  const handleResearchComplete = (videoUrl: string) => {
+    setVideoResult({
+      success: true,
+      videoUrl: videoUrl,
+      audioUrl: '', // N/A for research video
+      generatedImages: [],
+      audioDuration: 0,
+    });
   };
 
   useEffect(() => {
@@ -473,13 +484,20 @@ const App: React.FC = () => {
       ) : (
         /* Original App Content */
         <main className="flex-grow container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-2 bg-gray-800/50 rounded-2xl shadow-2xl p-6 h-fit">
-            <ConfigForm
-              onGenerate={handleGenerate}
-              isGenerating={isLoading || isGenerating}
-              onTestVeo={handleTestVeo}
-              isTestLoading={isTestLoading}
-              testVideoUrl={testVideoUrl}
+          <div className="lg:col-span-2 flex flex-col gap-8">
+            <div className="bg-gray-800/50 rounded-2xl shadow-2xl p-6 h-fit">
+              <ConfigForm
+                onGenerate={handleGenerate}
+                isGenerating={isLoading || isGenerating}
+                onTestVeo={handleTestVeo}
+                isTestLoading={isTestLoading}
+                testVideoUrl={testVideoUrl}
+              />
+            </div>
+
+            <ResearchDashboard 
+              projectId={currentProjectId || `community_${Date.now()}`}
+              onResearchComplete={handleResearchComplete}
             />
           </div>
           <div className="lg:col-span-3 flex flex-col gap-8">
@@ -501,7 +519,5 @@ const App: React.FC = () => {
     </div>
   );
 };
-
-export default App;
 
 export default App;

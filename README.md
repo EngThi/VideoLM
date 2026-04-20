@@ -1,61 +1,40 @@
-# YouTubeVideoMaster (Flavortown Edition)
+# 🎥 YouTubeVideoMaster (VideoLM)
 
-Plataforma full-stack para automação de criação de vídeos para YouTube, integrando IA multimodal e pesquisa factual profunda. O sistema utiliza uma arquitetura híbrida para orquestrar roteirização, geração de ativos e montagem audiovisual.
+> **A ponte definitiva entre a pesquisa profunda e o audiovisual autônomo.** 🧠🚀
 
-## 🏗 Arquitetura do Sistema
+Este projeto nasceu de uma necessidade real: **transformar o caos de informações da internet em vídeos educativos de alta qualidade.** Não é apenas um "gerador de vídeo", é um orquestrador que utiliza o poder do **NotebookLM** para estudar e o **Gemini 2.5** para visualizar.
 
-O projeto é dividido em três camadas principais:
+## ✨ Por que este projeto é útil?
 
-1.  **Frontend (React + Vite):** Interface SPA para gerenciamento de projetos, acompanhamento de status em tempo real e visualização de storyboards.
-2.  **Backend (NestJS):** Core API responsável pela gestão de usuários, persistência em SQLite, proteção de rotas via JWT e orquestração do pipeline.
-3.  **Research Engine (Python/MCP):** Motor de pesquisa profunda baseado no NotebookLM (via `nlm-mcp-cli`), permitindo a ingestão de fontes externas (URLs/PDFs) para geração de Audio e Video Overviews.
+Estudantes, pesquisadores e criadores de conteúdo gastam horas transformando PDFs e links em roteiros. O **VideoLM** automatiza esse ciclo:
+1.  **Ingestão:** Você fornece as fontes (URLs ou PDFs).
+2.  **Pesquisa:** O motor Python (NLP) cria um "Cérebro" no Google NotebookLM e gera um Deep Dive factual.
+3.  **Visão:** O Gemini 2.5 projeta um Storyboard Cinematográfico baseado nos fatos.
+4.  **Produção:** O motor FFmpeg monta o vídeo final com movimentos de câmera e áudio de alta fidelidade.
 
-## 🚀 Funcionalidades Principais
+## 🏗 Arquitetura Híbrida (The Tech Sauce)
 
--   **Pipeline Multimodal (Gemini 2.5 Flash):** Geração sincronizada de roteiro, narração (TTS) e imagens 16:9 em um único fluxo.
--   **Modo Research:** Integração programática com o Google NotebookLM para criar conteúdo baseado em fontes factuais.
--   **Immortal Background Renderer:** Sistema de assembly de vídeo via FFmpeg que roda em workers de segundo plano com suporte a polling de status.
--   **Hardened Infrastructure:** Suporte a payloads de até 100MB e limites de multipart otimizados para processamento de assets em lote.
+Para atingir esse nível de precisão, o projeto utiliza uma arquitetura única:
+-   **Backend NestJS (Node.js):** Gerencia a orquestração, segurança (JWT) e o pipeline de renderização.
+-   **Research Engine (Python/MCP):** Interface programática com o Google Studio, permitindo automação de ferramentas que normalmente exigem interação humana.
+-   **Frontend React + Vite:** Interface minimalista focada em produtividade e acompanhamento de progresso em tempo real.
 
-## 🔐 Segurança e Identidade
+## 🚀 Como a Comunidade pode usar?
 
--   **Autenticação:** Fluxo completo de Registro/Login utilizando JWT (JSON Web Tokens).
--   **Proteção de Rotas:** Guards implementados em nível de controlador para proteger endpoints de IA e Pesquisa.
--   **Isolamento de Dados:** Consultas ao banco de dados filtradas por `userId`, garantindo a privacidade dos projetos entre usuários.
+O projeto é **100% Open Source**. Você pode rodar sua própria fábrica de vídeos localmente ou em uma VM:
 
-## 🛠 Configuração e Instalação
-
-### Requisitos
--   Node.js 20+
--   Python 3.10+ (com gerenciador `uv`)
--   FFmpeg
-
-### Instalação do Backend
+### Setup Rápido (Docker)
 ```bash
-cd server
-npm install
-npm run build
+docker-compose up -d
 ```
 
-### Instalação do Motor de Pesquisa
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh
-export PATH="$HOME/.local/bin:$PATH"
-uvx --from notebooklm-mcp-cli nlm login --manual
-```
+### Setup Manual (Dev Mode)
+1. **Backend:** `cd server && npm install && npm run start:dev`
+2. **Research:** `uvx --from notebooklm-mcp-cli nlm login --manual`
+3. **Frontend:** `npm install && npm run dev`
 
-### Variáveis de Ambiente (.env.local)
-```env
-DATABASE_PATH=../data/database.sqlite
-GEMINI_API_KEY=sua_chave_aqui
-HF_TOKEN=seu_token_huggingface
-JWT_SECRET=seu_segredo_jwt
-```
-
-## 🚦 Verificação de Sistema
-Para validar a integridade da comunicação entre os motores, utilize os scripts de teste incluídos:
--   `npm run test:nlm`: Valida a ponte com o NotebookLM.
--   `npm run test:gemini`: Valida a rotação de chaves e geração multimodal.
+## 🛠 Contribua!
+O VideoLM é feito pela galera para a galera. Quer adicionar suporte a auto-upload no YouTube? Ou novas vozes de IA? Veja nosso `CONTRIBUTING.md` e junte-se ao time do Flavortown!
 
 ---
-**Status:** Fase 2 (SaaS Foundation) Completa.
+**Ship Target:** 25 de Abril | **Current Status:** Motor 100% Funcional.
