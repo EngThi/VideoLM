@@ -36,7 +36,7 @@ export class ResearchService {
   /**
    * Orquestra a criação do notebook e o disparo da geração de conteúdo
    */
-  async startNotebookLMResearch(projectId: string, type: 'audio' | 'video' = 'audio') {
+  async startNotebookLMResearch(projectId: string, type: 'audio' | 'video' = 'audio', style: string = 'classic') {
     const project = await this.projectsService.findOne(projectId);
     
     if (!project.sources || project.sources.length === 0) {
@@ -55,7 +55,7 @@ export class ResearchService {
         await this.projectsService.updateMetadata(projectId, { notebookId });
       }
 
-      // 2. Injetar as fontes no Notebook criado
+      // 2. Injetar as fontes
       this.logger.log(`Feeding ${project.sources.length} sources into notebook ${notebookId}...`);
       for (const source of project.sources) {
         try {
@@ -66,10 +66,10 @@ export class ResearchService {
       }
 
       // 3. Disparar a geração (Deep Dive)
-      this.logger.log(`Triggering ${type} overview for notebook ${notebookId}`);
+      this.logger.log(`Triggering ${type} overview (Style: ${style}) for notebook ${notebookId}`);
       
       if (type === 'video') {
-        return this.notebookLM.createVideoOverview(notebookId);
+        return this.notebookLM.createVideoOverview(notebookId, style);
       }
       return this.notebookLM.createAudioOverview(notebookId);
 
@@ -92,7 +92,10 @@ export class ResearchService {
     try {
       const statusRaw = await this.notebookLM.checkStatus(notebookId);
       const artifacts = JSON.parse(statusRaw);
-      const latest = artifacts.find((a: any) => a.status === 'completed');
+      
+      // PRIORIDADE: Busca primeiro um VÍDEO completo, se não achar, busca ÁUDIO.
+      const latest = artifacts.find((a: any) => a.type === 'video' && a.status === 'completed') 
+                  || artifacts.find((a: any) => a.type === 'audio' && a.status === 'completed');
 
       if (!latest) {
         return { status: 'processing', message: 'Result is still being generated in Google Studio.' };
