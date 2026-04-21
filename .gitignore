@@ -1,59 +1,49 @@
-# Arquivos de dependência e build
-/node_modules
-/server/node_modules
-/dist
+# Node.js & Dependencies
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# Arquivos de ambiente
+# Environment & Secrets
 .env
+.env.local
 .env.*
 *.env
-server/.env.local
+cookies.txt
+nlm/
 
-# Logs e bancos de dados locais
-*.log
+# Database (SQLite)
+server/data/*.sqlite
+server/data/*.sqlite-journal
+server/data/*.db
 homes.db
-homes.db-journal
-/server/data/
-*.db
-*.sqlite3
 
-# Artefatos do Ghost Coder (para farm de horas)
-Dockerfile.ghost
-docker-compose.ghost.yml
-.dockerignore.ghost
-server/Dockerfile.ghost
-scripts/
+# Media & Production Assets
+server/public/videos/*
+!server/public/videos/.gitkeep
+server/cache/
+**/temp/
+**/tmp/
+*.mp4
+*.m4a
 
-# Logs and temporary files
-/temp/
-/server/temp/
+# Testing & CI
+server/coverage/
 *.tmp
 *.backup
-coisas.txt
+RUN_RESEARCH_TEST.sh
+esse.txt
 
-# Test coverage
-/server/coverage/
-
-# Disabled files
-*.disabled
-
-# Media files
-*.mp4
-
-# OS and IDE files
+# IDE & OS
 .DS_Store
-.vscode
+.vscode/
+.idea/
+*.swp
+*.swo
 
-# Gemini generated/temporary files
+# Project Specific
 GEMINI.md
-api_types.ts
-helper_functions.ts
-sandbox.ts
-temp_utils.js
-utils.ts
-ghost_coder.cjs
-
-VEJAESSES/
-
-# Private activity sandbox
 TESTES/

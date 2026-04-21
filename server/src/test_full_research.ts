@@ -19,36 +19,28 @@ async function testFullResearch() {
     console.log('✅ Fontes persistidas no banco.\n');
 
     console.log('🎙️ Passo 2: Disparando motor NotebookLM (Deep Dive)...');
-    // const result = await service.startNotebookLMResearch(id, 'audio'); // Pulando se já disparou
-    console.log('✅ Ordem enviada ao Google.\n');
+    // ATENÇÃO: Mudando para modo VIDEO nativo para testar a versão "melhor" que você pediu
+    const result = await service.startNotebookLMResearch(id, 'video', 'watercolor');
+    console.log('✅ Ordem de VÍDEO CINEMÁTICO (Watercolor) enviada ao Google.\n');
 
-    console.log('🎨 Passo 3: Gerando Storyboard Visual baseado na pesquisa...');
-    const visuals = await service.generateVisualsForResearch(id);
-    console.log('✅ Storyboard gerado com sucesso!\n');
-
-    console.log('🎬 Passo 4: Iniciando Montagem Audiovisual (Imagens + Áudio Factual)...');
-    await service.assembleResearchVideo(id);
-    console.log('⏳ Montagem iniciada em background. Iniciando Polling de status...');
-
-    // Polling para o script não fechar antes do FFmpeg terminar
+    console.log('⏳ Monitorando progresso no Google Studio...');
     let isDone = false;
-    const projectsService = app.get(ProjectsService);
     
     while (!isDone) {
-      await new Promise(r => setTimeout(r, 15000)); // Checa a cada 15s
-      const p = await projectsService.findOne(id);
-      process.stdout.write(`\r📡 Status do Processamento: [${p.status}]   `);
+      await new Promise(r => setTimeout(r, 20000)); // Vídeo demora mais, checa a cada 20s
+      const res = await service.downloadResearchResult(id);
+      process.stdout.write(`\r📡 Status no Google: [${res.status}]   `);
       
-      if (p.status === 'completed' || p.status === 'done') {
-        console.log(`\n\n✅ VÍDEO PRONTO NO DISCO: ${p.videoPath}`);
+      if (res.status === 'completed') {
+        console.log(`\n\n✅ VÍDEO CINEMÁTICO PRONTO: ${res.videoUrl}`);
         isDone = true;
-      } else if (p.status === 'error') {
-        console.error(`\n\n❌ ERRO DURANTE A RENDERIZAÇÃO: ${p.error}`);
+      } else if (res.status === 'error') {
+        console.error(`\n\n❌ ERRO NA GERAÇÃO GOOGLE: ${res.message}`);
         isDone = true;
       }
     }
 
-    console.log('\n✨ PONTO DE ENTREGA ALCANÇADO: Ciclo de vida estabilizado!');
+    console.log('\n✨ PONTO DE ENTREGA ALCANÇADO: Versão Premium de Vídeo Ativada!');
 
   } catch (error) {
     console.error('\n❌ Falha na orquestração:', error.message);

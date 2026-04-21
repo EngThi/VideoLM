@@ -19,12 +19,19 @@ RUN npm run build
 FROM node:20-slim
 WORKDIR /app
 
-# Install system dependencies for FFmpeg static binaries (libraries like libfontconfig, etc)
+# Install system dependencies + Python for Research Engine (NotebookLM)
 RUN apt-get update && apt-get install -y \
     libfontconfig1 \
     libfreetype6 \
     ca-certificates \
+    python3 \
+    python3-pip \
+    curl \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh \
     && rm -rf /var/lib/apt/lists/*
+
+# Add uv to PATH
+ENV PATH="/root/.local/bin:${PATH}"
 
 # Copy built frontend from Stage 1 to the 'dist' folder at root
 COPY --from=frontend-builder /app/dist ./dist

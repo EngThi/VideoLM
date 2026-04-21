@@ -1,19 +1,27 @@
 version: '3.8'
 
 services:
-  app:
+  videolm:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: videolm_factory
+    restart: always
     ports:
-      - "3001:3001" # Frontend will be served from backend on this port
+      - "3001:3001"
     environment:
       - NODE_ENV=production
+      - PORT=3001
       - GEMINI_API_KEY=${GEMINI_API_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY} # Add OpenRouter key
-      - DATABASE_PATH=/app/data/homes.db
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - HF_TOKENS=${HF_TOKENS}
+      - DATABASE_PATH=/app/server/data/database.sqlite
+      - JWT_SECRET=${JWT_SECRET:-flavortown_secret_2026}
     volumes:
-      - homes_db:/app/data
+      - ./server/data:/app/server/data
+      - ./server/public/videos:/app/server/public/videos
+      - ./server/cache:/app/server/cache
+      - nlm_session:/root/.notebooklm-mcp-cli
 
 volumes:
-  homes_db:
+  nlm_session:
