@@ -119,7 +119,8 @@ export class VideoService {
     const finalZoomCmd = zoomCmd.replace(`d=${targetDurationFrames}`, `d=${finalDurationFrames}`);
     
     const ffmpegBin = ffmpegPath || 'ffmpeg';
-    const cmd = `"${ffmpegBin}" -y -loop 1 -i "${imagePath}" -vf "scale=1920:-2,${finalZoomCmd},fade=t=in:st=0:d=0.5,fade=t=out:st=${outputDuration-0.5}:d=0.5" -c:v libx264 -t ${outputDuration} -pix_fmt yuv420p -preset ultrafast "${outputPath}"`;
+    // Adicionando Crossfade e movimentação Ken Burns mais suave
+    const cmd = `"${ffmpegBin}" -y -loop 1 -i "${imagePath}" -vf "scale=1920:-2,${finalZoomCmd},fade=t=in:st=0:d=1,fade=t=out:st=${outputDuration-1}:d=1" -c:v libx264 -t ${outputDuration} -pix_fmt yuv420p -preset ultrafast "${outputPath}"`;
     
     await execAsync(cmd);
   }

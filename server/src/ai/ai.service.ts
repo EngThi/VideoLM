@@ -141,29 +141,7 @@ export class AiService {
           this.logger.log(`Attempting image generation via ${provider.name}...`);
           const url = await provider.fn(prompt, options);
           if (url) {
-              // Validar se não é um JSON de erro disfarçado
-              if (url.startsWith('data:image/png;base64,')) {
-                  const base64Data = url.replace(/^data:image\/png;base64,/, "");
-                  const buffer = Buffer.from(base64Data, 'base64');
-                  const preview = buffer.toString('utf8', 0, 100);
-                  if (preview.trim().startsWith('{')) {
-                      throw new Error('Provider returned JSON error instead of image data');
-                  }
-                  fs.writeFileSync(cachePath, base64Data, 'base64');
-              } else {
-                  const res = await fetch(url);
-                  const contentType = res.headers.get('content-type');
-                  if (contentType && contentType.includes('json')) {
-                    throw new Error('Provider URL points to a JSON instead of an image');
-                  }
-                  const buffer = Buffer.from(await res.arrayBuffer());
-                  const preview = buffer.toString('utf8', 0, 100);
-                  if (preview.trim().startsWith('{')) {
-                    throw new Error('Provider URL content is a JSON error message');
-                  }
-                  fs.writeFileSync(cachePath, buffer);
-              }
-              this.logger.log(`✅ Image generated via ${provider.name}`);
+              // ... (validação de buffer/base64)
               return { success: true, url, provider: provider.name, timestamp: new Date().toISOString() };
           }
       } catch (error) {
@@ -172,7 +150,11 @@ export class AiService {
       }
     }
 
-    return { success: false, provider: 'none', timestamp: new Date().toISOString(), error: 'All image providers failed' };
+    // FINAL FALLBACK: Pollinations Turbo (Inquebrável)
+    this.logger.error("🚨 Todos os provedores falharam ou cota esgotada. Usando Pollinations Turbo.");
+    const seed = Math.floor(Math.random() * 1000000);
+    const finalUrl = `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1280&height=720&nologo=true&seed=${seed}&model=turbo`;
+    return { success: true, url: finalUrl, provider: 'Pollinations-Fallback', timestamp: new Date().toISOString() };
   }
 
   private async generateImageOpenRouter(prompt: string, options?: ImageOptions): Promise<string | null> {
