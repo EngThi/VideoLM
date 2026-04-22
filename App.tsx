@@ -270,21 +270,28 @@ const App: React.FC = () => {
                      }
                 }
                 else if (currentStage.id === 'VIDEO_ASSEMBLY') {
-                    const audioUrl = generatedAudioUrlRef.current;
-                    const images = generatedImagesRef.current;
-                    const audioDur = generatedAudioDurationRef.current;
+                    const audioUrl = generatedAudioUrlRef.current || config.localAudioUrl;
+                    const images = (generatedImagesRef.current && generatedImagesRef.current.length > 0) 
+                        ? generatedImagesRef.current 
+                        : (config.localImages || []);
+                    
+                    const audioDur = generatedAudioDurationRef.current || 30;
                     const projectId = currentProjectId || `dev_${Date.now()}`;
 
                      if (!audioUrl || !images || images.length === 0) {
                         addLog("⚠️ Missing local assets for assembly.");
                      } else {
                         addLog(`🎞️ Initializing FFmpeg engine with ${images.length} images...`);
+                        
+                        // Envia para o backend (usando o service que já injeta o Token JWT)
                         await ffmpegService.assembleVideo(audioUrl, images, audioDur, scriptResult?.scriptText, undefined, projectId);
                         
-                        addLog('⏳ Background assembly started (Dev Mode). Polling...');
+                        addLog('⏳ Background assembly started. Polling status...');
                         let isDone = false;
-                        while(!isDone) {
+                        let attempts = 0;
+                        while(!isDone && attempts < 100) {
                             await new Promise(r => setTimeout(r, 5000));
+                            attempts++;
                             const res = await ffmpegService.pollVideoStatus(projectId);
                             if (res.status === 'completed' || res.status === 'done') {
                                 setVideoResult({
@@ -292,14 +299,14 @@ const App: React.FC = () => {
                                     generatedImages: images,
                                     audioUrl: audioUrl,
                                     audioDuration: audioDur,
-                                    videoUrl: res.videoUrl,
+                                    videoUrl: res.videoUrl || res.videoPath,
                                     localPath: '/output/final_assets',
                                     script: scriptResult ?? undefined,
                                 });
                                 isDone = true;
+                                addLog('✅ Final video rendered successfully!');
                             } else if (res.status === 'error') throw new Error(res.error);
                         }
-                        addLog('✨ Final video rendered successfully!');
                      }
                 }
                 else {
@@ -314,64 +321,84 @@ const App: React.FC = () => {
             // --- END DEV MODE ---
 
             if (currentStage.id === 'SCRIPT_GENERATION') {
-                const result = await generateScriptWithGoogleSearch(config.topic, selectedIdea.title, selectedIdea.outline, config.duration);
-                if (isMounted.current) setScriptResult(result);
-                addLog(`📄 Script generated with ${result.sources.length} web sources.`);
+                if (config.useLocalAssets && config.localScript) {
+                    addLog('🛠️ DEV MODE: Using local script from ZIP.');
+                    setScriptResult({ scriptText: config.localScript, sources: [] });
+                } else {
+                    const result = await generateScriptWithGoogleSearch(config.topic, selectedIdea.title, selectedIdea.outline, config.duration);
+                    if (isMounted.current) setScriptResult(result);
+                    addLog(`📄 Script generated with ${result.sources.length} web sources.`);
+                }
             }
             else if (currentStage.id === 'AUDIO_GENERATION') {
-                if (!scriptResult) throw new Error("Script not found for audio generation.");
-                addLog(`🎙️ Synthesizing audio with Gemini TTS...`);
-                const { url, duration } = await generateNarration(scriptResult.scriptText, config.voice);
-                setGeneratedAudioUrl(url);
-                generatedAudioUrlRef.current = url;
-                setGeneratedAudioDuration(duration);
-                generatedAudioDurationRef.current = duration;
-                addLog(`🔊 Audio generated (${duration.toFixed(1)}s).`);
+                if (config.useLocalAssets && config.localAudioUrl) {
+                    addLog('🛠️ DEV MODE: Using local audio from ZIP.');
+                    setGeneratedAudioUrl(config.localAudioUrl);
+                    generatedAudioUrlRef.current = config.localAudioUrl;
+                    const dur = await getAudioDuration(config.localAudioUrl);
+                    setGeneratedAudioDuration(dur);
+                    generatedAudioDurationRef.current = dur;
+                } else {
+                    if (!scriptResult) throw new Error("Script not found for audio generation.");
+                    addLog(`🎙️ Synthesizing audio with Gemini TTS...`);
+                    const { url, duration } = await generateNarration(scriptResult.scriptText, config.voice);
+                    setGeneratedAudioUrl(url);
+                    generatedAudioUrlRef.current = url;
+                    setGeneratedAudioDuration(duration);
+                    generatedAudioDurationRef.current = duration;
+                    addLog(`🔊 Audio generated (${duration.toFixed(1)}s).`);
+                }
             }
             else if (currentStage.id === 'VISUAL_GENERATION') {
-                if (!scriptResult) throw new Error("Script missing.");
-                const audioDur = generatedAudioDurationRef.current;
-                addLog(`🎨 Calculating visuals for ${audioDur.toFixed(1)}s of audio...`);
+                if (config.useLocalAssets && config.localImages && config.localImages.length > 0) {
+                    addLog(`🛠️ DEV MODE: Using ${config.localImages.length} local images from ZIP.`);
+                    setGeneratedImages(config.localImages || []);
+                    generatedImagesRef.current = [...(config.localImages || [])];
+                } else {
+                    if (!scriptResult) throw new Error("Script missing.");
+                    const audioDur = generatedAudioDurationRef.current;
+                    addLog(`🎨 Calculating visuals for ${audioDur.toFixed(1)}s of audio...`);
 
-                const prompts = await generateImagePrompts(scriptResult.scriptText, audioDur);
-                addLog(`📝 Generated ${prompts.length} image prompts.`);
+                    const prompts = await generateImagePrompts(scriptResult.scriptText, audioDur);
+                    addLog(`📝 Generated ${prompts.length} image prompts.`);
 
-                const newImages: GeneratedImage[] = [];
-                const BATCH_SIZE = 2;
-                
-                for (let i = 0; i < prompts.length; i += BATCH_SIZE) {
-                    const batchPrompts = prompts.slice(i, i + BATCH_SIZE);
-                    const batchStartIdx = i;
-                    addLog(`🎨 Generating batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(prompts.length/BATCH_SIZE)}...`);
+                    const newImages: GeneratedImage[] = [];
+                    const BATCH_SIZE = 2;
                     
-                    const batchPromises = batchPrompts.map(async (prompt, relativeIdx) => {
-                        const originalIdx = batchStartIdx + relativeIdx;
-                        let result = await generateImage(prompt);
-                        if (!result.success) {
-                            await new Promise(r => setTimeout(r, 2000));
-                            result = await generateImage(prompt);
-                        }
-                        return { result, originalIdx, prompt };
-                    });
+                    for (let i = 0; i < prompts.length; i += BATCH_SIZE) {
+                        const batchPrompts = prompts.slice(i, i + BATCH_SIZE);
+                        const batchStartIdx = i;
+                        addLog(`🎨 Generating batch ${Math.floor(i/BATCH_SIZE) + 1}/${Math.ceil(prompts.length/BATCH_SIZE)}...`);
+                        
+                        const batchPromises = batchPrompts.map(async (prompt, relativeIdx) => {
+                            const originalIdx = batchStartIdx + relativeIdx;
+                            let result = await generateImage(prompt);
+                            if (!result.success) {
+                                await new Promise(r => setTimeout(r, 2000));
+                                result = await generateImage(prompt);
+                            }
+                            return { result, originalIdx, prompt };
+                        });
 
-                    const batchResults = await Promise.all(batchPromises);
-                    for (const { result, originalIdx, prompt } of batchResults) {
-                        if (result.success && result.url) {
-                            newImages.push({ url: result.url, prompt: prompt, index: originalIdx });
-                        } else {
-                            addLog(`⚠️ Fallback for image ${originalIdx + 1}...`);
-                            const fallbackResult = await generateImage(`Cinematic background of ${config.topic}`);
-                            if (fallbackResult.success && fallbackResult.url) {
-                                newImages.push({ url: fallbackResult.url, prompt: "Fallback: " + prompt, index: originalIdx });
+                        const batchResults = await Promise.all(batchPromises);
+                        for (const { result, originalIdx, prompt } of batchResults) {
+                            if (result.success && result.url) {
+                                newImages.push({ url: result.url, prompt: prompt, index: originalIdx });
+                            } else {
+                                addLog(`⚠️ Fallback for image ${originalIdx + 1}...`);
+                                const fallbackResult = await generateImage(`Cinematic background of ${config.topic}`);
+                                if (fallbackResult.success && fallbackResult.url) {
+                                    newImages.push({ url: fallbackResult.url, prompt: "Fallback: " + prompt, index: originalIdx });
+                                }
                             }
                         }
+                        if (i + BATCH_SIZE < prompts.length) await new Promise(r => setTimeout(r, 2000));
                     }
-                    if (i + BATCH_SIZE < prompts.length) await new Promise(r => setTimeout(r, 2000));
+                    newImages.sort((a, b) => a.index - b.index);
+                    setGeneratedImages(newImages);
+                    generatedImagesRef.current = [...newImages];
+                    addLog(`🎬 Generated ${newImages.length} images.`);
                 }
-                newImages.sort((a, b) => a.index - b.index);
-                setGeneratedImages(newImages);
-                generatedImagesRef.current = [...newImages];
-                addLog(`🎬 Generated ${newImages.length} images.`);
             }
             else if (currentStage.id === 'VIDEO_ASSEMBLY') {
                 const audioUrl = generatedAudioUrlRef.current;
