@@ -233,27 +233,43 @@ export class VideoService {
   // MAIN PIPELINE
   // =========================================================================
 
-  private async cleanupOldTempFolders() {
+  /**
+   * Mantém o disco limpo removendo arquivos temporários e vídeos antigos (>24h).
+   * Protege os vídeos de demonstração principais.
+   */
+  private async maintainDiskSpace() {
     try {
       const tempRoot = path.join(process.cwd(), 'temp');
-      if (!fs.existsSync(tempRoot)) return;
-
-      const folders = fs.readdirSync(tempRoot);
+      const videosDir = path.join(process.cwd(), 'public/videos');
       const now = Date.now();
-      const expirationTime = 24 * 60 * 60 * 1000; // 24 hours
+      const maxAge = 24 * 60 * 60 * 1000; // 24 Horas
 
-      for (const folder of folders) {
-        const folderPath = path.join(tempRoot, folder);
-        if (fs.lstatSync(folderPath).isDirectory() && folder.startsWith('assemble_')) {
-          const stats = fs.statSync(folderPath);
-          if (now - stats.mtimeMs > expirationTime) {
-            this.logger.log(`Cleaning up old temp folder: ${folder}`);
-            fs.rmSync(folderPath, { recursive: true, force: true });
-          }
+      const cleanup = (dir: string, prefix?: string) => {
+        if (!fs.existsSync(dir)) return;
+        const items = fs.readdirSync(dir);
+        for (const item of items) {
+          const itemPath = path.join(dir, item);
+          try {
+            const stats = fs.statSync(itemPath);
+            
+            // PROTEÇÃO: Não deleta os vídeos premium que acabamos de gerar!
+            if (item.includes('05163177') || item.includes('79471770')) continue;
+
+            if (now - stats.mtimeMs > maxAge) {
+              if (prefix && !item.startsWith(prefix)) continue;
+              this.logger.log(`[HOUSEKEEPING] Removendo item antigo: ${item}`);
+              fs.rmSync(itemPath, { recursive: true, force: true });
+            }
+          } catch (err) { /* Ignora se o arquivo sumiu no meio do loop */ }
         }
-      }
+      };
+
+      cleanup(tempRoot);
+      cleanup(videosDir, 'research_'); // Limpa apenas vídeos de pesquisa antigos
+      cleanup(videosDir, 'final_');    // Limpa montagens manuais antigas
+
     } catch (e) {
-      this.logger.error('Failed to cleanup old temp folders', e.stack);
+      this.logger.error('Falha na manutenção de disco', e.stack);
     }
   }
 
@@ -271,7 +287,7 @@ export class VideoService {
     projectId: string = 'dev-session',
   ): Promise<string> {
     this.logger.log(`🎬 Starting assembly for project: ${projectId}`);
-    await this.cleanupOldTempFolders();
+    await this.maintainDiskSpace();
 
     const videosDir = path.join(process.cwd(), 'public/videos');
     const tempRoot = path.join(process.cwd(), 'temp');
@@ -357,6 +373,7 @@ export class VideoService {
     }
 
     this.logger.log(`🎬 Iniciando montagem de vídeo factual para o projeto: ${projectId}`);
+    await this.maintainDiskSpace();
     await this.projectsService.updateStatus(projectId, 'processing');
 
     const processResearchTask = async () => {
