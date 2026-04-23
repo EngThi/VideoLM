@@ -20,7 +20,17 @@ async function bootstrap() {
   // Aumentar timeout para 15 minutos (900000ms) para renderizações longas
   server.setTimeout(900000);
   
-  logger.log(`✅ Backend running on http://localhost:${port} (Payload Limit: 100mb)`);
-}
-bootstrap();
-g
+
+    logger.log(`✅ Backend running on http://localhost:${port} (Payload Limit: 100mb)`);
+
+    // --- AUTO-MAINTENANCE (Every 1 hour) ---
+    // Injeta a manutenção automática para garantir que a VM 24/7 não lote o disco
+    const { VideoService } = require('./video/video.service');
+    const videoService = app.get(VideoService);
+
+    setInterval(() => {
+      logger.log('🧹 [AUTO-PILOT] Starting periodic disk cleanup...');
+      videoService.maintainDiskSpace();
+    }, 60 * 60 * 1000); 
+  }
+  bootstrap();
