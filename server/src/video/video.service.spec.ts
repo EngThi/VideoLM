@@ -42,6 +42,8 @@ const mockFfmpeg = {
     }
     return mockFfmpeg;
   }),
+  save: jest.fn().mockReturnThis(),
+  kill: jest.fn(),
   pipe: jest.fn().mockReturnThis(),
   ffprobe: jest.fn((filePath, callback) => {
     callback(null, { format: { duration: 10 } });
@@ -109,7 +111,7 @@ describe('VideoService', () => {
 
       await promise;
 
-      expect(mockQueue.add).toHaveBeenCalledWith('assemble', expect.any(Object));
+      expect(mockQueue.add).toHaveBeenCalledWith('assemble', expect.any(Object), expect.any(Object));
     });
   });
 

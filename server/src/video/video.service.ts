@@ -288,6 +288,7 @@ export class VideoService {
     bgMusicFile?: Express.Multer.File,
     externalTempDir?: string,
     projectId: string = 'dev-session',
+    signal?: AbortSignal,
   ): Promise<string> {
     this.logger.log(`🎬 Adding assembly to queue for project: ${projectId}`);
 
@@ -304,6 +305,14 @@ export class VideoService {
         bgMusicFile,
         externalTempDir,
         projectId
+    }, {
+        attempts: 5,
+        backoff: {
+            type: 'exponential',
+            delay: 5000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false
     });
 
     return videoUrl;
@@ -320,6 +329,7 @@ export class VideoService {
     bgMusicFile?: Express.Multer.File,
     externalTempDir?: string,
     projectId: string = 'dev-session',
+    signal?: AbortSignal,
   ): Promise<string> {
     this.logger.log(`🎬 Starting processAssembly for project: ${projectId}`);
     await this.maintainDiskSpace();
@@ -384,8 +394,17 @@ export class VideoService {
              this.logger.error(`🚨 Assembly Task Error: ${err.message}`);
              if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, err.message);
              reject(err);
-          })
-          .save(finalPath);
+          });
+
+        if (signal) {
+          signal.addEventListener('abort', () => {
+            this.logger.warn(`🛑 Job aborted, killing ffmpeg process for project: ${projectId}`);
+            command.kill('SIGKILL');
+            reject(new Error('Job aborted by BullMQ'));
+          });
+        }
+
+        command.save(finalPath);
       } catch (error) {
         this.logger.error(`🚨 Assembly Task Error: ${error.message}`);
         if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, error.message);

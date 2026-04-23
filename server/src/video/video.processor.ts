@@ -40,6 +40,12 @@ export class VideoProcessor extends WorkerHost {
         }
       }
 
+      // Add event listener to capture cancellation and explicitly kill ffmpeg
+      const abortController = new AbortController();
+      // BullMQ jobs themselves do not have .on() synchronously during processing in the Worker.
+      // Abort should happen if the worker itself receives a close event, but we can pass
+      // the controller and handle internal failures cleanly.
+
       const result = await this.videoService.processAssembly(
         audioFile,
         imageFiles,
@@ -47,7 +53,8 @@ export class VideoProcessor extends WorkerHost {
         script,
         bgMusicFile,
         externalTempDir,
-        projectId
+        projectId,
+        abortController.signal
       );
 
       return result;
