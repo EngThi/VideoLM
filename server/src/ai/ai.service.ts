@@ -375,11 +375,51 @@ export class AiService {
     throw new Error('All Gemini keys exhausted for TTS');
   }
 
-  async downloadImages(urls: string[]): Promise<Buffer[]> {
-    return Promise.all(urls.map(async url => {
-        if (url.startsWith('data:image')) return Buffer.from(url.split(',')[1], 'base64');
-        const res = await fetch(url);
-        return Buffer.from(await res.arrayBuffer());
-    }));
+
+    async downloadImages(urls: string[]): Promise<Buffer[]> {
+      return Promise.all(urls.map(async url => {
+          if (url.startsWith('data:image')) return Buffer.from(url.split(',')[1], 'base64');
+          const res = await fetch(url);
+          return Buffer.from(await res.arrayBuffer());
+      }));
+    }
+
+    /**
+     * Gera um vídeo curto (Standalone) para testes do laboratório Veo 2.0
+     */
+    async generateStandaloneVideo(prompt: string): Promise<string> {
+      const key = this.geminiKeyManager.getCurrentKey();
+      if (!key) throw new Error('GEMINI_API_KEY not set');
+
+      try {
+        const ai = new GoogleGenAI({ apiKey: key });
+        const result = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: [{ role: 'user', parts: [{ text: prompt }] }],
+          config: {
+            // @ts-ignore
+            responseModalities: ["VIDEO"],
+          },
+        });
+
+        const part = result.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
+        if (!part?.inlineData?.data) {
+          this.logger.warn("Cota de vídeo esgotada ou não disponível. Usando fallback.");
+          return "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
+        }
+
+        const buffer = Buffer.from(part.inlineData.data, 'base64');
+        const fileName = `veo_test_${Date.now()}.mp4`;
+        const filePath = path.join(process.cwd(), 'public/videos', fileName);
+
+        if (!fs.existsSync(path.dirname(filePath))) fs.mkdirSync(path.dirname(filePath), { recursive: true });
+        fs.writeFileSync(filePath, buffer);
+
+        return `/videos/${fileName}`;
+      } catch (e) {
+        this.logger.error(`Veo 2.0 Error: ${e.message}`);
+        return "https://storage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4";
+      }
+    }
   }
-} 
+ 

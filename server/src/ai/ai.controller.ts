@@ -34,6 +34,12 @@ export class AiController {
     return this.aiService.generateSingleImage(prompt, options);
   }
 
+  @Post('veo-test')
+  async testVeo(@Body() { prompt }: { prompt: string }) {
+    const videoUrl = await this.aiService.generateStandaloneVideo(prompt);
+    return { videoUrl };
+  }
+
   @Post('generate-video')
   async generateVideo(
     @Body() { topic, durationMinutes }: { topic: string; durationMinutes?: number },

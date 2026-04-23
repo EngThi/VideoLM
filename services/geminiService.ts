@@ -71,8 +71,33 @@ class GeminiService {
   }
 }
 
+  /**
+   * Gera um vídeo de teste (Veo 2.0 Lab) via Backend
+   */
+  public async generateVeoVideo(prompt: string): Promise<string> {
+    try {
+      const response = await fetch('/api/ai/veo-test', {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          ...authService.getAuthHeader()
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      if (!response.ok) throw new Error('Failed to generate test video');
+      const data = await response.json();
+      return data.videoUrl;
+    } catch (error) {
+      console.error("Error calling backend for Veo test:", error);
+      throw error;
+    }
+  }
+}
+
 export const geminiService = new GeminiService();
 // Mantendo exportações individuais para compatibilidade com App.tsx
 export const generateContentIdeas = (topic: string) => geminiService.generateContentIdeas(topic);
 export const generateScript = (topic: string, duration: number) => geminiService.generateScript(topic, duration / 60);
 export const generateImagePrompts = (script: string, duration: number) => geminiService.generateImagePrompts(script);
+export const generateVeoVideo = (prompt: string) => geminiService.generateVeoVideo(prompt);
