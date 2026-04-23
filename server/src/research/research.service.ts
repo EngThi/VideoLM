@@ -68,6 +68,8 @@ export class ResearchService {
       // 3. Disparar a geração (Deep Dive)
       this.logger.log(`Triggering ${type} overview (Style: ${style}) for notebook ${notebookId}`);
       
+      await this.notebookLM.researchStart(notebookId);
+
       if (type === 'video') {
         return this.notebookLM.createVideoOverview(notebookId, style);
       }

@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { VideoService } from './video.service';
 import { ProjectsService } from '../projects/projects.service';
 import { VideoGateway } from './video.gateway';
+import { AiService } from '../ai/ai.service';
+import { getQueueToken } from '@nestjs/bullmq';
 import * as fs from 'fs';
 import * as path from 'path';
 import * as ffmpeg from 'fluent-ffmpeg';
@@ -19,6 +21,11 @@ const mockProjectsService = {
 
 const mockVideoGateway = {
   broadcastProgress: jest.fn(),
+};
+
+const mockAiService = {};
+const mockQueue = {
+  add: jest.fn(),
 };
 
 // Mock implementation for fluent-ffmpeg
@@ -56,6 +63,8 @@ describe('VideoService', () => {
         VideoService,
         { provide: ProjectsService, useValue: mockProjectsService },
         { provide: VideoGateway, useValue: mockVideoGateway },
+        { provide: AiService, useValue: mockAiService },
+        { provide: getQueueToken('video-render'), useValue: mockQueue },
       ],
     }).compile();
 
@@ -91,6 +100,20 @@ describe('VideoService', () => {
   });
 
   describe('assembleVideo', () => {
+    it('should add job to render queue', async () => {
+      const audioFile = { buffer: Buffer.from('narration') } as Express.Multer.File;
+      const imageFile = { buffer: Buffer.from('image') } as Express.Multer.File;
+      const bgMusicFile = { buffer: Buffer.from('background music') } as Express.Multer.File;
+
+      const promise = service.assembleVideo(audioFile, [imageFile], 10, 'a script', bgMusicFile);
+
+      await promise;
+
+      expect(mockQueue.add).toHaveBeenCalledWith('assemble', expect.any(Object));
+    });
+  });
+
+  describe('processAssembly', () => {
     it('should apply smart ducking when bgMusic is provided', async () => {
       const audioFile = { buffer: Buffer.from('narration') } as Express.Multer.File;
       const imageFile = { buffer: Buffer.from('image') } as Express.Multer.File;
@@ -98,7 +121,7 @@ describe('VideoService', () => {
       
       jest.spyOn(service, 'createClip').mockResolvedValue();
 
-      const promise = service.assembleVideo(audioFile, [imageFile], 10, 'a script', bgMusicFile);
+      const promise = service.processAssembly(audioFile, [imageFile], 10, 'a script', bgMusicFile);
 
       // Fast-forward timers to trigger cleanup
       jest.runAllTimers();
@@ -117,7 +140,7 @@ describe('VideoService', () => {
        const imageFile = { buffer: Buffer.from('image') } as Express.Multer.File;
        jest.spyOn(service, 'createClip').mockResolvedValue();
 
-       const promise = service.assembleVideo(audioFile, [imageFile], 10, 'a script');
+       const promise = service.processAssembly(audioFile, [imageFile], 10, 'a script');
        
        jest.runAllTimers();
 
