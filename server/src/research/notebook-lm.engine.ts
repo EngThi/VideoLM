@@ -42,10 +42,8 @@ export class NotebookLMEngine {
   async createNotebook(title: string): Promise<string> {
     this.logger.log(`Criando novo notebook: ${title}`);
     const output = this.execute(`create notebook "${title}"`);
-    // Extrai o UUID do notebook criado do output da CLI
     const match = output.match(/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i);
     if (!match) {
-        // Fallback: tenta buscar na lista se não achou no output direto
         this.logger.warn("ID não encontrado no output direto, tentando buscar via lista...");
         return "new-notebook-check-list"; 
     }
@@ -57,37 +55,37 @@ export class NotebookLMEngine {
     return this.execute(`add url ${notebookId} "${url}"`);
   }
 
-  async researchStart(notebookId: string) {
-    this.logger.log(`Iniciando deep web factual research para: ${notebookId}`);
-    return this.execute(`research_start ${notebookId}`);
-  }
-
   async createAudioOverview(notebookId: string) {
-    this.logger.log(`Solicitando Audio Overview (Studio) para: ${notebookId}`);
-    return this.execute(`studio_create ${notebookId} --type audio --confirm`);
+    this.logger.log(`Solicitando Audio Overview para: ${notebookId}`);
+    return this.execute(`create audio ${notebookId} --confirm`);
   }
 
   async createVideoOverview(notebookId: string, style: string = 'classic') {
-    this.logger.log(`Solicitando Video Overview (Studio) (${style}) para: ${notebookId}`);
-    return this.execute(`studio_create ${notebookId} --type video --style ${style} --confirm`);
+    this.logger.log(`Solicitando Video Overview (${style}) para: ${notebookId}`);
+    return this.execute(`create video ${notebookId} --style ${style} --confirm`);
   }
 
-  async reviseScript(notebookId: string, instructions: string) {
-    this.logger.log(`Solicitando revisão de script para: ${notebookId}`);
-    return this.execute(`studio_revise ${notebookId} --instructions "${instructions}"`);
+  async createInfographic(notebookId: string, style: string = 'professional', orientation: string = 'portrait') {
+    this.logger.log(`Solicitando Infográfico (${style}, ${orientation}) para: ${notebookId}`);
+    return this.execute(`create infographic ${notebookId} --style ${style} --orientation ${orientation} --confirm`);
   }
 
   async downloadAudio(notebookId: string, outputPath: string) {
-    this.logger.log(`Baixando artefato de áudio do notebook ${notebookId} para: ${outputPath}`);
-    return this.execute(`download_artifact ${notebookId} --type audio --output "${outputPath}" --no-progress`);
+    this.logger.log(`Baixando áudio do notebook ${notebookId} para: ${outputPath}`);
+    return this.execute(`download audio ${notebookId} --output "${outputPath}" --no-progress`);
   }
 
   async downloadVideo(notebookId: string, outputPath: string) {
-    this.logger.log(`Baixando artefato de vídeo do notebook ${notebookId} para: ${outputPath}`);
-    return this.execute(`download_artifact ${notebookId} --type video --output "${outputPath}" --no-progress`);
+    this.logger.log(`Baixando vídeo do notebook ${notebookId} para: ${outputPath}`);
+    return this.execute(`download video ${notebookId} --output "${outputPath}" --no-progress`);
+  }
+
+  async downloadInfographic(notebookId: string, outputPath: string) {
+    this.logger.log(`Baixando infográfico do notebook ${notebookId} para: ${outputPath}`);
+    return this.execute(`download infographic ${notebookId} --output "${outputPath}" --no-progress`);
   }
 
   async checkStatus(notebookId: string) {
-    return this.execute(`studio status ${notebookId} --json`);
+    return this.execute(`status artifacts ${notebookId} --json`);
   }
 }
