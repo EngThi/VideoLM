@@ -57,7 +57,7 @@ export class NotebookLMEngine {
 
   async researchStart(notebookId: string, query: string) {
     this.logger.log(`Iniciando deep web factual research para: ${notebookId} (Busca: ${query})`);
-    return this.execute(`research start "${query}" --notebook-id ${notebookId} --auto-import --confirm`);
+    return this.execute(`research start "${query}" --notebook-id ${notebookId} --auto-import`);
   }
 
   async createAudioOverview(notebookId: string) {
@@ -75,6 +75,11 @@ export class NotebookLMEngine {
     return this.execute(`create infographic ${notebookId} --style ${style} --orientation ${orientation} --confirm`);
   }
 
+  async createReport(notebookId: string) {
+    this.logger.log(`Gerando Report factual para: ${notebookId}`);
+    return this.execute(`create report ${notebookId} --confirm`);
+  }
+
   async downloadAudio(notebookId: string, outputPath: string) {
     this.logger.log(`Baixando áudio do notebook ${notebookId} para: ${outputPath}`);
     return this.execute(`download audio ${notebookId} --output "${outputPath}" --no-progress`);
@@ -88,6 +93,11 @@ export class NotebookLMEngine {
   async downloadInfographic(notebookId: string, outputPath: string) {
     this.logger.log(`Baixando infográfico do notebook ${notebookId} para: ${outputPath}`);
     return this.execute(`download infographic ${notebookId} --output "${outputPath}" --no-progress`);
+  }
+
+  async downloadReport(notebookId: string, outputPath: string) {
+    this.logger.log(`Baixando Report Markdown do notebook ${notebookId} para: ${outputPath}`);
+    return this.execute(`download report ${notebookId} --output "${outputPath}"`);
   }
 
   async checkStatus(notebookId: string) {

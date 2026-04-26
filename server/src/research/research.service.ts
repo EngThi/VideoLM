@@ -36,7 +36,7 @@ export class ResearchService {
   /**
    * Orquestra a criação do notebook e o disparo da geração de conteúdo
    */
-  async startNotebookLMResearch(projectId: string, type: 'audio' | 'video' = 'audio', style: string = 'classic') {
+  async startNotebookLMResearch(projectId: string, type: 'audio' | 'video' | 'infographic' = 'audio', style: string = 'classic') {
     const project = await this.projectsService.findOne(projectId);
     
     if (!project.sources || project.sources.length === 0) {
@@ -74,6 +74,9 @@ export class ResearchService {
       
       if (type === 'video') {
         return this.notebookLM.createVideoOverview(notebookId, style);
+      }
+      if (type === 'infographic') {
+        return this.notebookLM.createInfographic(notebookId, style);
       }
       return this.notebookLM.createAudioOverview(notebookId);
 
@@ -166,5 +169,33 @@ export class ResearchService {
    */
   async assembleResearchVideo(projectId: string) {
     return this.videoService.assembleResearchVideo(projectId);
+  }
+
+  /**
+   * PIPELINE 200% (ABSOLUTE CINEMA): Híbrido NLM + Gemini
+   * Usa NLM para fatos/infográficos e Gemini para storytelling/voz.
+   */
+  async startHybridAbsolutePipeline(projectId: string) {
+    const project = await this.projectsService.findOne(projectId);
+    this.logger.log(`🚀 Iniciando Pipeline Híbrido Absolute Cinema para: ${project.title}`);
+
+    // 1. Orquestração NLM (Live Research + Report + Infographic)
+    let notebookId = project.metadata?.notebookId;
+    if (!notebookId || notebookId === 'placeholder-id') {
+      notebookId = await this.notebookLM.createNotebook(`Hybrid: ${project.title}`);
+      await this.projectsService.updateMetadata(projectId, { notebookId });
+    }
+
+    // Injetar fontes se necessário e rodar Live Research
+    for (const source of project.sources || []) {
+      await this.notebookLM.addSource(notebookId, source);
+    }
+    await this.notebookLM.researchStart(notebookId, project.topic);
+    
+    // Gerar artefatos Fatuais
+    await this.notebookLM.createReport(notebookId);
+    await this.notebookLM.createInfographic(notebookId, 'bento_grid', 'portrait');
+
+    return { status: 'processing', message: 'NLM está extraindo fatos e gerando infográficos...' };
   }
 }
