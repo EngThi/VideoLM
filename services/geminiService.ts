@@ -98,5 +98,7 @@ export const geminiService = new GeminiService();
 // Mantendo exportações individuais para compatibilidade com App.tsx
 export const generateContentIdeas = (topic: string) => geminiService.generateContentIdeas(topic);
 export const generateScript = (topic: string, duration: number) => geminiService.generateScript(topic, duration / 60);
+export const generateScriptWithGoogleSearch = (topic: string, title: string, outline: string, duration: number) => geminiService.generateScript(`${topic} - ${title} - ${outline}`, duration / 60);
+export const generateNarration = (script: string, voice: string) => geminiService.generateVoiceover(script);
 export const generateImagePrompts = (script: string, duration: number) => geminiService.generateImagePrompts(script);
 export const generateVeoVideo = (prompt: string) => geminiService.generateVeoVideo(prompt);

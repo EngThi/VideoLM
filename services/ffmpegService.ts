@@ -144,7 +144,7 @@ class FFmpegService {
   /**
    * Polls the backend to check if the background video assembly is complete.
    */
-  public async pollVideoStatus(projectId: string): Promise<{ status: string; videoUrl?: string; error?: string }> {
+  public async pollVideoStatus(projectId: string): Promise<{ status: string; videoUrl?: string; videoPath?: string; error?: string }> {
     try {
         const response = await fetch(`/api/video/${projectId}/status`, {
             headers: {
