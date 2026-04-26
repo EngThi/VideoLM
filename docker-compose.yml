@@ -17,11 +17,29 @@ services:
       - HF_TOKENS=${HF_TOKENS}
       - DATABASE_PATH=/app/server/data/database.sqlite
       - JWT_SECRET=${JWT_SECRET:-flavortown_secret_2026}
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+    deploy:
+      resources:
+        limits:
+          memory: 2G
     volumes:
       - ./server/data:/app/server/data
       - ./server/public/videos:/app/server/public/videos
       - ./server/cache:/app/server/cache
       - nlm_session:/root/.notebooklm-mcp-cli
+    depends_on:
+      - redis
+
+  redis:
+    image: redis:alpine
+    container_name: videolm_redis
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
 
 volumes:
   nlm_session:
+  redis_data:

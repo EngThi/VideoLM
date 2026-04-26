@@ -11,6 +11,8 @@ import { PassThrough } from 'stream';
 import { ProjectsService } from '../projects/projects.service';
 import { VideoGateway } from './video.gateway';
 import { AiService } from '../ai/ai.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 
 const execAsync = promisify(exec);
 
@@ -23,7 +25,8 @@ export class VideoService {
     private projectsService: ProjectsService,
     private videoGateway: VideoGateway,
     @Inject(forwardRef(() => AiService))
-    private aiService: AiService
+    private aiService: AiService,
+    @InjectQueue('video-render') private readonly renderQueue: Queue,
   ) {
 
     // Configura fluent-ffmpeg para usar binários estáticos
@@ -120,7 +123,7 @@ export class VideoService {
     
     const ffmpegBin = ffmpegPath || 'ffmpeg';
     // Adicionando Crossfade e movimentação Ken Burns mais suave
-    const cmd = `"${ffmpegBin}" -y -loop 1 -i "${imagePath}" -vf "scale=1920:-2,${finalZoomCmd},fade=t=in:st=0:d=1,fade=t=out:st=${outputDuration-1}:d=1" -c:v libx264 -t ${outputDuration} -pix_fmt yuv420p -preset ultrafast "${outputPath}"`;
+    const cmd = `"${ffmpegBin}" -y -threads 2 -loop 1 -i "${imagePath}" -vf "scale=1920:-2,${finalZoomCmd},fade=t=in:st=0:d=1,fade=t=out:st=${outputDuration-1}:d=1" -c:v libx264 -t ${outputDuration} -pix_fmt yuv420p -preset ultrafast "${outputPath}"`;
     
     await execAsync(cmd);
   }
@@ -275,7 +278,7 @@ export class VideoService {
 
 
   /**
-   * Monta o vídeo padrão (Narração Gerada + Imagens)
+   * Monta o vídeo padrão (Narração Gerada + Imagens) - Adds job to BullMQ
    */
   async assembleVideo(
     audioFile: Express.Multer.File,
@@ -285,30 +288,127 @@ export class VideoService {
     bgMusicFile?: Express.Multer.File,
     externalTempDir?: string,
     projectId: string = 'dev-session',
+    signal?: AbortSignal,
   ): Promise<string> {
-    this.logger.log(`🎬 Starting assembly for project: ${projectId}`);
+    this.logger.log(`🎬 Adding assembly to queue for project: ${projectId}`);
+
+    // Save to disk first so BullMQ doesn't bloat Redis with buffers.
+    const tempRoot = path.join(process.cwd(), 'temp');
+    if (!fs.existsSync(tempRoot)) fs.mkdirSync(tempRoot, { recursive: true });
+
+    const jobId = Date.now().toString();
+    const jobDir = path.join(tempRoot, `queue_${jobId}`);
+    if (!fs.existsSync(jobDir)) fs.mkdirSync(jobDir, { recursive: true });
+
+    const audioPath = path.join(jobDir, 'audio.wav');
+    // Ensure we handle Multer Buffer objects correctly depending on structure
+    const getBuffer = (file: any): Buffer => {
+        if (!file) return Buffer.from([]);
+        if (Buffer.isBuffer(file)) return file;
+
+        if (file.buffer) {
+             if (Buffer.isBuffer(file.buffer)) return file.buffer;
+             if (Array.isArray(file.buffer)) return Buffer.from(file.buffer);
+             if (typeof file.buffer === 'object' && 'data' in file.buffer) {
+                 return Buffer.from(file.buffer.data);
+             }
+             if (typeof file.buffer === 'object') {
+                  const values = Object.values(file.buffer);
+                  if (values.length > 0 && typeof values[0] === 'number') {
+                       return Buffer.from(values as number[]);
+                  }
+             }
+             return Buffer.from(file.buffer);
+        }
+
+        if (Array.isArray(file)) return Buffer.from(file);
+        if (typeof file === 'object' && 'data' in file) return Buffer.from(file.data);
+        if (typeof file === 'object') {
+             const values = Object.values(file);
+             if (values.length > 0 && typeof values[0] === 'number') {
+                  return Buffer.from(values as number[]);
+             }
+        }
+        return Buffer.from(file);
+    };
+
+    const audioBuffer = getBuffer(audioFile);
+    if (audioBuffer.length === 0) {
+        throw new Error("Failed to write empty audio buffer to disk");
+    }
+    fs.writeFileSync(audioPath, audioBuffer);
+
+    let bgMusicPath: string | undefined;
+    if (bgMusicFile && bgMusicFile.buffer) {
+        bgMusicPath = path.join(jobDir, 'bgMusic.mp3');
+        const bgMusicBuffer = getBuffer(bgMusicFile);
+        fs.writeFileSync(bgMusicPath, bgMusicBuffer);
+    }
+
+    const imagePaths: string[] = [];
+    for (let i = 0; i < imageFiles.length; i++) {
+        const imgPath = path.join(jobDir, `image_${i}.png`);
+        const imgBuffer = getBuffer(imageFiles[i]);
+        fs.writeFileSync(imgPath, imgBuffer);
+        imagePaths.push(imgPath);
+    }
+
+    // Add job to Queue. BullMQ processor will handle the actual processing
+    // synchronously based on concurrency limit.
+    const finalFileName = `${projectId || 'dev'}_${jobId}.mp4`;
+    const videoUrl = `/videos/${finalFileName}`;
+
+    await this.renderQueue.add('assemble', {
+        audioPath,
+        imagePaths,
+        inputDuration,
+        script,
+        bgMusicPath,
+        externalTempDir: jobDir,
+        projectId
+    }, {
+        attempts: 5,
+        backoff: {
+            type: 'exponential',
+            delay: 5000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false
+    });
+
+    return videoUrl;
+  }
+
+  /**
+   * Executed by the worker to actually process the video
+   */
+  async processAssembly(
+    audioPath: string,
+    imagePaths: string[],
+    inputDuration: number,
+    script?: string,
+    bgMusicPath?: string,
+    externalTempDir?: string,
+    projectId: string = 'dev-session',
+    signal?: AbortSignal,
+  ): Promise<string> {
+    this.logger.log(`🎬 Starting processAssembly for project: ${projectId}`);
     await this.maintainDiskSpace();
 
     const videosDir = path.join(process.cwd(), 'public/videos');
-    const tempRoot = path.join(process.cwd(), 'temp');
     if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
-    if (!fs.existsSync(tempRoot)) fs.mkdirSync(tempRoot, { recursive: true });
 
-    const tempDir = externalTempDir || path.join(tempRoot, `assemble_${Date.now()}`);
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    // The job directory acts as our temp dir
+    const tempDir = externalTempDir;
 
-    const finalFileName = `${projectId || 'dev'}_${Date.now()}.mp4`;
+    const finalFileName = `${projectId || 'dev'}_${path.basename(tempDir).replace('queue_', '')}.mp4`;
     const finalPath = path.join(videosDir, finalFileName);
     const videoUrl = `/videos/${finalFileName}`;
 
     if (projectId !== 'dev-session') await this.projectsService.updateStatus(projectId, 'processing');
 
-    const processTask = async () => {
+    return new Promise(async (resolve, reject) => {
       try {
-        if (!audioFile || !audioFile.buffer) throw new Error("Audio file buffer is missing");
-        const audioPath = path.join(tempDir, 'audio.wav');
-        fs.writeFileSync(audioPath, audioFile.buffer);
-
         let totalDuration = await this.getAudioDuration(audioPath);
         if (!totalDuration || isNaN(totalDuration) || totalDuration <= 0) totalDuration = inputDuration;
 
@@ -320,13 +420,11 @@ export class VideoService {
             else srtPath = undefined;
         }
 
-        let bgMusicPath: string | undefined;
-        if (bgMusicFile && bgMusicFile.buffer) {
-          bgMusicPath = path.join(tempDir, 'bg_music.mp3');
-          fs.writeFileSync(bgMusicPath, bgMusicFile.buffer);
-        }
+        // To reuse renderAllClips we map the paths back to pseudo-multer files
+        // but now renderAllClips actually expects the multer file. Let's fix that internally or map it.
+        const pseudoImageFiles: any[] = imagePaths.map(p => ({ buffer: fs.readFileSync(p), originalname: p }));
 
-        const clipPaths = await this.renderAllClips(tempDir, imageFiles, totalDuration);
+        const clipPaths = await this.renderAllClips(tempDir, pseudoImageFiles, totalDuration);
         const concatListPath = path.join(tempDir, 'concat_list.txt');
         fs.writeFileSync(concatListPath, clipPaths.map(p => `file '${p}'`).join('\n'));
 
@@ -335,7 +433,7 @@ export class VideoService {
         if (bgMusicPath) command.input(bgMusicPath);
         if (filterComplex.length > 0) command.complexFilter(filterComplex);
 
-        const outputOptions = ['-c:v libx264', '-preset superfast', '-pix_fmt yuv420p', '-shortest'];
+        const outputOptions = ['-c:v libx264', '-preset superfast', '-pix_fmt yuv420p', '-shortest', '-threads 2'];
         if (filterComplex.length > 0) outputOptions.push(`-map ${videoLabel}`, `-map ${audioLabel}`);
         else outputOptions.push('-map 0:v', '-map 1:a');
 
@@ -343,15 +441,29 @@ export class VideoService {
           .on('end', () => {
             if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'completed', videoUrl);
             try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) {}
+            resolve(videoUrl);
           })
-          .save(finalPath);
+          .on('error', (err) => {
+             this.logger.error(`🚨 Assembly Task Error: ${err.message}`);
+             if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, err.message);
+             reject(err);
+          });
+
+        if (signal) {
+          signal.addEventListener('abort', () => {
+            this.logger.warn(`🛑 Job aborted, killing ffmpeg process for project: ${projectId}`);
+            command.kill('SIGKILL');
+            reject(new Error('Job aborted by BullMQ'));
+          });
+        }
+
+        command.save(finalPath);
       } catch (error) {
         this.logger.error(`🚨 Assembly Task Error: ${error.message}`);
         if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, error.message);
+        reject(error);
       }
-    };
-    processTask();
-    return videoUrl;
+    });
   }
 
   /**
@@ -408,7 +520,7 @@ export class VideoService {
         ffmpeg(concatListPath)
           .inputOptions(['-f concat', '-safe 0'])
           .input(audioPath)
-          .outputOptions(['-c:v libx264', '-preset superfast', '-pix_fmt yuv420p', '-shortest'])
+          .outputOptions(['-c:v libx264', '-preset superfast', '-pix_fmt yuv420p', '-shortest', '-threads 2'])
           .on('end', () => {
              this.projectsService.updateStatus(projectId, 'completed', videoUrl);
              this.logger.log(`✅ Vídeo Factual Concluído: ${videoUrl}`);

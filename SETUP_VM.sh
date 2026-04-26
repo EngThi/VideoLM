@@ -4,10 +4,23 @@
 
 echo "🚀 Starting VideoLM VM Setup..."
 
-# 1. Update System
+# 1. Configure 4GB Swap
+echo "⚙️ Configuring 4GB Swap..."
+if [ ! -f "/swapfile" ]; then
+    sudo fallocate -l 4G /swapfile
+    sudo chmod 600 /swapfile
+    sudo mkswap /swapfile
+    sudo swapon /swapfile
+    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+    echo "✅ Swap configured."
+else
+    echo "✅ Swap file already exists."
+fi
+
+# 2. Update System
 sudo apt-get update && sudo apt-get upgrade -y
 
-# 2. Install Docker & Docker Compose
+# 3. Install Docker & Docker Compose
 if ! [ -x "$(command -v docker)" ]; then
     echo "🐳 Installing Docker..."
     curl -fsSL https://get.docker.com -o get-docker.sh
@@ -15,17 +28,17 @@ if ! [ -x "$(command -v docker)" ]; then
     sudo usermod -aG docker $USER
 fi
 
-# 3. Install Python & UV (For Research Engine)
+# 4. Install Python & UV (For Research Engine)
 echo "🐍 Installing Python & UV..."
 sudo apt-get install -y python3 python3-pip curl
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 
-# 4. Install FFmpeg
+# 5. Install FFmpeg
 echo "🎞️ Installing FFmpeg..."
 sudo apt-get install -y ffmpeg
 
-# 5. Clone and Prepare (If not in folder)
+# 6. Clone and Prepare (If not in folder)
 if [ ! -f "docker-compose.yml" ]; then
     echo "📂 Please run this script inside the project folder."
     exit 1
