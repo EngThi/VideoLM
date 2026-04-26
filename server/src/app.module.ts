@@ -33,7 +33,7 @@ import { join } from 'path';
     }),
     TypeOrmModule.forRoot({
       type: 'sqlite',
-      database: '/home/user/hack-club/server/data/database.sqlite', // Caminho Absoluto Forçado
+      database: join(process.cwd(), 'data', 'database.sqlite'),
       autoLoadEntities: true,
       synchronize: true, 
       logging: true,

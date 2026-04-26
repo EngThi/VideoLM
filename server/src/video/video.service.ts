@@ -292,18 +292,79 @@ export class VideoService {
   ): Promise<string> {
     this.logger.log(`🎬 Adding assembly to queue for project: ${projectId}`);
 
+    // Save to disk first so BullMQ doesn't bloat Redis with buffers.
+    const tempRoot = path.join(process.cwd(), 'temp');
+    if (!fs.existsSync(tempRoot)) fs.mkdirSync(tempRoot, { recursive: true });
+
+    const jobId = Date.now().toString();
+    const jobDir = path.join(tempRoot, `queue_${jobId}`);
+    if (!fs.existsSync(jobDir)) fs.mkdirSync(jobDir, { recursive: true });
+
+    const audioPath = path.join(jobDir, 'audio.wav');
+    // Ensure we handle Multer Buffer objects correctly depending on structure
+    const getBuffer = (file: any): Buffer => {
+        if (!file) return Buffer.from([]);
+        if (Buffer.isBuffer(file)) return file;
+
+        if (file.buffer) {
+             if (Buffer.isBuffer(file.buffer)) return file.buffer;
+             if (Array.isArray(file.buffer)) return Buffer.from(file.buffer);
+             if (typeof file.buffer === 'object' && 'data' in file.buffer) {
+                 return Buffer.from(file.buffer.data);
+             }
+             if (typeof file.buffer === 'object') {
+                  const values = Object.values(file.buffer);
+                  if (values.length > 0 && typeof values[0] === 'number') {
+                       return Buffer.from(values as number[]);
+                  }
+             }
+             return Buffer.from(file.buffer);
+        }
+
+        if (Array.isArray(file)) return Buffer.from(file);
+        if (typeof file === 'object' && 'data' in file) return Buffer.from(file.data);
+        if (typeof file === 'object') {
+             const values = Object.values(file);
+             if (values.length > 0 && typeof values[0] === 'number') {
+                  return Buffer.from(values as number[]);
+             }
+        }
+        return Buffer.from(file);
+    };
+
+    const audioBuffer = getBuffer(audioFile);
+    if (audioBuffer.length === 0) {
+        throw new Error("Failed to write empty audio buffer to disk");
+    }
+    fs.writeFileSync(audioPath, audioBuffer);
+
+    let bgMusicPath: string | undefined;
+    if (bgMusicFile && bgMusicFile.buffer) {
+        bgMusicPath = path.join(jobDir, 'bgMusic.mp3');
+        const bgMusicBuffer = getBuffer(bgMusicFile);
+        fs.writeFileSync(bgMusicPath, bgMusicBuffer);
+    }
+
+    const imagePaths: string[] = [];
+    for (let i = 0; i < imageFiles.length; i++) {
+        const imgPath = path.join(jobDir, `image_${i}.png`);
+        const imgBuffer = getBuffer(imageFiles[i]);
+        fs.writeFileSync(imgPath, imgBuffer);
+        imagePaths.push(imgPath);
+    }
+
     // Add job to Queue. BullMQ processor will handle the actual processing
     // synchronously based on concurrency limit.
-    const finalFileName = `${projectId || 'dev'}_${Date.now()}.mp4`;
+    const finalFileName = `${projectId || 'dev'}_${jobId}.mp4`;
     const videoUrl = `/videos/${finalFileName}`;
 
     await this.renderQueue.add('assemble', {
-        audioFile,
-        imageFiles,
+        audioPath,
+        imagePaths,
         inputDuration,
         script,
-        bgMusicFile,
-        externalTempDir,
+        bgMusicPath,
+        externalTempDir: jobDir,
         projectId
     }, {
         attempts: 5,
@@ -322,11 +383,11 @@ export class VideoService {
    * Executed by the worker to actually process the video
    */
   async processAssembly(
-    audioFile: Express.Multer.File,
-    imageFiles: Express.Multer.File[],
+    audioPath: string,
+    imagePaths: string[],
     inputDuration: number,
     script?: string,
-    bgMusicFile?: Express.Multer.File,
+    bgMusicPath?: string,
     externalTempDir?: string,
     projectId: string = 'dev-session',
     signal?: AbortSignal,
@@ -335,14 +396,12 @@ export class VideoService {
     await this.maintainDiskSpace();
 
     const videosDir = path.join(process.cwd(), 'public/videos');
-    const tempRoot = path.join(process.cwd(), 'temp');
     if (!fs.existsSync(videosDir)) fs.mkdirSync(videosDir, { recursive: true });
-    if (!fs.existsSync(tempRoot)) fs.mkdirSync(tempRoot, { recursive: true });
 
-    const tempDir = externalTempDir || path.join(tempRoot, `assemble_${Date.now()}`);
-    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    // The job directory acts as our temp dir
+    const tempDir = externalTempDir;
 
-    const finalFileName = `${projectId || 'dev'}_${Date.now()}.mp4`;
+    const finalFileName = `${projectId || 'dev'}_${path.basename(tempDir).replace('queue_', '')}.mp4`;
     const finalPath = path.join(videosDir, finalFileName);
     const videoUrl = `/videos/${finalFileName}`;
 
@@ -350,10 +409,6 @@ export class VideoService {
 
     return new Promise(async (resolve, reject) => {
       try {
-        if (!audioFile || !audioFile.buffer) throw new Error("Audio file buffer is missing");
-        const audioPath = path.join(tempDir, 'audio.wav');
-        fs.writeFileSync(audioPath, audioFile.buffer);
-
         let totalDuration = await this.getAudioDuration(audioPath);
         if (!totalDuration || isNaN(totalDuration) || totalDuration <= 0) totalDuration = inputDuration;
 
@@ -365,13 +420,11 @@ export class VideoService {
             else srtPath = undefined;
         }
 
-        let bgMusicPath: string | undefined;
-        if (bgMusicFile && bgMusicFile.buffer) {
-          bgMusicPath = path.join(tempDir, 'bg_music.mp3');
-          fs.writeFileSync(bgMusicPath, bgMusicFile.buffer);
-        }
+        // To reuse renderAllClips we map the paths back to pseudo-multer files
+        // but now renderAllClips actually expects the multer file. Let's fix that internally or map it.
+        const pseudoImageFiles: any[] = imagePaths.map(p => ({ buffer: fs.readFileSync(p), originalname: p }));
 
-        const clipPaths = await this.renderAllClips(tempDir, imageFiles, totalDuration);
+        const clipPaths = await this.renderAllClips(tempDir, pseudoImageFiles, totalDuration);
         const concatListPath = path.join(tempDir, 'concat_list.txt');
         fs.writeFileSync(concatListPath, clipPaths.map(p => `file '${p}'`).join('\n'));
 

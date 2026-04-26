@@ -1,0 +1,260 @@
+
+> server@0.0.1 dev
+> nest start --watch
+
+[2J[3J[H[[90m10:24:44 AM[0m] Starting compilation in watch mode...
+
+[[90m10:24:48 AM[0m] Found 0 errors. Watching for file changes.
+
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[NestFactory] [39m[32mStarting Nest application...[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[KeyManagerService] [39m[32mInitialized with 4 keys for Gemini AI[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[KeyManagerService] [39m[32mInitialized with 5 keys for Hugging Face[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAppModule dependencies initialized[39m[38;5;3m +3ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mBullModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mPassportModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mJwtModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigHostModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mDiscoveryModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mServeStaticModule dependencies initialized[39m[38;5;3m +5ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mConfigModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mBullModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mBullModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAiModule dependencies initialized[39m[38;5;3m +0ms[39m
+query: PRAGMA foreign_keys = OFF
+query: BEGIN TRANSACTION
+query: SELECT * FROM "sqlite_master" WHERE "type" = 'table' AND "name" IN ('user','projects')
+query: SELECT * FROM "sqlite_master" WHERE "type" = 'index' AND "tbl_name" IN ('user','projects')
+query: PRAGMA table_xinfo("user")
+query: PRAGMA index_list("user")
+query: PRAGMA foreign_key_list("user")
+query: PRAGMA table_xinfo("projects")
+query: PRAGMA index_list("projects")
+query: PRAGMA foreign_key_list("projects")
+query: PRAGMA index_info("sqlite_autoindex_user_2")
+query: SELECT * FROM "sqlite_master" WHERE "type" = 'table' AND "name" = 'typeorm_metadata'
+query: COMMIT
+query: PRAGMA foreign_keys = ON
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmCoreModule dependencies initialized[39m[38;5;3m +141ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mTypeOrmModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mUsersModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32mFFprobe path set to: /app/server/node_modules/ffprobe-static/bin/linux/x64/ffprobe[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mAuthModule dependencies initialized[39m[38;5;3m +2ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mProjectsModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mVideoModule dependencies initialized[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[InstanceLoader] [39m[32mResearchModule dependencies initialized[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[WebSocketsController] [39m[32mVideoGateway subscribed to the "subscribe" message[39m[38;5;3m +57ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mProjectsController {/api/projects}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects, POST} route[39m[38;5;3m +2ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/:id, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/projects/:id, DELETE} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mVideoController {/api/video}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/video/music, GET} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/video/assemble, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/video/:projectId/generate, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/video/:projectId/status, GET} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAiController {/api/ai}:[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/ai/script, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/ai/ideas, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/ai/image-prompts, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/ai/image, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/ai/veo-test, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/ai/generate-video, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mAuthController {/api/auth}:[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/register, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/auth/login, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RoutesResolver] [39m[32mResearchController {/api/research}:[39m[38;5;3m +2ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/research/:projectId/sources, POST} route[39m[38;5;3m +1ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/research/:projectId/trigger, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[RouterExplorer] [39m[32mMapped {/api/research/:projectId/assemble, POST} route[39m[38;5;3m +0ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[NestApplication] [39m[32mNest application successfully started[39m[38;5;3m +11ms[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:24:53 AM [32m    LOG[39m [38;5;3m[Bootstrap] [39m[32m✅ Backend running on http://localhost:3001 (Payload Limit: 100mb)[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mLLM → Gemini 3 Flash[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mLLM → Cache Hit[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mLLM → Gemini 3 Flash[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mLLM → Cache Hit[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mGenerating batch of 5 images...[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via Gemini-2.5...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [31m  ERROR[39m [38;5;3m[AiService] [39m[31mGemini Image Error: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\nPlease retry in 5.258210042s.","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_input_token_count","quotaId":"GenerateContentInputTokensPerModelPerMinute-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerMinutePerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"5s"}]}}[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via OpenRouter...[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting: OpenRouter (FLUX 2 Max)[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:54 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via HuggingFace...[39m
+Defaulting to 'auto' which will select the first provider available for the model, sorted by the user's order in https://hf.co/settings/inference-providers.
+Auto selected provider: nscale
+[33m[Nest] 954627  - [39m04/26/2026, 10:30:55 AM [33m   WARN[39m [38;5;3m[AiService] [39m[33mHF Token failed: Failed to perform inference: You have depleted your monthly included credits. Purchase pre-paid credits to continue using Inference Providers. Alternatively, subscribe to PRO to get 20x more included usage.[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:55 AM [32m    LOG[39m [38;5;3m[KeyManagerService] [39m[32mRotated key for Hugging Face. Using key index: 1[39m
+Defaulting to 'auto' which will select the first provider available for the model, sorted by the user's order in https://hf.co/settings/inference-providers.
+Auto selected provider: nscale
+[33m[Nest] 954627  - [39m04/26/2026, 10:30:55 AM [33m   WARN[39m [38;5;3m[AiService] [39m[33mHF Token failed: Failed to perform inference: You have depleted your monthly included credits. Purchase pre-paid credits to continue using Inference Providers. Alternatively, subscribe to PRO to get 20x more included usage.[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:30:55 AM [32m    LOG[39m [38;5;3m[KeyManagerService] [39m[32mRotated key for Hugging Face. Using key index: 2[39m
+Defaulting to 'auto' which will select the first provider available for the model, sorted by the user's order in https://hf.co/settings/inference-providers.
+Auto selected provider: nscale
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:04 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via Gemini-2.5...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:31:04 AM [31m  ERROR[39m [38;5;3m[AiService] [39m[31mGemini Image Error: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.5-flash-preview-image\nPlease retry in 55.573446505s.","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerMinutePerProjectPerModel-FreeTier","quotaDimensions":{"model":"gemini-2.5-flash-preview-image","location":"global"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_input_token_count","quotaId":"GenerateContentInputTokensPerModelPerMinute-FreeTier","quotaDimensions":{"model":"gemini-2.5-flash-preview-image","location":"global"}}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"55s"}]}}[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:04 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via OpenRouter...[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:04 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting: OpenRouter (FLUX 2 Max)[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:04 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via HuggingFace...[39m
+Defaulting to 'auto' which will select the first provider available for the model, sorted by the user's order in https://hf.co/settings/inference-providers.
+Auto selected provider: nscale
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:12 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via Gemini-2.5...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:31:12 AM [31m  ERROR[39m [38;5;3m[AiService] [39m[31mGemini Image Error: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.5-flash-preview-image\nPlease retry in 46.945657652s.","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerMinutePerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_input_token_count","quotaId":"GenerateContentInputTokensPerModelPerMinute-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"46s"}]}}[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:12 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via OpenRouter...[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:12 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting: OpenRouter (FLUX 2 Max)[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:13 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via HuggingFace...[39m
+Defaulting to 'auto' which will select the first provider available for the model, sorted by the user's order in https://hf.co/settings/inference-providers.
+Auto selected provider: nscale
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:21 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via Gemini-2.5...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:31:21 AM [31m  ERROR[39m [38;5;3m[AiService] [39m[31mGemini Image Error: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.5-flash-preview-image\nPlease retry in 37.938652895s.","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerMinutePerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_input_token_count","quotaId":"GenerateContentInputTokensPerModelPerMinute-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"37s"}]}}[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:21 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via OpenRouter...[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:21 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting: OpenRouter (FLUX 2 Max)[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:21 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via HuggingFace...[39m
+Defaulting to 'auto' which will select the first provider available for the model, sorted by the user's order in https://hf.co/settings/inference-providers.
+Auto selected provider: nscale
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:30 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via Gemini-2.5...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:31:30 AM [31m  ERROR[39m [38;5;3m[AiService] [39m[31mGemini Image Error: {"error":{"code":429,"message":"You exceeded your current quota, please check your plan and billing details. For more information on this error, head to: https://ai.google.dev/gemini-api/docs/rate-limits. To monitor your current usage, head to: https://ai.dev/rate-limit. \n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_input_token_count, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\n* Quota exceeded for metric: generativelanguage.googleapis.com/generate_content_free_tier_requests, limit: 0, model: gemini-2.5-flash-preview-image\nPlease retry in 29.009484802s.","status":"RESOURCE_EXHAUSTED","details":[{"@type":"type.googleapis.com/google.rpc.Help","links":[{"description":"Learn more about Gemini API quotas","url":"https://ai.google.dev/gemini-api/docs/rate-limits"}]},{"@type":"type.googleapis.com/google.rpc.QuotaFailure","violations":[{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_input_token_count","quotaId":"GenerateContentInputTokensPerModelPerMinute-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerMinutePerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}},{"quotaMetric":"generativelanguage.googleapis.com/generate_content_free_tier_requests","quotaId":"GenerateRequestsPerDayPerProjectPerModel-FreeTier","quotaDimensions":{"location":"global","model":"gemini-2.5-flash-preview-image"}}]},{"@type":"type.googleapis.com/google.rpc.RetryInfo","retryDelay":"29s"}]}}[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:30 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via OpenRouter...[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:30 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting: OpenRouter (FLUX 2 Max)[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:30 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mAttempting image generation via HuggingFace...[39m
+Defaulting to 'auto' which will select the first provider available for the model, sorted by the user's order in https://hf.co/settings/inference-providers.
+Auto selected provider: nscale
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:39 AM [32m    LOG[39m [38;5;3m[AiService] [39m[32mTTS → Cache Hit[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:39 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m🎬 Adding assembly to queue for project: dev-session[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:39 AM [32m    LOG[39m [38;5;3m[VideoProcessor] [39m[32mProcessing job 7 for project dev-session[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:39 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m🎬 Starting processAssembly for project: dev-session[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:39 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777044485959[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777044491868[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777044502268[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777044522762[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777044563243[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777044967137[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777044977842[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777044990786[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777045013718[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777045056794[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777045878001[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777045891669[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777045911133[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777045939175[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777045986454[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777047465962[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777047478986[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:40 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777047496201[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:41 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777047524174[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:41 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: assemble_1777047571185[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:41 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: queue_1777051089529[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:41 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m[HOUSEKEEPING] Removendo item antigo: queue_1777052439188[39m
+[33m[Nest] 954627  - [39m04/26/2026, 10:31:42 AM [33m   WARN[39m [38;5;3m[VideoService] [39m[33mffprobe failed: ffprobe exited with code 1
+ffprobe version 4.0.2-static https://johnvansickle.com/ffmpeg/  Copyright (c) 2007-2018 the FFmpeg developers
+  built with gcc 6.3.0 (Debian 6.3.0-18+deb9u1) 20170516
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-debug --disable-ffplay --disable-indev=sndio --disable-outdev=sndio --cc=gcc-6 --enable-fontconfig --enable-frei0r --enable-gnutls --enable-gray --enable-libaom --enable-libfribidi --enable-libass --enable-libvmaf --enable-libfreetype --enable-libmp3lame --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-librubberband --enable-libsoxr --enable-libspeex --enable-libvorbis --enable-libopus --enable-libtheora --enable-libvidstab --enable-libvo-amrwbenc --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg
+  libavutil      56. 14.100 / 56. 14.100
+  libavcodec     58. 18.100 / 58. 18.100
+  libavformat    58. 12.100 / 58. 12.100
+  libavdevice    58.  3.100 / 58.  3.100
+  libavfilter     7. 16.100 /  7. 16.100
+  libswscale      5.  1.100 /  5.  1.100
+  libswresample   3.  1.100 /  3.  1.100
+  libpostproc    55.  1.100 / 55.  1.100
+/app/server/temp/queue_1777199499954/audio.wav: Invalid data found when processing input
+[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:42 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32mRendering 5 clips in parallel (limit: 3)...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:31:51 AM [31m  ERROR[39m [38;5;3m[VideoService] [39m[31m🚨 Assembly Task Error: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:31:51 AM [31m  ERROR[39m [38;5;3m[VideoProcessor] [39m[31mError processing job 7: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:56 AM [32m    LOG[39m [38;5;3m[VideoProcessor] [39m[32mProcessing job 7 for project dev-session[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:56 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m🎬 Starting processAssembly for project: dev-session[39m
+[33m[Nest] 954627  - [39m04/26/2026, 10:31:56 AM [33m   WARN[39m [38;5;3m[VideoService] [39m[33mffprobe failed: ffprobe exited with code 1
+ffprobe version 4.0.2-static https://johnvansickle.com/ffmpeg/  Copyright (c) 2007-2018 the FFmpeg developers
+  built with gcc 6.3.0 (Debian 6.3.0-18+deb9u1) 20170516
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-debug --disable-ffplay --disable-indev=sndio --disable-outdev=sndio --cc=gcc-6 --enable-fontconfig --enable-frei0r --enable-gnutls --enable-gray --enable-libaom --enable-libfribidi --enable-libass --enable-libvmaf --enable-libfreetype --enable-libmp3lame --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-librubberband --enable-libsoxr --enable-libspeex --enable-libvorbis --enable-libopus --enable-libtheora --enable-libvidstab --enable-libvo-amrwbenc --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg
+  libavutil      56. 14.100 / 56. 14.100
+  libavcodec     58. 18.100 / 58. 18.100
+  libavformat    58. 12.100 / 58. 12.100
+  libavdevice    58.  3.100 / 58.  3.100
+  libavfilter     7. 16.100 /  7. 16.100
+  libswscale      5.  1.100 /  5.  1.100
+  libswresample   3.  1.100 /  3.  1.100
+  libpostproc    55.  1.100 / 55.  1.100
+/app/server/temp/queue_1777199499954/audio.wav: Invalid data found when processing input
+[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:31:56 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32mRendering 5 clips in parallel (limit: 3)...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:32:04 AM [31m  ERROR[39m [38;5;3m[VideoService] [39m[31m🚨 Assembly Task Error: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:32:04 AM [31m  ERROR[39m [38;5;3m[VideoProcessor] [39m[31mError processing job 7: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:32:14 AM [32m    LOG[39m [38;5;3m[VideoProcessor] [39m[32mProcessing job 7 for project dev-session[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:32:14 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m🎬 Starting processAssembly for project: dev-session[39m
+[33m[Nest] 954627  - [39m04/26/2026, 10:32:14 AM [33m   WARN[39m [38;5;3m[VideoService] [39m[33mffprobe failed: ffprobe exited with code 1
+ffprobe version 4.0.2-static https://johnvansickle.com/ffmpeg/  Copyright (c) 2007-2018 the FFmpeg developers
+  built with gcc 6.3.0 (Debian 6.3.0-18+deb9u1) 20170516
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-debug --disable-ffplay --disable-indev=sndio --disable-outdev=sndio --cc=gcc-6 --enable-fontconfig --enable-frei0r --enable-gnutls --enable-gray --enable-libaom --enable-libfribidi --enable-libass --enable-libvmaf --enable-libfreetype --enable-libmp3lame --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-librubberband --enable-libsoxr --enable-libspeex --enable-libvorbis --enable-libopus --enable-libtheora --enable-libvidstab --enable-libvo-amrwbenc --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg
+  libavutil      56. 14.100 / 56. 14.100
+  libavcodec     58. 18.100 / 58. 18.100
+  libavformat    58. 12.100 / 58. 12.100
+  libavdevice    58.  3.100 / 58.  3.100
+  libavfilter     7. 16.100 /  7. 16.100
+  libswscale      5.  1.100 /  5.  1.100
+  libswresample   3.  1.100 /  3.  1.100
+  libpostproc    55.  1.100 / 55.  1.100
+/app/server/temp/queue_1777199499954/audio.wav: Invalid data found when processing input
+[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:32:14 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32mRendering 5 clips in parallel (limit: 3)...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:32:23 AM [31m  ERROR[39m [38;5;3m[VideoService] [39m[31m🚨 Assembly Task Error: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:32:23 AM [31m  ERROR[39m [38;5;3m[VideoProcessor] [39m[31mError processing job 7: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:32:43 AM [32m    LOG[39m [38;5;3m[VideoProcessor] [39m[32mProcessing job 7 for project dev-session[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:32:43 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m🎬 Starting processAssembly for project: dev-session[39m
+[33m[Nest] 954627  - [39m04/26/2026, 10:32:43 AM [33m   WARN[39m [38;5;3m[VideoService] [39m[33mffprobe failed: ffprobe exited with code 1
+ffprobe version 4.0.2-static https://johnvansickle.com/ffmpeg/  Copyright (c) 2007-2018 the FFmpeg developers
+  built with gcc 6.3.0 (Debian 6.3.0-18+deb9u1) 20170516
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-debug --disable-ffplay --disable-indev=sndio --disable-outdev=sndio --cc=gcc-6 --enable-fontconfig --enable-frei0r --enable-gnutls --enable-gray --enable-libaom --enable-libfribidi --enable-libass --enable-libvmaf --enable-libfreetype --enable-libmp3lame --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-librubberband --enable-libsoxr --enable-libspeex --enable-libvorbis --enable-libopus --enable-libtheora --enable-libvidstab --enable-libvo-amrwbenc --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg
+  libavutil      56. 14.100 / 56. 14.100
+  libavcodec     58. 18.100 / 58. 18.100
+  libavformat    58. 12.100 / 58. 12.100
+  libavdevice    58.  3.100 / 58.  3.100
+  libavfilter     7. 16.100 /  7. 16.100
+  libswscale      5.  1.100 /  5.  1.100
+  libswresample   3.  1.100 /  3.  1.100
+  libpostproc    55.  1.100 / 55.  1.100
+/app/server/temp/queue_1777199499954/audio.wav: Invalid data found when processing input
+[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:32:43 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32mRendering 5 clips in parallel (limit: 3)...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:32:51 AM [31m  ERROR[39m [38;5;3m[VideoService] [39m[31m🚨 Assembly Task Error: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:32:51 AM [31m  ERROR[39m [38;5;3m[VideoProcessor] [39m[31mError processing job 7: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:33:31 AM [32m    LOG[39m [38;5;3m[VideoProcessor] [39m[32mProcessing job 7 for project dev-session[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:33:31 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32m🎬 Starting processAssembly for project: dev-session[39m
+[33m[Nest] 954627  - [39m04/26/2026, 10:33:31 AM [33m   WARN[39m [38;5;3m[VideoService] [39m[33mffprobe failed: ffprobe exited with code 1
+ffprobe version 4.0.2-static https://johnvansickle.com/ffmpeg/  Copyright (c) 2007-2018 the FFmpeg developers
+  built with gcc 6.3.0 (Debian 6.3.0-18+deb9u1) 20170516
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-debug --disable-ffplay --disable-indev=sndio --disable-outdev=sndio --cc=gcc-6 --enable-fontconfig --enable-frei0r --enable-gnutls --enable-gray --enable-libaom --enable-libfribidi --enable-libass --enable-libvmaf --enable-libfreetype --enable-libmp3lame --enable-libopencore-amrnb --enable-libopencore-amrwb --enable-libopenjpeg --enable-librubberband --enable-libsoxr --enable-libspeex --enable-libvorbis --enable-libopus --enable-libtheora --enable-libvidstab --enable-libvo-amrwbenc --enable-libvpx --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg
+  libavutil      56. 14.100 / 56. 14.100
+  libavcodec     58. 18.100 / 58. 18.100
+  libavformat    58. 12.100 / 58. 12.100
+  libavdevice    58.  3.100 / 58.  3.100
+  libavfilter     7. 16.100 /  7. 16.100
+  libswscale      5.  1.100 /  5.  1.100
+  libswresample   3.  1.100 /  3.  1.100
+  libpostproc    55.  1.100 / 55.  1.100
+/app/server/temp/queue_1777199499954/audio.wav: Invalid data found when processing input
+[39m
+[32m[Nest] 954627  - [39m04/26/2026, 10:33:31 AM [32m    LOG[39m [38;5;3m[VideoService] [39m[32mRendering 5 clips in parallel (limit: 3)...[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:33:39 AM [31m  ERROR[39m [38;5;3m[VideoService] [39m[31m🚨 Assembly Task Error: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m
+[31m[Nest] 954627  - [39m04/26/2026, 10:33:39 AM [31m  ERROR[39m [38;5;3m[VideoProcessor] [39m[31mError processing job 7: ffmpeg exited with code 183: Error opening input file /app/server/temp/queue_1777199499954/audio.wav.
+Error opening input files: Invalid data found when processing input
+[39m

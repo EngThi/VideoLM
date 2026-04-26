@@ -117,13 +117,13 @@ describe('VideoService', () => {
 
   describe('processAssembly', () => {
     it('should apply smart ducking when bgMusic is provided', async () => {
-      const audioFile = { buffer: Buffer.from('narration') } as Express.Multer.File;
-      const imageFile = { buffer: Buffer.from('image') } as Express.Multer.File;
-      const bgMusicFile = { buffer: Buffer.from('background music') } as Express.Multer.File;
-      
+      const audioPath = 'audio.wav';
+      const imagePaths = ['image.png'];
+      const bgMusicPath = 'bgMusic.mp3';
+
       jest.spyOn(service, 'createClip').mockResolvedValue();
 
-      const promise = service.processAssembly(audioFile, [imageFile], 10, 'a script', bgMusicFile);
+      const promise = service.processAssembly(audioPath, imagePaths, 10, 'a script', bgMusicPath, 'temp');
 
       // Fast-forward timers to trigger cleanup
       jest.runAllTimers();
@@ -138,11 +138,11 @@ describe('VideoService', () => {
     });
 
     it('should NOT apply smart ducking when bgMusic is NOT provided', async () => {
-       const audioFile = { buffer: Buffer.from('narration') } as Express.Multer.File;
-       const imageFile = { buffer: Buffer.from('image') } as Express.Multer.File;
+       const audioPath = 'audio.wav';
+       const imagePaths = ['image.png'];
        jest.spyOn(service, 'createClip').mockResolvedValue();
 
-       const promise = service.processAssembly(audioFile, [imageFile], 10, 'a script');
+       const promise = service.processAssembly(audioPath, imagePaths, 10, 'a script', undefined, 'temp');
        
        jest.runAllTimers();
 

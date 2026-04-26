@@ -18,27 +18,14 @@ export class VideoProcessor extends WorkerHost {
 
     try {
       const {
-        audioFile,
-        imageFiles,
+        audioPath,
+        imagePaths,
         inputDuration,
         script,
-        bgMusicFile,
+        bgMusicPath,
         externalTempDir,
         projectId
       } = job.data;
-
-      // Convert buffer objects back to Buffers
-      if (audioFile && audioFile.buffer) {
-        audioFile.buffer = Buffer.from(audioFile.buffer);
-      }
-      if (bgMusicFile && bgMusicFile.buffer) {
-        bgMusicFile.buffer = Buffer.from(bgMusicFile.buffer);
-      }
-      if (imageFiles) {
-        for (const img of imageFiles) {
-          if (img.buffer) img.buffer = Buffer.from(img.buffer);
-        }
-      }
 
       // Add event listener to capture cancellation and explicitly kill ffmpeg
       const abortController = new AbortController();
@@ -47,11 +34,11 @@ export class VideoProcessor extends WorkerHost {
       // the controller and handle internal failures cleanly.
 
       const result = await this.videoService.processAssembly(
-        audioFile,
-        imageFiles,
+        audioPath,
+        imagePaths,
         inputDuration,
         script,
-        bgMusicFile,
+        bgMusicPath,
         externalTempDir,
         projectId,
         abortController.signal
