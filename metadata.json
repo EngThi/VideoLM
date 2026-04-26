@@ -1,5 +1,0 @@
-{
-  "name": "YouTubeVideoMaster AI Pipeline",
-  "description": "A web interface to control an automated pipeline for creating high-quality YouTube videos. Configure your video's topic, style, and quality, and watch as AI generates, assembles, and prepares it for upload.",
-  "requestFramePermissions": []
-}
