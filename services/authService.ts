@@ -22,12 +22,11 @@ class AuthService {
       body: JSON.stringify({ email, password }),
     });
 
+    const data = await res.json();
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || 'Login failed');
+      throw new Error(data.message || 'Login failed');
     }
 
-    const data: AuthResponse = await res.json();
     this.saveSession(data);
     return data;
   }
@@ -39,12 +38,11 @@ class AuthService {
       body: JSON.stringify({ email, password }),
     });
 
+    const data = await res.json();
     if (!res.ok) {
-      const error = await res.json();
-      throw new Error(error.message || 'Registration failed');
+      throw new Error(data.message || 'Registration failed');
     }
 
-    const data: AuthResponse = await res.json();
     this.saveSession(data);
     return data;
   }
