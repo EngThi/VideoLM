@@ -34,11 +34,16 @@ sudo apt-get install -y python3 python3-pip curl
 curl -LsSf https://astral.sh/uv/install.sh | sh
 export PATH="$HOME/.local/bin:$PATH"
 
-# 5. Install FFmpeg
-echo "🎞️ Installing FFmpeg..."
-sudo apt-get install -y ffmpeg
+# 5. Install FFmpeg & Chromium (for lightweight NLM Auth)
+echo "🎞️ Installing FFmpeg & Chromium..."
+sudo apt-get install -y ffmpeg chromium-browser
 
-# 6. Clone and Prepare (If not in folder)
+# 6. Configure NLM CLI for 4GB VM Resilience
+echo "🛡️ Hardening NLM CLI for 4GB VM..."
+uvx --from notebooklm-mcp-cli nlm config set auth.browser chromium || true
+uvx --from notebooklm-mcp-cli nlm config set output.short_ids true || true
+
+# 7. Clone and Prepare (If not in folder)
 if [ ! -f "docker-compose.yml" ]; then
     echo "📂 Please run this script inside the project folder."
     exit 1

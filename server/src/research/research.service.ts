@@ -65,6 +65,10 @@ export class ResearchService {
         }
       }
 
+      // 2.5 Live Research (Pillar C - 200% Optimization)
+      this.logger.log(`🚀 Performing Live Research for topic: ${project.topic}`);
+      await this.notebookLM.researchStart(notebookId, project.topic || 'Latest trends in AI');
+
       // 3. Disparar a geração (Deep Dive)
       this.logger.log(`Triggering ${type} overview (Style: ${style}) for notebook ${notebookId}`);
       
@@ -93,15 +97,19 @@ export class ResearchService {
       const statusRaw = await this.notebookLM.checkStatus(notebookId);
       const artifacts = JSON.parse(statusRaw);
       
-      // PRIORIDADE: Busca primeiro um VÍDEO completo, se não achar, busca ÁUDIO.
+      // PRIORIDADE: Busca primeiro um VÍDEO completo, se não achar, busca ÁUDIO, e por fim INFOGRÁFICO.
       const latest = artifacts.find((a: any) => a.type === 'video' && a.status === 'completed') 
-                  || artifacts.find((a: any) => a.type === 'audio' && a.status === 'completed');
+                  || artifacts.find((a: any) => a.type === 'audio' && a.status === 'completed')
+                  || artifacts.find((a: any) => a.type === 'infographic' && a.status === 'completed');
 
       if (!latest) {
         return { status: 'processing', message: 'Result is still being generated in Google Studio.' };
       }
 
-      const extension = latest.type === 'video' ? 'mp4' : 'm4a';
+      let extension = 'mp4';
+      if (latest.type === 'audio') extension = 'm4a';
+      if (latest.type === 'infographic') extension = 'png';
+
       const fileName = `research_${projectId}.${extension}`;
       const publicDir = path.join(process.cwd(), 'public/videos');
       
@@ -113,8 +121,10 @@ export class ResearchService {
       
       if (latest.type === 'video') {
         await this.notebookLM.downloadVideo(notebookId, outputPath);
-      } else {
+      } else if (latest.type === 'audio') {
         await this.notebookLM.downloadAudio(notebookId, outputPath);
+      } else if (latest.type === 'infographic') {
+        await this.notebookLM.downloadInfographic(notebookId, outputPath);
       }
 
       const videoUrl = `/videos/${fileName}`;

@@ -55,6 +55,11 @@ export class NotebookLMEngine {
     return this.execute(`add url ${notebookId} "${url}"`);
   }
 
+  async researchStart(notebookId: string, query: string) {
+    this.logger.log(`Iniciando deep web factual research para: ${notebookId} (Busca: ${query})`);
+    return this.execute(`research start "${query}" --notebook-id ${notebookId} --auto-import --confirm`);
+  }
+
   async createAudioOverview(notebookId: string) {
     this.logger.log(`Solicitando Audio Overview para: ${notebookId}`);
     return this.execute(`create audio ${notebookId} --confirm`);
