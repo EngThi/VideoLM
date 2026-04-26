@@ -462,49 +462,63 @@ const App: React.FC = () => {
     <div className="min-h-screen bg-gray-900 text-gray-200 font-sans flex flex-col">
       {/* Auth Bar */}
       <div className="bg-gray-800/80 backdrop-blur-md p-4 flex justify-between items-center border-b border-gray-700 sticky top-0 z-50">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">YouTubeVideoMaster 🎬</h1>
+        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent tracking-tighter uppercase">VideoLM 🎬</h1>
         {user ? (
           <div className="flex items-center gap-4">
             <span className="text-xs md:text-sm text-gray-400 hidden sm:inline">{user.email} (Quota: {user.quota})</span>
             <button onClick={handleLogout} className="bg-red-900/30 hover:bg-red-800 text-red-400 border border-red-800/50 px-3 py-1 rounded-lg text-xs transition-all">Logout</button>
           </div>
         ) : (
-          <div className="flex gap-2">
-            <input 
-              type="email" placeholder="Email" 
-              className="bg-gray-900 px-3 py-1 rounded-lg text-xs outline-none border border-gray-700 focus:border-blue-500 transition-all"
-              value={authEmail} onChange={e => setAuthEmail(e.target.value)}
-            />
-            <input 
-              type="password" placeholder="Pass" 
-              className="bg-gray-900 px-3 py-1 rounded-lg text-xs outline-none border border-gray-700 focus:border-blue-500 transition-all"
-              value={authPass} onChange={e => setAuthPass(e.target.value)}
-            />
-            <button 
-              disabled={isAuthLoading}
-              onClick={handleLogin} className="bg-blue-600 hover:bg-blue-500 px-4 py-1 rounded-lg text-xs font-bold transition-all disabled:opacity-50">
-              Login
-            </button>
-            <button 
-              disabled={isAuthLoading}
-              onClick={handleRegister} className="bg-gray-700 hover:bg-gray-600 px-4 py-1 rounded-lg text-xs font-bold transition-all disabled:opacity-50">
-              Join
-            </button>
-          </div>
+          <div className="text-[10px] text-gray-600 font-mono hidden sm:block tracking-[0.2em] uppercase">Protocol: Absolute Cinema • Status: Optimal</div>
         )}
       </div>
 
       {!user ? (
-        <div className="flex flex-col items-center justify-center flex-grow">
-          <div className="text-center p-8 bg-gray-800/30 rounded-3xl border border-gray-700/50 backdrop-blur-sm max-w-lg mx-4">
-            <h2 className="text-4xl font-extrabold mb-4 bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent italic">FLAVORTOWN EDITION</h2>
-            <p className="text-gray-400 mb-8 leading-relaxed">
-              The professional AI video factory is now secured. Sign up to start your production journey with Gemini 2.5 Flash and NotebookLM Research.
-            </p>
-            <div className="flex justify-center gap-4 text-xs text-gray-500 font-mono">
-              <span>JWT PROTECTED</span>
-              <span>•</span>
-              <span>100MB PAYLOAD READY</span>
+        <div className="flex flex-col items-center justify-center flex-grow p-4">
+          <div className="w-full max-w-md bg-gray-800/40 p-8 rounded-3xl border border-gray-700/50 backdrop-blur-lg shadow-2xl">
+            <div className="text-center mb-8">
+              <h2 className="text-5xl font-black mb-2 bg-gradient-to-b from-white to-gray-500 bg-clip-text text-transparent italic tracking-tighter">VideoLM</h2>
+              <p className="text-gray-400 text-sm font-mono tracking-widest uppercase">Absolute Cinema Edition</p>
+            </div>
+
+            <div className="flex flex-col gap-4">
+              <div className="group">
+                <label className="text-[10px] text-gray-500 font-bold ml-2 mb-1 block uppercase tracking-widest">Authentication Identity</label>
+                <input 
+                  type="email" placeholder="email@hackclub.app" 
+                  className="w-full bg-gray-900/80 px-4 py-3 rounded-xl outline-none border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all text-sm"
+                  value={authEmail} onChange={e => setAuthEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="group">
+                <label className="text-[10px] text-gray-500 font-bold ml-2 mb-1 block uppercase tracking-widest">Security Access Key</label>
+                <input 
+                  type="password" placeholder="••••••••" 
+                  className="w-full bg-gray-900/80 px-4 py-3 rounded-xl outline-none border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all text-sm"
+                  value={authPass} onChange={e => setAuthPass(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-4">
+                <button 
+                  disabled={isAuthLoading}
+                  onClick={handleLogin} 
+                  className="bg-white text-black hover:bg-gray-200 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50">
+                  {isAuthLoading ? '...' : 'Access Engine'}
+                </button>
+                <button 
+                  disabled={isAuthLoading}
+                  onClick={handleRegister} 
+                  className="bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50">
+                  Deploy Identity
+                </button>
+              </div>
+
+              <p className="text-[9px] text-center text-gray-600 mt-6 font-mono leading-relaxed">
+                BY ACCESSING THIS ENGINE, YOU AGREE TO THE HACK CLUB FLAVORTOWN PROTOCOLS. 
+                <br/>STABLE-24.05 • NO LIMITS
+              </p>
             </div>
           </div>
         </div>

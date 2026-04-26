@@ -10,6 +10,7 @@
     pkgs.python3
     pkgs.ffmpeg
     pkgs.docker-compose
+    pkgs.openssh
   ];
 
   # Enable the Docker daemon
