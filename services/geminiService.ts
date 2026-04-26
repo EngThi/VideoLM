@@ -69,7 +69,6 @@ class GeminiService {
       return [];
     }
   }
-}
 
   /**
    * Gera um vídeo de teste (Veo 2.0 Lab) via Backend

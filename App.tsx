@@ -540,8 +540,8 @@ const App: React.FC = () => {
         </main>
       )}
       
-      <footer className="text-center p-4 text-gray-500 text-sm">
-        <p>YouTubeVideoMaster AI Pipeline Interface - Created with Gemini</p>
+      <footer className="text-center p-8 text-gray-600 text-xs font-mono tracking-widest uppercase">
+        <p>VideoLM: Absolute Cinema Edition • Engineered for Hack Club Flavortown</p>
       </footer>
     </div>
   );
