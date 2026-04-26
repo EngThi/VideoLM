@@ -23,12 +23,13 @@ export class VideoProcessor extends WorkerHost {
         inputDuration,
         script,
         bgMusicPath,
-        bRollPath, // Novo
+        bRollPath,
         externalTempDir,
         projectId
       } = job.data;
 
-      // ...
+      // Add event listener to capture cancellation and explicitly kill ffmpeg
+      const abortController = new AbortController();
 
       const result = await this.videoService.processAssembly(
         audioPath,
@@ -39,8 +40,9 @@ export class VideoProcessor extends WorkerHost {
         externalTempDir,
         projectId,
         abortController.signal,
-        bRollPath // Novo
+        bRollPath
       );
+
       return result;
     } catch (error) {
       this.logger.error(`Error processing job ${job.id}: ${error.message}`);

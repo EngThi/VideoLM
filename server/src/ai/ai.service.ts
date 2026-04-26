@@ -5,7 +5,11 @@ import { InferenceClient } from "@huggingface/inference";
 import * as crypto from 'crypto';
 import * as fs from 'fs';
 import * as path from 'path';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { KeyManagerService } from './key-manager.service';
+
+const execAsync = promisify(exec);
 
 // ──────────────────────────────────────────────
 // Types & Interfaces
@@ -358,9 +362,23 @@ export class AiService {
             });
             const part = result.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
             if (!part?.inlineData?.data) throw new Error("TTS Failed - No inlineData");
-            const buffer = Buffer.from(part.inlineData.data, 'base64');
-            fs.writeFileSync(cachePath, buffer);
-            return { audioBuffer: buffer, duration: buffer.length / 48000 };
+            const rawBuffer = Buffer.from(part.inlineData.data, 'base64');
+            
+            try {
+                this.logger.log(`🎵 Normalizando áudio 2.5 via FFmpeg (Pipe Mode)...`);
+                // Passa o buffer via stdin (pipe:0) para o ffmpeg converter para WAV real
+                const { stdout } = await execAsync(`ffmpeg -i pipe:0 -vn -ar 44100 -ac 1 -c:a pcm_s16le -f wav pipe:1`, {
+                    input: rawBuffer,
+                    encoding: 'buffer'
+                } as any);
+                
+                fs.writeFileSync(cachePath, stdout);
+                return { audioBuffer: stdout, duration: stdout.length / (44100 * 2) };
+            } catch (ffmpegErr) {
+                this.logger.error(`❌ Falha no Pipe Transcode: ${ffmpegErr.message}`);
+                fs.writeFileSync(cachePath, rawBuffer);
+                return { audioBuffer: rawBuffer, duration: rawBuffer.length / 48000 };
+            }
         } catch (e) {
             if (e.message?.includes('429') || e.message?.includes('RESOURCE_EXHAUSTED')) {
                 this.logger.warn(`Gemini TTS Quota Exceeded for key ${attempts + 1}. Rotating...`);

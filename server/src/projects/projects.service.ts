@@ -90,6 +90,12 @@ export class ProjectsService {
     return this.projectRepo.save(project);
   }
 
+  async update(id: string, partial: Partial<ProjectEntity>): Promise<ProjectEntity> {
+    const project = await this.findOne(id);
+    Object.assign(project, partial);
+    return this.projectRepo.save(project);
+  }
+
   async delete(id: string): Promise<void> {
     const result = await this.projectRepo.delete(id);
     if (result.affected === 0) {
