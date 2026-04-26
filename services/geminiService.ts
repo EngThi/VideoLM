@@ -28,7 +28,7 @@ class GeminiService {
   /**
    * Gera o roteiro completo via Backend
    */
-  public async generateScript(topic: string, durationMinutes: number = 3): Promise<string> {
+  public async generateScript(topic: string, durationMinutes: number = 3): Promise<ScriptResult> {
     try {
       const response = await fetch('/api/ai/script', {
         method: 'POST',
@@ -41,7 +41,11 @@ class GeminiService {
 
       if (!response.ok) throw new Error('Failed to generate script via server');
       const data = await response.json();
-      return typeof data === 'string' ? data : (data.text || '');
+      const scriptText = typeof data === 'string' ? data : (data.text || '');
+      return {
+        scriptText,
+        sources: [] // Gemini-only flow doesn't return structured sources yet
+      };
     } catch (error) {
       console.error("Error calling backend for script:", error);
       throw error;
