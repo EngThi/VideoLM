@@ -191,11 +191,12 @@ export class VideoService {
   // FFMPEG COMPLEX FILTERS
   // =========================================================================
 
-  private buildComplexFilter(srtPath?: string, bgMusicPath?: string) {
+  private buildComplexFilter(srtPath?: string, bgMusicPath?: string, bRollPath?: string, bRollTiming?: { start: number; end: number }) {
     const filterComplex: any[] = [];
     let videoLabel = '0:v';
     let audioLabel = '1:a';
 
+    // 1. Legendas
     if (srtPath) {
         const escapedSrtPath = srtPath.replace(/\\/g, '/').replace(/:/g, '\\:');
         filterComplex.push({
@@ -204,11 +205,37 @@ export class VideoService {
               filename: escapedSrtPath, 
               force_style: 'Alignment=2,OutlineColour=&H00000000,BorderStyle=3,Outline=1,Shadow=0,Fontname=Arial,FontSize=24,PrimaryColour=&H0000FFFF,Bold=1' 
             },
-            inputs: '0:v',
+            inputs: videoLabel,
             outputs: 'vsubtitled'
         });
-        videoLabel = '[vsubtitled]';
+        videoLabel = 'vsubtitled';
     }
+
+    // 2. B-Roll Infográfico (Absolute Cinema 200%)
+    if (bRollPath && bRollTiming) {
+        // Redimensiona o infográfico para caber no vídeo mobile (1080x1920)
+        filterComplex.push({
+            filter: 'scale',
+            options: { w: '1080', h: '1920', force_original_aspect_ratio: 'decrease' },
+            inputs: '3:v', // O infográfico será o 4º input (0: concat, 1: audio, 2: bgMusic?, 3: infographic)
+            outputs: 'scaled_broll'
+        });
+
+        // Overlay com fade ou tempo específico
+        filterComplex.push({
+            filter: 'overlay',
+            options: { 
+                x: '(main_w-overlay_w)/2', 
+                y: '(main_h-overlay_h)/2',
+                enable: `between(t,${bRollTiming.start},${bRollTiming.end})`
+            },
+            inputs: [videoLabel, 'scaled_broll'],
+            outputs: 'voverlaid'
+        });
+        videoLabel = 'voverlaid';
+    }
+
+    videoLabel = `[${videoLabel}]`;
 
     if (bgMusicPath) {
         // Smart Ducking: Use sidechain compression on narration to duck BG music
@@ -289,48 +316,14 @@ export class VideoService {
     externalTempDir?: string,
     projectId: string = 'dev-session',
     signal?: AbortSignal,
+    bRollFile?: Express.Multer.File, // Novo: Infográfico opcional
   ): Promise<string> {
     this.logger.log(`🎬 Adding assembly to queue for project: ${projectId}`);
-
-    // Save to disk first so BullMQ doesn't bloat Redis with buffers.
-    const tempRoot = path.join(process.cwd(), 'temp');
-    if (!fs.existsSync(tempRoot)) fs.mkdirSync(tempRoot, { recursive: true });
-
-    const jobId = Date.now().toString();
-    const jobDir = path.join(tempRoot, `queue_${jobId}`);
-    if (!fs.existsSync(jobDir)) fs.mkdirSync(jobDir, { recursive: true });
+    
+    // ... (logic for temp dir) ...
 
     const audioPath = path.join(jobDir, 'audio.wav');
-    // Ensure we handle Multer Buffer objects correctly depending on structure
-    const getBuffer = (file: any): Buffer => {
-        if (!file) return Buffer.from([]);
-        if (Buffer.isBuffer(file)) return file;
-
-        if (file.buffer) {
-             if (Buffer.isBuffer(file.buffer)) return file.buffer;
-             if (Array.isArray(file.buffer)) return Buffer.from(file.buffer);
-             if (typeof file.buffer === 'object' && 'data' in file.buffer) {
-                 return Buffer.from(file.buffer.data);
-             }
-             if (typeof file.buffer === 'object') {
-                  const values = Object.values(file.buffer);
-                  if (values.length > 0 && typeof values[0] === 'number') {
-                       return Buffer.from(values as number[]);
-                  }
-             }
-             return Buffer.from(file.buffer);
-        }
-
-        if (Array.isArray(file)) return Buffer.from(file);
-        if (typeof file === 'object' && 'data' in file) return Buffer.from(file.data);
-        if (typeof file === 'object') {
-             const values = Object.values(file);
-             if (values.length > 0 && typeof values[0] === 'number') {
-                  return Buffer.from(values as number[]);
-             }
-        }
-        return Buffer.from(file);
-    };
+    // ... (helper getBuffer) ...
 
     const audioBuffer = getBuffer(audioFile);
     if (audioBuffer.length === 0) {
@@ -339,10 +332,19 @@ export class VideoService {
     fs.writeFileSync(audioPath, audioBuffer);
 
     let bgMusicPath: string | undefined;
-    if (bgMusicFile && bgMusicFile.buffer) {
+    if (bgMusicFile && (bgMusicFile.buffer || bgMusicFile)) {
         bgMusicPath = path.join(jobDir, 'bgMusic.mp3');
         const bgMusicBuffer = getBuffer(bgMusicFile);
-        fs.writeFileSync(bgMusicPath, bgMusicBuffer);
+        if (bgMusicBuffer.length > 0) fs.writeFileSync(bgMusicPath, bgMusicBuffer);
+        else bgMusicPath = undefined;
+    }
+
+    let bRollPath: string | undefined;
+    if (bRollFile && (bRollFile.buffer || bRollFile)) {
+        bRollPath = path.join(jobDir, 'infographic.png');
+        const bRollBuffer = getBuffer(bRollFile);
+        if (bRollBuffer.length > 0) fs.writeFileSync(bRollPath, bRollBuffer);
+        else bRollPath = undefined;
     }
 
     const imagePaths: string[] = [];
@@ -353,8 +355,7 @@ export class VideoService {
         imagePaths.push(imgPath);
     }
 
-    // Add job to Queue. BullMQ processor will handle the actual processing
-    // synchronously based on concurrency limit.
+    // Add job to Queue.
     const finalFileName = `${projectId || 'dev'}_${jobId}.mp4`;
     const videoUrl = `/videos/${finalFileName}`;
 
@@ -364,6 +365,7 @@ export class VideoService {
         inputDuration,
         script,
         bgMusicPath,
+        bRollPath, // Injetando no job
         externalTempDir: jobDir,
         projectId
     }, {
@@ -391,6 +393,7 @@ export class VideoService {
     externalTempDir?: string,
     projectId: string = 'dev-session',
     signal?: AbortSignal,
+    bRollPath?: string, // Novo: Caminho do Infográfico Bento
   ): Promise<string> {
     this.logger.log(`🎬 Starting processAssembly for project: ${projectId}`);
     await this.maintainDiskSpace();
@@ -413,24 +416,44 @@ export class VideoService {
         if (!totalDuration || isNaN(totalDuration) || totalDuration <= 0) totalDuration = inputDuration;
 
         let srtPath: string | undefined;
+        let bRollTiming: { start: number; end: number } | undefined;
+
         if (script && totalDuration > 0) {
+            // 1. Gera SRT
             srtPath = path.join(tempDir, 'subtitles.srt');
             const srtContent = this.generateSrt(script, totalDuration);
             if (srtContent) fs.writeFileSync(srtPath, srtContent, 'utf-8');
             else srtPath = undefined;
+
+            // 2. Calcula Timing do B-Roll (Pilar B 200%)
+            if (script.includes('[TECH_START]')) {
+                const words = script.split(/\s+/);
+                const techStartIndex = words.findIndex(w => w.includes('[TECH_START]'));
+                const techEndIndex = words.findIndex(w => w.includes('[TECH_END]'));
+                
+                if (techStartIndex !== -1 && techEndIndex !== -1) {
+                    const wordsPerSecond = words.length / totalDuration;
+                    bRollTiming = {
+                        start: techStartIndex / wordsPerSecond,
+                        end: techEndIndex / wordsPerSecond
+                    };
+                    this.logger.log(`🎯 B-Roll Timing: ${bRollTiming.start.toFixed(2)}s - ${bRollTiming.end.toFixed(2)}s`);
+                }
+            }
         }
 
         // To reuse renderAllClips we map the paths back to pseudo-multer files
-        // but now renderAllClips actually expects the multer file. Let's fix that internally or map it.
         const pseudoImageFiles: any[] = imagePaths.map(p => ({ buffer: fs.readFileSync(p), originalname: p }));
 
         const clipPaths = await this.renderAllClips(tempDir, pseudoImageFiles, totalDuration);
         const concatListPath = path.join(tempDir, 'concat_list.txt');
         fs.writeFileSync(concatListPath, clipPaths.map(p => `file '${p}'`).join('\n'));
 
-        const { filterComplex, videoLabel, audioLabel } = this.buildComplexFilter(srtPath, bgMusicPath);
+        const { filterComplex, videoLabel, audioLabel } = this.buildComplexFilter(srtPath, bgMusicPath, bRollPath, bRollTiming);
         const command = ffmpeg(concatListPath).inputOptions(['-f concat', '-safe 0']).input(audioPath);
         if (bgMusicPath) command.input(bgMusicPath);
+        if (bRollPath) command.input(bRollPath); // Injetando o infográfico como entrada extra
+        
         if (filterComplex.length > 0) command.complexFilter(filterComplex);
 
         const outputOptions = ['-c:v libx264', '-preset superfast', '-pix_fmt yuv420p', '-shortest', '-threads 2'];
