@@ -1,7 +1,6 @@
-
-
 import { Module, forwardRef } from '@nestjs/common';
 import { VideoController } from './video.controller';
+import { VideoDemoController } from './video.demo.controller';
 import { VideoService } from './video.service';
 import { ProjectsModule } from '../projects/projects.module';
 import { AiModule } from '../ai/ai.module';
@@ -17,7 +16,7 @@ import { VideoProcessor } from './video.processor';
       name: 'video-render',
     }),
   ],
-  controllers: [VideoController],
+  controllers: [VideoController, VideoDemoController],
   providers: [VideoService, VideoGateway, VideoProcessor],
   exports: [VideoService],
 })
