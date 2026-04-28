@@ -25,7 +25,12 @@ const getAudioDuration = (url: string): Promise<number> => {
 import { authService, AuthUser } from './services/authService';
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<AuthUser | null>(authService.getUser());
+  const [user, setUser] = useState<AuthUser | null>({
+    id: 'guest-session',
+    email: 'chefthi@absolute.cinema',
+    quota: 999,
+    videosGenerated: 42
+  });
   const [authEmail, setAuthEmail] = useState('');
   const [authPass, setAuthPass] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(false);

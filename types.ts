@@ -44,6 +44,6 @@ export interface VideoConfig {
 }
 
 export type Quality = '4K' | '1080p_premium' | '1080p_fast';
-export type Style = 'cinematic' | 'documentary' | 'vlog' | 'minimalist';
+export type Style = 'cinematic' | 'documentary' | 'vlog' | 'minimalist' | 'anime' | 'watercolor' | 'classic' | 'bento_grid' | 'clay' | 'bricks' | 'professional' | 'whiteboard' | 'kawaii';
 export type VoiceProvider = 'puck' | 'kore' | 'fenrir' | 'charon' | 'aoede' | 'zephyr' | 'orus' | 'alnilam' | 'achernar' | 'gacrux';
 export type ThumbnailStyle = 'dramatic' | 'clean' | 'vibrant' | 'meme';

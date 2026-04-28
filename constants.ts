@@ -9,8 +9,15 @@ export const QUALITY_OPTIONS: { value: Quality; label: string }[] = [
 
 export const STYLE_OPTIONS: { value: Style; label: string }[] = [
   { value: 'cinematic', label: 'Cinematic' },
-  { value: 'documentary', label: 'Documentary' },
-  { value: 'vlog', label: 'Modern Vlog' },
+  { value: 'anime', label: 'Anime Style' },
+  { value: 'watercolor', label: 'Watercolor Art' },
+  { value: 'classic', label: 'Classic Industrial' },
+  { value: 'bento_grid', label: 'Bento Grid (Data)' },
+  { value: 'clay', label: 'Claymorphism (UI)' },
+  { value: 'bricks', label: 'Bricks (Structural)' },
+  { value: 'professional', label: 'Professional / Corporate' },
+  { value: 'whiteboard', label: 'Whiteboard Animation' },
+  { value: 'kawaii', label: 'Kawaii / Cute' },
   { value: 'minimalist', label: 'Minimalist & Clean' },
 ];
 
