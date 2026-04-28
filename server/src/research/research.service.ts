@@ -130,6 +130,40 @@ export class ResearchService {
         await this.notebookLM.downloadInfographic(notebookId, outputPath);
       }
 
+      // 4. Se for um Pipeline Híbrido, precisamos gerar o roteiro e áudio customizados
+      if (project.title.includes('STRESS A') || project.title.includes('Hybrid')) {
+          this.logger.log(`🧬 Hybrid Bridge Active: Generating professional storytelling for ${projectId}`);
+          
+          // 4.1 Baixar Report e gerar roteiro Gemini
+          const reportPath = path.join(process.cwd(), 'temp', `report_${projectId}.md`);
+          await this.notebookLM.downloadReport(notebookId, reportPath);
+          const facts = fs.readFileSync(reportPath, 'utf-8');
+          
+          const { text: script } = await this.aiService.generate(`
+            Fatos: ${facts.slice(0, 4000)}
+            Tarefa: Crie um roteiro de 1 min. Use [TECH_START] e [TECH_END] nos dados técnicos.
+          `, 'gemini-3-flash-preview');
+
+          // 4.2 Gerar Áudio Normalizado
+          const { audioBuffer } = await this.aiService.generateVoiceover(script);
+          const audioPath = path.join(process.cwd(), 'temp', `audio_${projectId}.wav`);
+          fs.writeFileSync(audioPath, audioBuffer);
+
+          // 4.3 Disparar Montagem Final com B-Roll
+          const videoUrlFinal = await this.videoService.assembleVideo(
+              { buffer: audioBuffer, originalname: 'audio.wav' } as any,
+              [], // O service buscará os prompts no metadata
+              0,
+              script,
+              undefined,
+              undefined,
+              projectId,
+              undefined,
+              { buffer: fs.readFileSync(outputPath), originalname: 'infographic.png' } as any
+          );
+          return { status: 'completed', videoUrl: videoUrlFinal };
+      }
+
       const videoUrl = `/videos/${fileName}`;
       await this.projectsService.updateStatus(projectId, 'completed', videoUrl);
       
