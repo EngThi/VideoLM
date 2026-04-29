@@ -47,3 +47,6 @@ esse.txt
 # Project Specific
 GEMINI.md
 TESTES/
+
+# Security Vault
+SECRETS/

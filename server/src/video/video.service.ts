@@ -108,15 +108,16 @@ export class VideoService {
     });
   }
 
-  private buildComplexFilter(srtPath?: string, bgMusicPath?: string, bRollPath?: string, bRollTiming?: { start: number; end: number }) {
+  private buildComplexFilter(srtPath?: string, bgMusicPath?: string, bRollPath?: string, bRollTiming?: { start: number; end: number }, maskPath?: string) {
     const filterComplex: any[] = [];
     let videoLabel = '0:v';
     let audioLabel = '1:a';
-
-    // Calcula índices de entrada dinamicamente
-    let nextInputIndex = 2; // 0: video, 1: audio
+    
+    let nextInputIndex = 2; 
     if (bgMusicPath) nextInputIndex++;
     const bRollInputIndex = nextInputIndex;
+    if (bRollPath) nextInputIndex++;
+    const maskInputIndex = nextInputIndex;
 
     // 1. Legendas
     if (srtPath) {
@@ -133,7 +134,7 @@ export class VideoService {
         videoLabel = 'vsubtitled';
     }
 
-    // 2. B-Roll Infográfico (Absolute Cinema 200%)
+    // 2. B-Roll Infográfico
     if (bRollPath && bRollTiming) {
         filterComplex.push({
             filter: 'scale',
@@ -153,6 +154,33 @@ export class VideoService {
             outputs: 'voverlaid'
         });
         videoLabel = 'voverlaid';
+    }
+
+    // 3. Logo Mask (Absolute Cinema - inferior direito)
+    const defaultGif = path.join(process.cwd(), 'public/logo_mask.gif');
+    if (fs.existsSync(defaultGif)) {
+        maskPath = defaultGif;
+        this.logger.log(`🎭 Branding Active: Applying ${path.basename(maskPath)} watermark.`);
+    }
+
+    if (maskPath) {
+        filterComplex.push({
+            filter: 'scale',
+            options: { w: '250', h: '-1' }, 
+            inputs: `${maskInputIndex}:v`,
+            outputs: 'scaled_mask'
+        });
+
+        filterComplex.push({
+            filter: 'overlay',
+            options: { 
+                x: 'main_w-overlay_w-20', 
+                y: 'main_h-overlay_h-20'
+            },
+            inputs: [videoLabel, 'scaled_mask'],
+            outputs: 'voverlaid_final'
+        });
+        videoLabel = 'voverlaid_final';
     }
 
     videoLabel = `[${videoLabel}]`;
@@ -325,6 +353,13 @@ export class VideoService {
 
     if (projectId !== 'dev-session') await this.projectsService.updateStatus(projectId, 'processing');
 
+    // Inicializa maskPath (Absolute Cinema 200%)
+    let maskPath: string | undefined;
+    const defaultGif = path.join(process.cwd(), 'public/logo_mask.gif');
+    const defaultPng = path.join(process.cwd(), 'public/logo_mask.png');
+    if (fs.existsSync(defaultGif)) maskPath = defaultGif;
+    else if (fs.existsSync(defaultPng)) maskPath = defaultPng;
+
     return new Promise(async (resolve, reject) => {
       try {
         let totalDuration = await this.getAudioDuration(audioPath);
@@ -357,12 +392,21 @@ export class VideoService {
         const clipPaths = await this.renderAllClips(tempDir, pseudoImageFiles, totalDuration);
         const concatListPath = path.join(tempDir, 'concat_list.txt');
         fs.writeFileSync(concatListPath, clipPaths.map(p => `file '${p}'`).join('\n'));
+const { filterComplex, videoLabel, audioLabel } = this.buildComplexFilter(srtPath, bgMusicPath, bRollPath, bRollTiming, maskPath);
+const command = ffmpeg(concatListPath).inputOptions(['-f concat', '-safe 0']).input(audioPath);
+if (bgMusicPath) command.input(bgMusicPath);
+if (bRollPath) command.input(bRollPath);
 
-        const { filterComplex, videoLabel, audioLabel } = this.buildComplexFilter(srtPath, bgMusicPath, bRollPath, bRollTiming);
-        const command = ffmpeg(concatListPath).inputOptions(['-f concat', '-safe 0']).input(audioPath);
-        if (bgMusicPath) command.input(bgMusicPath);
-        if (bRollPath) command.input(bRollPath);
-        if (filterComplex.length > 0) command.complexFilter(filterComplex);
+// Injetando a Máscara/Logo (com loop se for GIF)
+if (maskPath) {
+    if (maskPath.endsWith('.gif')) {
+        command.input(maskPath).inputOptions(['-ignore_loop 0']); // Loop infinito para o GIF
+    } else {
+        command.input(maskPath);
+    }
+}
+
+if (filterComplex.length > 0) command.complexFilter(filterComplex);
 
         const outputOptions = ['-c:v libx264', '-preset superfast', '-pix_fmt yuv420p', '-shortest', '-threads 2'];
         if (filterComplex.length > 0) outputOptions.push(`-map ${videoLabel}`, `-map ${audioLabel}`);
@@ -441,7 +485,12 @@ export class VideoService {
 
   async getStatus(projectId: string): Promise<any> {
     const project = await this.projectsService.findOne(projectId);
-    return { status: project.status, videoPath: project.videoPath, error: project.error };
+    return { 
+      status: project.status, 
+      videoUrl: project.videoPath, // HOMES Engine espera videoUrl
+      videoPath: project.videoPath, 
+      error: project.error 
+    };
   }
 
   async getMusicList(): Promise<string[]> {
