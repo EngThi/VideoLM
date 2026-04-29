@@ -38,12 +38,7 @@ const statCards = [
 ];
 
 const App: React.FC = () => {
-  const [user, setUser] = useState<AuthUser | null>({
-    id: 'guest-session',
-    email: 'chefthi@absolute.cinema',
-    quota: 999,
-    videosGenerated: 42
-  });
+  const [user, setUser] = useState<AuthUser | null>(() => authService.getUser());
   const [authEmail, setAuthEmail] = useState('');
   const [authPass, setAuthPass] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(false);
@@ -521,8 +516,8 @@ const App: React.FC = () => {
             <div className="flex flex-col gap-4">
               <label className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                 Email
-                <input 
-                  type="email" placeholder="email@hackclub.app" 
+                <input
+                  type="email" placeholder="reviewer@example.com"
                   className="mt-2 w-full rounded-md border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10"
                   value={authEmail} onChange={e => setAuthEmail(e.target.value)}
                 />
@@ -530,7 +525,7 @@ const App: React.FC = () => {
 
               <label className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
                 Password
-                <input 
+                <input
                   type="password" placeholder="Password"
                   className="mt-2 w-full rounded-md border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10"
                   value={authPass} onChange={e => setAuthPass(e.target.value)}
