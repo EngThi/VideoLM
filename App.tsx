@@ -1,6 +1,5 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { Header } from './components/Header';
 import { ConfigForm } from './components/ConfigForm';
 import { StatusDisplay } from './components/StatusDisplay';
 import { ResultView } from './components/ResultView';
@@ -23,6 +22,20 @@ const getAudioDuration = (url: string): Promise<number> => {
 };
 
 import { authService, AuthUser } from './services/authService';
+
+const workspaceNav = [
+  { label: 'Factory', value: 'Gemini + FFmpeg', accent: 'bg-[#ec3750]' },
+  { label: 'Research', value: 'NotebookLM video', accent: 'bg-[#33d6a6]' },
+  { label: 'Queue', value: 'single render lane', accent: 'bg-[#f7c948]' },
+  { label: 'Deploy', value: 'stable sslip.io HTTPS', accent: 'bg-[#338eda]' },
+];
+
+const statCards = [
+  { label: 'Video worker', value: 'Ready', detail: 'queued renders' },
+  { label: 'NotebookLM', value: 'Profiles', detail: 'default + BYO cookies' },
+  { label: 'Engine', value: 'Online', detail: 'health check passing' },
+  { label: 'Public URL', value: 'HTTPS', detail: 'sslip.io fixed host' },
+];
 
 const App: React.FC = () => {
   const [user, setUser] = useState<AuthUser | null>({
@@ -88,6 +101,7 @@ const App: React.FC = () => {
   const generatedAudioDurationRef = useRef<number>(0);
   const generatedImagesRef = useRef<GeneratedImage[]>([]);
   const isProcessingRef = useRef<boolean>(false);
+  const researchProjectIdRef = useRef(`community_${Date.now()}`);
 
   // Standalone Test States
   const [isTestLoading, setIsTestLoading] = useState(false);
@@ -464,104 +478,150 @@ const App: React.FC = () => {
   }, [isGenerating, currentStageIndex, stages, addLog, config, selectedIdea, setStageStatus, scriptResult, currentProjectId]);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-200 font-sans flex flex-col">
-      {/* Auth Bar */}
-      <div className="bg-gray-800/80 backdrop-blur-md p-4 flex justify-between items-center border-b border-gray-700 sticky top-0 z-50">
-        <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent tracking-tighter uppercase">VideoLM 🎬</h1>
-        {user ? (
-          <div className="flex items-center gap-4">
-            <span className="text-xs md:text-sm text-gray-400 hidden sm:inline">{user.email} (Quota: {user.quota})</span>
-            <button onClick={handleLogout} className="bg-red-900/30 hover:bg-red-800 text-red-400 border border-red-800/50 px-3 py-1 rounded-lg text-xs transition-all">Logout</button>
+    <div className="min-h-screen text-slate-100 font-sans">
+      <header className="sticky top-0 z-50 border-b border-white/10 bg-[#080b0e]/90 backdrop-blur-xl">
+        <div className="mx-auto flex h-16 max-w-[1800px] items-center justify-between gap-4 px-4 md:px-6">
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="grid h-9 w-9 shrink-0 grid-cols-2 overflow-hidden rounded-lg border border-white/15 shadow-lg">
+              <span className="bg-[#ec3750]" />
+              <span className="bg-[#f7c948]" />
+              <span className="bg-[#33d6a6]" />
+              <span className="bg-[#338eda]" />
+            </div>
+            <div className="min-w-0">
+              <h1 className="truncate text-sm font-black uppercase tracking-[0.18em] text-white">VideoLM Factory</h1>
+              <p className="truncate text-xs text-slate-400">Research videos, asset packs, and final renders</p>
+            </div>
           </div>
-        ) : (
-          <div className="text-[10px] text-gray-600 font-mono hidden sm:block tracking-[0.2em] uppercase">Protocol: Absolute Cinema • Status: Optimal</div>
-        )}
-      </div>
+
+          <div className="flex items-center gap-2">
+            <span className="hidden rounded-md border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-200 md:inline-flex">Engine online</span>
+            <span className="hidden rounded-md border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300 sm:inline-flex">Stable HTTPS</span>
+            {user ? (
+              <>
+                <span className="hidden max-w-[260px] truncate text-xs text-slate-400 lg:inline">{user.email} · quota {user.quota}</span>
+                <button onClick={handleLogout} className="rounded-md border border-red-400/30 bg-red-500/10 px-3 py-1.5 text-xs font-bold text-red-200 transition hover:bg-red-500/20">Logout</button>
+              </>
+            ) : (
+              <span className="hidden text-[11px] font-mono uppercase tracking-[0.18em] text-slate-500 sm:block">Reviewer access</span>
+            )}
+          </div>
+        </div>
+      </header>
 
       {!user ? (
-        <div className="flex flex-col items-center justify-center flex-grow p-4">
-          <div className="w-full max-w-md bg-gray-800/40 p-8 rounded-3xl border border-gray-700/50 backdrop-blur-lg shadow-2xl">
-            <div className="text-center mb-8">
-              <h2 className="text-5xl font-black mb-2 bg-gradient-to-b from-white to-gray-500 bg-clip-text text-transparent italic tracking-tighter">VideoLM</h2>
-              <p className="text-gray-400 text-sm font-mono tracking-widest uppercase">Absolute Cinema Edition</p>
+        <main className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[1800px] items-center justify-center px-4 py-8">
+          <div className="w-full max-w-md rounded-lg border border-white/10 bg-[#101418]/95 p-6 shadow-2xl">
+            <div className="mb-6">
+              <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Private build</p>
+              <h2 className="text-3xl font-black tracking-tight text-white">Sign in</h2>
+              <p className="mt-2 text-sm text-slate-400">Create research videos from URLs, NotebookLM profiles, or local asset packs.</p>
             </div>
 
             <div className="flex flex-col gap-4">
-              <div className="group">
-                <label className="text-[10px] text-gray-500 font-bold ml-2 mb-1 block uppercase tracking-widest">Authentication Identity</label>
+              <label className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                Email
                 <input 
                   type="email" placeholder="email@hackclub.app" 
-                  className="w-full bg-gray-900/80 px-4 py-3 rounded-xl outline-none border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all text-sm"
+                  className="mt-2 w-full rounded-md border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10"
                   value={authEmail} onChange={e => setAuthEmail(e.target.value)}
                 />
-              </div>
+              </label>
 
-              <div className="group">
-                <label className="text-[10px] text-gray-500 font-bold ml-2 mb-1 block uppercase tracking-widest">Security Access Key</label>
+              <label className="text-xs font-bold uppercase tracking-[0.14em] text-slate-500">
+                Password
                 <input 
-                  type="password" placeholder="••••••••" 
-                  className="w-full bg-gray-900/80 px-4 py-3 rounded-xl outline-none border border-gray-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/50 transition-all text-sm"
+                  type="password" placeholder="Password"
+                  className="mt-2 w-full rounded-md border border-white/10 bg-black/30 px-3 py-3 text-sm text-white outline-none transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10"
                   value={authPass} onChange={e => setAuthPass(e.target.value)}
                 />
-              </div>
+              </label>
 
-              <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="grid grid-cols-2 gap-3 pt-2">
                 <button 
                   disabled={isAuthLoading}
                   onClick={handleLogin} 
-                  className="bg-white text-black hover:bg-gray-200 py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50">
-                  {isAuthLoading ? '...' : 'Access Engine'}
+                  className="rounded-md bg-white px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-black transition hover:bg-slate-200 disabled:opacity-50">
+                  {isAuthLoading ? '...' : 'Sign in'}
                 </button>
                 <button 
                   disabled={isAuthLoading}
                   onClick={handleRegister} 
-                  className="bg-gray-700 hover:bg-gray-600 text-white py-3 rounded-xl text-xs font-black uppercase tracking-widest transition-all disabled:opacity-50">
-                  Deploy Identity
+                  className="rounded-md border border-white/10 bg-white/[0.05] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-white transition hover:bg-white/10 disabled:opacity-50">
+                  Register
                 </button>
               </div>
-
-              <p className="text-[9px] text-center text-gray-600 mt-6 font-mono leading-relaxed">
-                BY ACCESSING THIS ENGINE, YOU AGREE TO THE HACK CLUB FLAVORTOWN PROTOCOLS. 
-                <br/>STABLE-24.05 • NO LIMITS
-              </p>
             </div>
           </div>
-        </div>
+        </main>
       ) : (
-        /* Original App Content */
-        <main className="flex-grow container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-5 gap-8">
-          <div className="lg:col-span-2 flex flex-col gap-8">
-            <div className="bg-gray-800/50 rounded-2xl shadow-2xl p-6 h-fit">
-              <ConfigForm
-                onGenerate={handleGenerate}
-                isGenerating={isLoading || isGenerating}
-                onTestVeo={handleTestVeo}
-                isTestLoading={isTestLoading}
-                testVideoUrl={testVideoUrl}
+        <main className="mx-auto grid max-w-[1800px] grid-cols-1 gap-5 px-4 py-5 md:px-6 lg:grid-cols-[220px_minmax(0,1fr)]">
+          <aside className="h-fit rounded-lg border border-white/10 bg-[#101418]/90 p-3 shadow-2xl lg:sticky lg:top-[84px]">
+            <div className="mb-4 border-b border-white/10 px-2 pb-4">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">Workspace</p>
+              <p className="mt-1 text-sm font-semibold text-white">Reviewer console</p>
+            </div>
+            <nav className="space-y-1">
+              {workspaceNav.map((item) => (
+                <div key={item.label} className="flex items-center gap-3 rounded-md border border-transparent px-2 py-2.5 text-sm text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04]">
+                  <span className={`h-2.5 w-2.5 rounded-sm ${item.accent}`} />
+                  <div className="min-w-0">
+                    <div className="font-bold text-white">{item.label}</div>
+                    <div className="truncate text-xs text-slate-500">{item.value}</div>
+                  </div>
+                </div>
+              ))}
+            </nav>
+          </aside>
+
+          <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(400px,0.92fr)_minmax(0,1.35fr)]">
+            <div className="space-y-5">
+              <section className="rounded-lg border border-white/10 bg-[#101418]/95 p-4 shadow-2xl">
+                <div className="mb-4 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+                  <div>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-300">Factory</p>
+                    <h2 className="mt-1 text-xl font-black tracking-tight text-white">Create video</h2>
+                  </div>
+                  <span className="rounded-md border border-white/10 bg-black/30 px-2.5 py-1 text-[11px] font-bold uppercase text-slate-400">Standard pipeline</span>
+                </div>
+                <ConfigForm
+                  onGenerate={handleGenerate}
+                  isGenerating={isLoading || isGenerating}
+                  onTestVeo={handleTestVeo}
+                  isTestLoading={isTestLoading}
+                  testVideoUrl={testVideoUrl}
+                />
+              </section>
+
+              <ResearchDashboard
+                projectId={currentProjectId || researchProjectIdRef.current}
+                onResearchComplete={handleResearchComplete}
               />
             </div>
 
-            <ResearchDashboard 
-              projectId={currentProjectId || `community_${Date.now()}`}
-              onResearchComplete={handleResearchComplete}
-            />
-          </div>
-          <div className="lg:col-span-3 flex flex-col gap-8">
-            {contentIdeas.length > 0 && !isGenerating ? (
-              <IdeaSelector ideas={contentIdeas} onSelect={handleIdeaSelection} />
-            ) : (
-              <>
-                <StatusDisplay stages={stages} logs={logs} scriptResult={scriptResult} />
-                {videoResult && <ResultView result={videoResult} onReset={resetState} />}
-              </>
-            )}
-          </div>
+            <div className="space-y-5">
+              <section className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                {statCards.map((card) => (
+                  <div key={card.label} className="rounded-lg border border-white/10 bg-[#101418]/90 p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">{card.label}</p>
+                    <p className="mt-2 text-lg font-black text-white">{card.value}</p>
+                    <p className="mt-1 truncate text-xs text-slate-400">{card.detail}</p>
+                  </div>
+                ))}
+              </section>
+
+              {contentIdeas.length > 0 && !isGenerating ? (
+                <IdeaSelector ideas={contentIdeas} onSelect={handleIdeaSelection} />
+              ) : (
+                <>
+                  <StatusDisplay stages={stages} logs={logs} scriptResult={scriptResult} />
+                  {videoResult && <ResultView result={videoResult} onReset={resetState} />}
+                </>
+              )}
+            </div>
+          </section>
         </main>
       )}
-      
-      <footer className="text-center p-8 text-gray-600 text-xs font-mono tracking-widest uppercase">
-        <p>VideoLM: Absolute Cinema Edition • Engineered for Hack Club Flavortown</p>
-      </footer>
     </div>
   );
 };

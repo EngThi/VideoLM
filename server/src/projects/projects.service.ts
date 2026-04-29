@@ -54,6 +54,7 @@ export class ProjectsService {
       project = this.projectRepo.create({
         id,
         title: 'Auto-created project',
+        topic: 'VideoLM render job',
         status: status as any,
       });
     } else {
@@ -74,6 +75,7 @@ export class ProjectsService {
       project = this.projectRepo.create({
         id,
         title: 'Auto-created project',
+        topic: 'VideoLM research job',
         status: 'idle',
         metadata
       });

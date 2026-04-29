@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { ProjectsService } from '../projects/projects.service';
 import { NotebookLMEngine } from './notebook-lm.engine';
 import { AiService } from '../ai/ai.service';
@@ -17,68 +17,159 @@ export class ResearchService {
     private videoService: VideoService,
   ) {}
 
+  private normalizeSourceUrl(rawUrl: string): string {
+    const trimmed = rawUrl.trim();
+    if (!trimmed) {
+      throw new BadRequestException('Empty source URL is not allowed.');
+    }
+
+    const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+
+    try {
+      const parsed = new URL(withScheme);
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        throw new Error('unsupported protocol');
+      }
+      return parsed.toString();
+    } catch {
+      throw new BadRequestException(`Invalid source URL: ${rawUrl}`);
+    }
+  }
+
   /**
    * Adiciona URLs ao projeto e persiste na coluna 'sources'
    */
   async addSources(projectId: string, urls: string[]) {
-    this.logger.log(`Adding ${urls.length} sources to project ${projectId}`);
+    const normalizedUrls = Array.from(
+      new Set(urls.map((url) => this.normalizeSourceUrl(url))),
+    );
+
+    this.logger.log(`Adding ${normalizedUrls.length} sources to project ${projectId}`);
     
     // 1. Atualiza metadados
     await this.projectsService.updateMetadata(projectId, { 
       lastSourceUpdate: new Date().toISOString(),
-      sourceCount: urls.length 
+      sourceCount: normalizedUrls.length
     });
 
     // 2. Persiste as fontes de forma robusta
-    return this.projectsService.updateSources(projectId, urls);
+    return this.projectsService.updateSources(projectId, normalizedUrls);
+  }
+
+  saveNotebookLMCookies(profileId: string, cookies: unknown) {
+    return this.notebookLM.saveCookiesProfile(profileId, cookies);
+  }
+
+  listNotebookLMProfiles() {
+    return this.notebookLM.listProfiles();
+  }
+
+  async listNotebookLMNotebooks(profileId?: string) {
+    const raw = await this.notebookLM.listNotebooks(profileId);
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { raw };
+    }
+  }
+
+  async listNotebookLMSources(notebookId: string, profileId?: string) {
+    const raw = await this.notebookLM.listSources(notebookId, profileId);
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return { raw };
+    }
+  }
+
+  async addFilesToNotebook(projectId: string, notebookId: string, files: Array<{ path: string; originalname?: string }>, profileId?: string) {
+    if (!notebookId) throw new BadRequestException('Notebook ID is required for file upload.');
+    if (!files?.length) throw new BadRequestException('At least one file is required.');
+
+    await this.projectsService.updateMetadata(projectId, { notebookId, nlmProfileId: profileId });
+    const results = [];
+    for (const file of files) {
+      try {
+        const output = await this.notebookLM.addFileSource(notebookId, file.path, profileId);
+        results.push({ file: file.originalname || file.path, status: 'added', output });
+      } catch (error) {
+        this.logger.warn(`Failed to add file ${file.originalname || file.path}: ${error.message}`);
+        results.push({ file: file.originalname || file.path, status: 'error', error: error.message });
+      }
+    }
+
+    return { notebookId, profileId, results };
   }
 
   /**
    * Orquestra a criação do notebook e o disparo da geração de conteúdo
    */
-  async startNotebookLMResearch(projectId: string, type: 'audio' | 'video' | 'infographic' = 'audio', style: string = 'classic') {
+  async startNotebookLMResearch(
+    projectId: string,
+    type: 'audio' | 'video' | 'infographic' = 'audio',
+    style: string = 'classic',
+    options: { liveResearch?: boolean; notebookId?: string; profileId?: string } = {},
+  ) {
     const project = await this.projectsService.findOne(projectId);
     
-    if (!project.sources || project.sources.length === 0) {
+    if ((!project.sources || project.sources.length === 0) && !options.notebookId) {
       throw new NotFoundException('No sources found for this project. Add URLs first.');
     }
 
     await this.projectsService.updateStatus(projectId, 'researching');
     
-    let notebookId = project.metadata?.notebookId;
+    let notebookId = options.notebookId || project.metadata?.notebookId;
+    const profileId = options.profileId || project.metadata?.nlmProfileId;
 
     try {
       // 1. Criar o Notebook se não existir
       if (!notebookId || notebookId === 'placeholder-id' || notebookId.startsWith('notebook_')) {
         this.logger.log(`Creating new Google Notebook for project ${projectId}...`);
-        notebookId = await this.notebookLM.createNotebook(`Factory: ${project.title || project.id}`);
-        await this.projectsService.updateMetadata(projectId, { notebookId });
+        notebookId = await this.notebookLM.createNotebook(`Factory: ${project.title || project.id}`, profileId);
+        await this.projectsService.updateMetadata(projectId, { notebookId, nlmProfileId: profileId });
+      } else if (options.notebookId || options.profileId) {
+        await this.projectsService.updateMetadata(projectId, { notebookId, nlmProfileId: profileId });
       }
 
       // 2. Injetar as fontes
-      this.logger.log(`Feeding ${project.sources.length} sources into notebook ${notebookId}...`);
-      for (const source of project.sources) {
+      const submittedSources = project.sources || [];
+      this.logger.log(`Feeding ${submittedSources.length} sources into notebook ${notebookId}...`);
+      let addedSourceCount = 0;
+      for (const source of submittedSources) {
         try {
-          await this.notebookLM.addSource(notebookId, source);
+          await this.notebookLM.addSource(notebookId, source, profileId);
+          addedSourceCount += 1;
         } catch (sourceErr) {
           this.logger.warn(`Failed to add source ${source}, skipping: ${sourceErr.message}`);
         }
       }
 
-      // 2.5 Live Research (Pillar C - 200% Optimization)
-      this.logger.log(`🚀 Performing Live Research for topic: ${project.topic}`);
-      await this.notebookLM.researchStart(notebookId, project.topic || 'Latest trends in AI');
+      if (submittedSources.length > 0 && addedSourceCount === 0) {
+        throw new BadRequestException('No valid sources were accepted by NotebookLM. Use full http:// or https:// URLs.');
+      }
+
+      if (options.liveResearch) {
+        const query = project.topic && project.topic !== 'VideoLM research job'
+          ? project.topic
+          : submittedSources.join(' ');
+        this.logger.log(`🚀 Performing Live Research for topic: ${query}`);
+        await this.notebookLM.researchStart(notebookId, query, profileId);
+      } else {
+        this.logger.log('Skipping Live Research expansion; using only submitted sources.');
+      }
 
       // 3. Disparar a geração (Deep Dive)
       this.logger.log(`Triggering ${type} overview (Style: ${style}) for notebook ${notebookId}`);
       
       if (type === 'video') {
-        return this.notebookLM.createVideoOverview(notebookId, style);
+        return this.notebookLM.createVideoOverview(notebookId, style, profileId);
       }
       if (type === 'infographic') {
-        return this.notebookLM.createInfographic(notebookId, style);
+        return this.notebookLM.createInfographic(notebookId, style, undefined, profileId);
       }
-      return this.notebookLM.createAudioOverview(notebookId);
+      return this.notebookLM.createAudioOverview(notebookId, profileId);
 
     } catch (error) {
       this.logger.error(`Failed to execute NotebookLM pipeline: ${error.message}`);
@@ -93,11 +184,12 @@ export class ResearchService {
   async downloadResearchResult(projectId: string) {
     const project = await this.projectsService.findOne(projectId);
     const notebookId = project.metadata?.notebookId;
+    const profileId = project.metadata?.nlmProfileId;
 
     if (!notebookId) throw new NotFoundException('Notebook ID not found for this project.');
 
     try {
-      const statusRaw = await this.notebookLM.checkStatus(notebookId);
+      const statusRaw = await this.notebookLM.checkStatus(notebookId, profileId);
       const artifacts = JSON.parse(statusRaw);
       
       // PRIORIDADE: Busca primeiro um VÍDEO completo, se não achar, busca ÁUDIO, e por fim INFOGRÁFICO.
@@ -123,11 +215,11 @@ export class ResearchService {
       this.logger.log(`Downloading ${latest.type} artifact for project ${projectId}...`);
       
       if (latest.type === 'video') {
-        await this.notebookLM.downloadVideo(notebookId, outputPath);
+        await this.notebookLM.downloadVideo(notebookId, outputPath, profileId);
       } else if (latest.type === 'audio') {
-        await this.notebookLM.downloadAudio(notebookId, outputPath);
+        await this.notebookLM.downloadAudio(notebookId, outputPath, profileId);
       } else if (latest.type === 'infographic') {
-        await this.notebookLM.downloadInfographic(notebookId, outputPath);
+        await this.notebookLM.downloadInfographic(notebookId, outputPath, profileId);
       }
 
       // 4. Se for um Pipeline Híbrido, precisamos gerar o roteiro e áudio customizados

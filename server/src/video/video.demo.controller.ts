@@ -19,6 +19,7 @@ import {
 } from '@nestjs/common';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { VideoService } from './video.service';
+import { ProjectsService } from '../projects/projects.service';
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -26,7 +27,10 @@ import * as fs from 'fs';
 export class VideoDemoController {
   private readonly logger = new Logger(VideoDemoController.name);
 
-  constructor(private videoService: VideoService) {}
+  constructor(
+    private videoService: VideoService,
+    private projectsService: ProjectsService,
+  ) {}
 
   /**
    * GET /api/video/demo/health
@@ -62,6 +66,7 @@ export class VideoDemoController {
     FileFieldsInterceptor(
       [
         { name: 'audio', maxCount: 1 },
+        { name: 'bgMusic', maxCount: 1 },
         { name: 'images', maxCount: 100 },
       ],
       {
@@ -76,8 +81,9 @@ export class VideoDemoController {
     @UploadedFiles()
     files: {
       audio?: Express.Multer.File[];
+      bgMusic?: Express.Multer.File[];
       images?: Express.Multer.File[];
-    },
+    } = {},
     @Body()
     body: {
       duration?: string;
@@ -89,18 +95,20 @@ export class VideoDemoController {
     const projectId = body.projectId || `demo_${Date.now()}`;
 
     this.logger.log(`🎬 [DEMO] Assemble request — project: ${projectId}`);
-    this.logger.log(`   Audio : ${files.audio?.[0]?.originalname ?? 'MISSING'}`);
-    this.logger.log(`   Images: ${files.images?.length ?? 0}`);
-    this.logger.log(`   Music : ${body.bgMusicId || 'none'}`);
+    const uploadedFiles = files || {};
 
-    if (!files.audio?.[0] || !files.images?.length) {
+    this.logger.log(`   Audio : ${uploadedFiles.audio?.[0]?.originalname ?? 'MISSING'}`);
+    this.logger.log(`   Images: ${uploadedFiles.images?.length ?? 0}`);
+    this.logger.log(`   Music : ${uploadedFiles.bgMusic?.[0]?.originalname || body.bgMusicId || 'none'}`);
+
+    if (!uploadedFiles.audio?.[0] || !uploadedFiles.images?.length) {
       throw new BadRequestException(
         'audio (WAV) e pelo menos uma image são obrigatórios',
       );
     }
 
     // Resolve música de fundo pelo ID (arquivo local em data/music/)
-    let bgMusicFile: Express.Multer.File | undefined;
+    let bgMusicFile: Express.Multer.File | undefined = uploadedFiles.bgMusic?.[0];
     if (body.bgMusicId) {
       const musicPath = path.join(process.cwd(), 'data/music', body.bgMusicId);
       if (fs.existsSync(musicPath)) {
@@ -123,15 +131,19 @@ export class VideoDemoController {
       }
     }
 
+    await this.projectsService.updateStatus(projectId, 'queued');
+
     const videoUrl = await this.videoService.assembleVideo(
-      files.audio[0],
-      files.images,
+      uploadedFiles.audio[0],
+      uploadedFiles.images,
       parseFloat(body.duration || '0'),
       body.script,
       bgMusicFile,
       undefined,
       projectId,
     );
+
+    await this.projectsService.updateStatus(projectId, 'queued', videoUrl);
 
     return {
       message: 'Video assembly queued — use /status to track progress',

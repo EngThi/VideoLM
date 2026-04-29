@@ -27,7 +27,7 @@ async function testAbsoluteCinema() {
 
     console.log('🎙️ Passo 2: Disparando orquestração 200% (Infographic - Style: CLAY)...');
     // Isso vai disparar: addSources -> researchStart (Live) -> createInfographic
-    await researchService.startNotebookLMResearch(id, 'infographic', 'clay');
+    await researchService.startNotebookLMResearch(id, 'infographic', 'clay', { liveResearch: true });
     console.log('✅ Pipeline Live Research + Infographic Clay enviado.\n');
 
     console.log('⏳ Polling no Google Studio (Aguardando artefatos de hoje)...');

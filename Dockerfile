@@ -3,7 +3,7 @@ FROM node:20-slim AS frontend-builder
 WORKDIR /app
 COPY package*.json ./
 # Root level dependencies (vite, react, etc)
-RUN npm install
+RUN npm install --ignore-scripts
 COPY . .
 RUN npx vite build
 
@@ -26,7 +26,9 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     python3 \
     python3-pip \
+    ffmpeg \
     curl \
+    procps \
     && curl -LsSf https://astral.sh/uv/install.sh | sh \
     && rm -rf /var/lib/apt/lists/*
 
@@ -40,7 +42,6 @@ COPY --from=frontend-builder /app/dist ./dist
 COPY --from=backend-builder /app/server/dist ./server/dist
 COPY --from=backend-builder /app/server/node_modules ./server/node_modules
 COPY --from=backend-builder /app/server/package*.json ./server/
-COPY --from=backend-builder /app/server/.env.local ./server/.env.local
 
 # Expose the backend port
 EXPOSE 3001

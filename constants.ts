@@ -9,6 +9,8 @@ export const QUALITY_OPTIONS: { value: Quality; label: string }[] = [
 
 export const STYLE_OPTIONS: { value: Style; label: string }[] = [
   { value: 'cinematic', label: 'Cinematic' },
+  { value: 'documentary', label: 'Documentary' },
+  { value: 'vlog', label: 'Creator Vlog' },
   { value: 'anime', label: 'Anime Style' },
   { value: 'watercolor', label: 'Watercolor Art' },
   { value: 'classic', label: 'Classic Industrial' },

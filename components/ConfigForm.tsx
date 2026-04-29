@@ -15,24 +15,10 @@ interface ConfigFormProps {
 
 const FormField: React.FC<{ label: string; children: React.ReactNode }> = ({ label, children }) => (
   <div>
-    <label className="block text-sm font-medium text-gray-300 mb-2">{label}</label>
+    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-slate-500">{label}</label>
     {children}
   </div>
 );
-
-const STYLE_OPTIONS = [
-  { value: 'cinematic', label: 'Cinematic' },
-  { value: 'anime', label: 'Anime Style' },
-  { value: 'watercolor', label: 'Watercolor Art' },
-  { value: 'classic', label: 'Classic Industrial' },
-  { value: 'bento_grid', label: 'Bento Grid (Data)' },
-  { value: 'clay', label: 'Claymorphism (UI)' },
-  { value: 'bricks', label: 'Bricks (Structural)' },
-  { value: 'professional', label: 'Professional / Corporate' },
-  { value: 'whiteboard', label: 'Whiteboard Animation' },
-  { value: 'kawaii', label: 'Kawaii / Cute' },
-  { value: 'minimalist', label: 'Minimalist & Clean' },
-];
 
 export const ConfigForm: React.FC<ConfigFormProps> = ({
     onGenerate,
@@ -181,14 +167,27 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
       return (
       <div className="space-y-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-          <h2 className="text-xl font-semibold text-white border-b border-gray-700 pb-3 mb-6">Pipeline Configuration</h2>
+          <div className="grid grid-cols-1 gap-3 rounded-lg border border-white/10 bg-black/20 p-3 text-xs text-slate-400 sm:grid-cols-3">
+            <div>
+                <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Input</span>
+                Topic or ZIP assets
+            </div>
+            <div>
+                <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Output</span>
+                MP4 + project pack
+            </div>
+            <div>
+                <span className="block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Mode</span>
+                AI or local assembly
+            </div>
+          </div>
   
           <FormField label="Video Topic">
               <input
               type="text"
               value={config.topic}
               onChange={e => handleChange('topic', e.target.value)}
-              className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+              className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2.5 text-white transition placeholder:text-slate-700 focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10"
               placeholder={config.useLocalAssets ? "Ignored in Dev Mode" : "e.g., The history of AI"}
               required={!config.useLocalAssets}
               disabled={!!config.useLocalAssets}
@@ -196,7 +195,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
           </FormField>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Video Quality">
-                <select value={config.quality} onChange={e => handleChange('quality', e.target.value)} className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                <select value={config.quality} onChange={e => handleChange('quality', e.target.value)} className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2.5 text-white transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10">
                 {QUALITY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
             </FormField>
@@ -207,7 +206,7 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                         min="10"
                         value={config.duration}
                         onChange={e => handleChange('duration', parseInt(e.target.value, 10) || 0)}
-                        className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+                        className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2.5 text-white transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10"
                     />
                     <div className="flex flex-wrap gap-2">
                         {[1, 5, 7, 10].map((min) => (
@@ -215,10 +214,10 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                                 key={min}
                                 type="button"
                                 onClick={() => handleChange('duration', min * 60)}
-                                className={`px-3 py-1 text-sm rounded-md transition-colors ${
+                                className={`rounded-md px-3 py-1.5 text-xs font-bold transition-colors ${
                                     config.duration === min * 60
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                                        ? 'bg-[#33d6a6] text-black'
+                                        : 'bg-white/10 text-slate-300 hover:bg-white/15'
                                 }`}
                             >
                                 {min} min
@@ -231,19 +230,19 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <FormField label="Visual Style">
-                <select value={config.style} onChange={e => handleChange('style', e.target.value)} className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                <select value={config.style} onChange={e => handleChange('style', e.target.value)} className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2.5 text-white transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10">
                 {STYLE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
             </FormField>
             <FormField label="Voice (Gemini TTS)">
-                <select value={config.voice} onChange={e => handleChange('voice', e.target.value)} className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                <select value={config.voice} onChange={e => handleChange('voice', e.target.value)} className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2.5 text-white transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10">
                 {VOICE_PROVIDER_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
             </FormField>
         </div>
 
         <FormField label="Thumbnail Style">
-                <select value={config.thumbnailStyle} onChange={e => handleChange('thumbnailStyle', e.target.value)} className="w-full bg-gray-700/50 border border-gray-600 rounded-md p-2 text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition">
+                <select value={config.thumbnailStyle} onChange={e => handleChange('thumbnailStyle', e.target.value)} className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2.5 text-white transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10">
                 {THUMBNAIL_STYLE_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                 </select>
         </FormField>
@@ -257,27 +256,30 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                     const file = e.target.files?.[0];
                     handleChange('bgMusicFile', file || null);
                 }}
-                className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-600 file:text-white hover:file:bg-blue-700 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="block w-full cursor-pointer text-sm text-slate-400 file:mr-4 file:rounded-md file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-100 hover:file:bg-white/15 disabled:cursor-not-allowed disabled:opacity-50"
             />
         </FormField>
 
-        <div className="flex items-center gap-2 mt-4 p-3 bg-gray-700/30 rounded-lg border border-gray-700">
+        <div className="mt-4 flex items-start gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-3">
             <input
                 type="checkbox"
                 id="useLocalAssets"
                 checked={!!config.useLocalAssets}
                 onChange={(e) => setConfig({ ...config, useLocalAssets: e.target.checked })}
-                className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500"
+                className="mt-0.5 h-4 w-4 rounded border-white/20 bg-black/30 text-emerald-400 focus:ring-emerald-400"
             />
-            <label htmlFor="useLocalAssets" className="text-sm font-medium text-gray-300 cursor-pointer">
-                🛠️ Dev Mode: Use Local Assets (skip AI generation)
-            </label>
+            <div>
+                <label htmlFor="useLocalAssets" className="cursor-pointer text-sm font-bold text-slate-200">
+                    Use local assets
+                </label>
+                <p className="mt-1 text-xs text-slate-500">Skips AI generation and assembles a ZIP with script, narration, and storyboard images.</p>
+            </div>
         </div>
 
         {config.useLocalAssets && (
-            <div className="pl-4 border-l-2 border-gray-600 ml-2">
-                <label className="block text-xs text-gray-400 mb-1">
-                    Optional: Upload Custom Project ZIP
+            <div className="rounded-lg border border-emerald-300/20 bg-emerald-300/5 p-4">
+                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.12em] text-emerald-200">
+                    Project ZIP
                 </label>
                 <input 
                     type="file" 
@@ -286,73 +288,76 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                         const file = e.target.files?.[0];
                         if (file) handleAutoUpload(file);
                     }}
-                    className="block w-full text-sm text-gray-400 file:mr-4 file:py-1 file:px-2 file:rounded-md file:border-0 file:text-xs file:bg-gray-600 file:text-white hover:file:bg-gray-500"
+                    className="block w-full text-sm text-slate-400 file:mr-4 file:rounded-md file:border-0 file:bg-white/10 file:px-2 file:py-1 file:text-xs file:text-white hover:file:bg-white/15"
                 />
-                <p className="text-[10px] text-gray-500 mt-1">
-                    Select ZIP to auto-start. Must contain: script.txt, narration.wav, storyboard/*.png
+                <p className="mt-2 text-[11px] text-slate-500">
+                    Expected files: script.txt, narration.wav or .mp3, and storyboard images.
                 </p>
             </div>
         )}
 
-        <div className="flex items-center space-x-4 pt-4">
-            <label className="flex items-center space-x-2 cursor-pointer">
-            <input type="checkbox" checked={config.upload} onChange={e => handleChange('upload', e.target.checked)} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500"/>
-            <span className="text-sm text-gray-300">Upload to YouTube</span>
+        <div className="grid grid-cols-1 gap-2 pt-2 sm:grid-cols-2">
+            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+            <input type="checkbox" checked={config.upload} onChange={e => handleChange('upload', e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-black/30 text-emerald-400 focus:ring-emerald-400"/>
+            <span className="text-sm text-slate-300">Prepare YouTube upload</span>
             </label>
-            <label className="flex items-center space-x-2 cursor-pointer">
-            <input type="checkbox" checked={config.seoOptimize} onChange={e => handleChange('seoOptimize', e.target.checked)} className="h-4 w-4 rounded bg-gray-700 border-gray-600 text-blue-500 focus:ring-blue-500"/>
-            <span className="text-sm text-gray-300">Optimize SEO</span>
+            <label className="flex cursor-pointer items-center gap-2 rounded-md border border-white/10 bg-black/20 px-3 py-2">
+            <input type="checkbox" checked={config.seoOptimize} onChange={e => handleChange('seoOptimize', e.target.checked)} className="h-4 w-4 rounded border-white/20 bg-black/30 text-emerald-400 focus:ring-emerald-400"/>
+            <span className="text-sm text-slate-300">Generate SEO metadata</span>
             </label>
         </div>
 
         <button
             type="submit"
             disabled={isGenerating || isTestLoading || isFfmpegTesting || (!config.topic && !config.useLocalAssets)}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-500 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg transition-transform duration-200 transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-blue-500/50 flex items-center justify-center space-x-2"
+            className="flex w-full items-center justify-center space-x-2 rounded-lg bg-[#33d6a6] px-4 py-3 font-black text-black transition duration-200 hover:bg-[#62e4bd] focus:outline-none focus:ring-4 focus:ring-emerald-300/20 disabled:cursor-not-allowed disabled:bg-slate-600 disabled:text-slate-400"
         >
             {isGenerating ? (
-                <span className="flex items-center gap-2">Processing Pipeline...</span>
+                <span className="flex items-center gap-2">Processing...</span>
             ) : (
-                <span className="flex items-center gap-2">Start Full Pipeline</span>
+                <span className="flex items-center gap-2">Start video pipeline</span>
             )}
         </button>
         </form>
 
         {/* FFmpeg Manual Test Lab */}
-        <div className="border-t-2 border-dashed border-purple-600/50 pt-6 mt-8">
-            <div className="flex items-center gap-2 mb-4">
-                <span className="text-xl">🎞️</span>
-                <h3 className="text-lg font-bold text-purple-400">FFmpeg Native Test Lab</h3>
-            </div>
-            <p className="text-xs text-gray-400 mb-4">Manually upload files to test backend video assembly.</p>
+        <details className="group mt-8 rounded-lg border border-white/10 bg-black/20">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                <span>
+                    <span className="block text-sm font-black uppercase tracking-[0.12em] text-[#f7c948]">FFmpeg test</span>
+                    <span className="text-xs text-slate-500">Manual audio + image assembly check</span>
+                </span>
+                <span className="text-xs font-bold uppercase text-slate-500 group-open:hidden">Open</span>
+                <span className="hidden text-xs font-bold uppercase text-slate-500 group-open:inline">Close</span>
+            </summary>
 
-            <div className="space-y-4">
+            <div className="space-y-4 border-t border-white/10 p-4">
                  {/* Audio Input */}
                  <div>
-                    <label className="block text-xs font-medium text-gray-300 mb-1">1. Select Audio (.wav, .mp3)</label>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">1. Select Audio (.wav, .mp3)</label>
                     <input
                         type="file"
                         accept="audio/*"
                         onChange={(e) => setFfmpegAudio(e.target.files?.[0] || null)}
-                        className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-900/50 file:text-purple-300 hover:file:bg-purple-900/70"
+                        className="block w-full text-sm text-slate-400 file:mr-4 file:rounded-md file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-100 hover:file:bg-white/15"
                     />
                 </div>
 
                 {/* Images Input */}
                 <div>
-                    <label className="block text-xs font-medium text-gray-300 mb-1">2. Select Images (.png, .jpg)</label>
+                    <label className="block text-xs font-medium text-slate-300 mb-1">2. Select Images (.png, .jpg)</label>
                     <input
                         type="file"
                         accept="image/*"
                         multiple
                         onChange={(e) => setFfmpegImages(e.target.files)}
-                        className="block w-full text-sm text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-purple-900/50 file:text-purple-300 hover:file:bg-purple-900/70"
+                        className="block w-full text-sm text-slate-400 file:mr-4 file:rounded-md file:border-0 file:bg-white/10 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-100 hover:file:bg-white/15"
                     />
-                    <p className="text-xs text-gray-500 mt-1">Images will be shown for 10s each.</p>
+                    <p className="text-xs text-slate-500 mt-1">Images will be shown for 10s each.</p>
                 </div>
 
                 {ffmpegError && (
-                    <div className="bg-red-900/20 border border-red-500/50 text-red-200 text-xs p-2 rounded">
+                    <div className="rounded-md border border-red-500/50 bg-red-900/20 p-2 text-xs text-red-200">
                         {ffmpegError}
                     </div>
                 )}
@@ -360,53 +365,54 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                 <button
                     onClick={handleFfmpegTest}
                     disabled={isFfmpegTesting || !ffmpegAudio || !ffmpegImages}
-                    className="w-full bg-purple-700 hover:bg-purple-600 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2"
+                    className="flex w-full items-center justify-center space-x-2 rounded-md border border-white/10 bg-white/[0.06] px-4 py-2 font-bold text-white transition duration-200 hover:bg-white/10 disabled:bg-slate-700 disabled:text-slate-400"
                 >
                      {isFfmpegTesting ? (
-                        <>
-                            <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
-                            <span>Assembling Video...</span>
-                        </>
+                        <span>Assembling...</span>
                     ) : (
                         <span>Run FFmpeg Assembly</span>
                     )}
                 </button>
 
                 {ffmpegResultUrl && (
-                    <div className="mt-4 animate-fade-in bg-black rounded-lg overflow-hidden border border-purple-500/30">
+                    <div className="mt-4 animate-fade-in overflow-hidden rounded-lg border border-white/10 bg-black">
                         <video
                             controls
                             src={ffmpegResultUrl}
                             className="w-full aspect-video"
                         />
-                        <div className="p-2 bg-gray-800 text-center">
-                            <a href={ffmpegResultUrl} download="ffmpeg_test_output.mp4" className="text-xs text-purple-400 hover:underline">Download Result</a>
+                        <div className="bg-white/[0.04] p-2 text-center">
+                            <a href={ffmpegResultUrl} download="ffmpeg_test_output.mp4" className="text-xs text-emerald-300 hover:underline">Download Result</a>
                         </div>
                     </div>
                 )}
             </div>
-        </div>
+        </details>
 
         {/* Veo 2.0 Test Lab Section */}
-        <div className="border-t-2 border-dashed border-gray-600 pt-6 mt-8">
-            <div className="flex items-center gap-2 mb-4">
-                <span className="text-xl">🧪</span>
-                <h3 className="text-lg font-bold text-green-400">Veo 2.0 Lab (Test Only)</h3>
-            </div>
+        <details className="group rounded-lg border border-white/10 bg-black/20">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3">
+                <span>
+                    <span className="block text-sm font-black uppercase tracking-[0.12em] text-[#33d6a6]">Veo test</span>
+                    <span className="text-xs text-slate-500">Standalone prompt-to-video check</span>
+                </span>
+                <span className="text-xs font-bold uppercase text-slate-500 group-open:hidden">Open</span>
+                <span className="hidden text-xs font-bold uppercase text-slate-500 group-open:inline">Close</span>
+            </summary>
 
-            <div className="space-y-4">
+            <div className="space-y-4 border-t border-white/10 p-4">
                 <FormField label="Test Prompt">
                     <textarea
                         value={veoPrompt}
                         onChange={(e) => setVeoPrompt(e.target.value)}
-                        className="w-full bg-black/30 border border-gray-600 rounded-md p-2 text-sm text-white focus:ring-2 focus:ring-green-500 transition h-20"
+                        className="h-20 w-full rounded-md border border-white/10 bg-black/30 p-3 text-sm text-white transition focus:border-emerald-300/60 focus:ring-2 focus:ring-emerald-300/10"
                     />
                 </FormField>
 
                 <button
                     onClick={handleTestSubmit}
                     disabled={isTestLoading || isGenerating || isFfmpegTesting}
-                    className="w-full bg-green-700 hover:bg-green-600 disabled:bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center space-x-2"
+                    className="flex w-full items-center justify-center space-x-2 rounded-md bg-[#33d6a6] px-4 py-2 font-bold text-black transition duration-200 hover:bg-[#62e4bd] disabled:bg-slate-700 disabled:text-slate-400"
                 >
                      {isTestLoading ? (
                         <>
@@ -419,20 +425,20 @@ export const ConfigForm: React.FC<ConfigFormProps> = ({
                 </button>
 
                 {testVideoUrl && (
-                    <div className="mt-4 animate-fade-in bg-black rounded-lg overflow-hidden border border-green-500/30">
+                    <div className="mt-4 animate-fade-in overflow-hidden rounded-lg border border-white/10 bg-black">
                         <video
                             controls
                             src={testVideoUrl}
                             className="w-full aspect-video"
                             autoPlay
                         />
-                        <div className="p-2 bg-gray-800 text-center">
+                        <div className="bg-white/[0.04] p-2 text-center">
                             <a href={testVideoUrl} download="veo2-test.mp4" className="text-xs text-green-400 hover:underline">Download Test Video</a>
                         </div>
                     </div>
                 )}
             </div>
-        </div>
+        </details>
     </div>
   );
 };

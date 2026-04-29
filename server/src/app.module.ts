@@ -7,6 +7,7 @@ import { AiModule } from './ai/ai.module';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { ResearchModule } from './research/research.module';
+import { EngineModule } from './engine/engine.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { BullModule } from '@nestjs/bullmq';
 import { join } from 'path';
@@ -21,11 +22,11 @@ import { join } from 'path';
     }),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), '..', 'dist'),
-      exclude: ['/api*'],
+      exclude: ['/api/(.*)', '/videos/(.*)'],
     }, {
       rootPath: join(process.cwd(), 'public/videos'),
       serveRoot: '/videos',
-      exclude: ['/api*'],
+      exclude: ['/api/(.*)'],
     }),
     ConfigModule.forRoot({
       isGlobal: true,
@@ -44,6 +45,7 @@ import { join } from 'path';
     UsersModule,
     AuthModule,
     ResearchModule,
+    EngineModule,
   ],
 })
 export class AppModule {}

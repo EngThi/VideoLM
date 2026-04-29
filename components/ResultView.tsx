@@ -122,16 +122,21 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
   };
 
   return (
-    <div className="bg-gray-800/50 rounded-2xl shadow-2xl p-6 animate-fade-in">
+    <section className="animate-fade-in rounded-lg border border-white/10 bg-[#101418]/95 p-5 shadow-2xl">
       <div className="flex justify-between items-start mb-6">
-          <h2 className="text-2xl font-bold text-green-400">
-            {result.success ? 'Production Complete!' : 'Production Failed'}
-          </h2>
+          <div>
+            <p className={`text-[11px] font-bold uppercase tracking-[0.18em] ${result.success ? 'text-emerald-300' : 'text-red-300'}`}>
+              {result.success ? 'Artifact ready' : 'Render failed'}
+            </p>
+            <h2 className="mt-1 text-2xl font-black tracking-tight text-white">
+              {result.success ? 'Production Complete' : 'Production Failed'}
+            </h2>
+          </div>
           {result.success && (
               <button
                 onClick={handleDownloadAll}
                 disabled={isZipping}
-                className="bg-green-600 hover:bg-green-500 disabled:bg-gray-600 text-white text-sm font-bold py-2 px-4 rounded-lg transition flex items-center gap-2"
+                className="flex items-center gap-2 rounded-md bg-[#33d6a6] px-4 py-2 text-sm font-black text-black transition hover:bg-[#62e4bd] disabled:bg-slate-700 disabled:text-slate-400"
               >
                  {isZipping ? (
                      <>
@@ -150,9 +155,9 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
 
       {result.success ? (
         <div className="space-y-8">
-          <div className="bg-green-900/20 border border-green-500/30 p-4 rounded-lg">
-             <p className="text-gray-200">
-                 Your assets have been successfully generated. The audio duration is <span className="font-bold text-white">{result.audioDuration?.toFixed(1)}s</span>.
+          <div className="rounded-lg border border-emerald-300/25 bg-emerald-300/10 p-4">
+             <p className="text-slate-200">
+                 Assets generated and available for review. Audio duration: <span className="font-bold text-white">{result.audioDuration?.toFixed(1)}s</span>.
              </p>
           </div>
 
@@ -160,11 +165,11 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
           {result.audioUrl && (
             <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Narrator Audio</h3>
+                    <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.14em]">Narrator Audio</h3>
                     <a
                         href={result.audioUrl}
                         download="gemini_narrator_audio.wav"
-                        className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1"
+                        className="text-xs text-emerald-300 hover:text-emerald-200 flex items-center gap-1"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -172,7 +177,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
                         Download WAV
                     </a>
                 </div>
-                <div className="bg-black/30 p-4 rounded-lg border border-gray-700">
+                <div className="rounded-lg border border-white/10 bg-black/30 p-4">
                     <audio controls src={result.audioUrl} className="w-full h-10" />
                 </div>
             </div>
@@ -181,22 +186,22 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
           {/* Storyboard Section */}
           {result.generatedImages && result.generatedImages.length > 0 && (
             <div className="space-y-4">
-               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Generated Storyboard ({result.generatedImages.length} Scenes)</h3>
+               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.14em]">Generated Storyboard ({result.generatedImages.length} Scenes)</h3>
                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {result.generatedImages.map((img, idx) => (
-                        <div key={idx} className="group relative bg-black border border-gray-700 rounded-lg overflow-hidden">
+                        <div key={idx} className="group relative overflow-hidden rounded-lg border border-white/10 bg-black">
                             <img src={img.url} alt={`Scene ${idx + 1}`} className="w-full aspect-video object-cover" />
                             <div className="absolute top-2 left-2 bg-black/70 text-white text-xs font-bold px-2 py-1 rounded">
                                 {idx * 10}s - {(idx + 1) * 10}s
                             </div>
                             <div className="p-3">
-                                <p className="text-xs text-gray-400 line-clamp-3 hover:line-clamp-none transition-all cursor-help" title={img.prompt}>
-                                    <span className="text-blue-400 font-bold">Prompt:</span> {img.prompt}
+                                <p className="text-xs text-slate-400 line-clamp-3 hover:line-clamp-none transition-all cursor-help" title={img.prompt}>
+                                    <span className="text-emerald-300 font-bold">Prompt:</span> {img.prompt}
                                 </p>
                                 <a
                                     href={img.url}
                                     download={`scene_${idx + 1}.png`}
-                                    className="mt-2 block w-full text-center bg-gray-800 hover:bg-gray-700 text-xs text-white py-1 rounded transition"
+                                    className="mt-2 block w-full rounded-md bg-white/10 py-1 text-center text-xs text-white transition hover:bg-white/15"
                                 >
                                     Download Image
                                 </a>
@@ -210,16 +215,16 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
           {/* Single Image Fallback */}
           {result.imageUrl && !result.generatedImages && (
             <div className="space-y-2">
-               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Generated Thumbnail</h3>
-              <img src={result.imageUrl} alt="Generated Thumbnail" className="w-full rounded-lg shadow-lg aspect-video bg-black border border-gray-700 object-cover" />
+               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.14em]">Generated Thumbnail</h3>
+              <img src={result.imageUrl} alt="Generated Thumbnail" className="w-full rounded-lg shadow-lg aspect-video bg-black border border-white/10 object-cover" />
             </div>
           )}
 
           {/* Video Section (Fallback if Veo used elsewhere) */}
           {result.videoUrl && (
             <div className="space-y-2">
-               <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider">Generated Video</h3>
-              <video controls src={result.videoUrl} className="w-full rounded-lg shadow-lg aspect-video bg-black border border-gray-700">
+               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.14em]">Generated Video</h3>
+              <video controls src={result.videoUrl} className="w-full rounded-lg shadow-lg aspect-video bg-black border border-white/10">
                 Your browser does not support the video tag.
               </video>
             </div>
@@ -227,7 +232,7 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
 
           <button
             onClick={onReset}
-            className="w-full mt-8 bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded-lg transition duration-200 shadow-lg shadow-blue-600/30"
+            className="w-full mt-8 rounded-md border border-white/10 bg-white/[0.06] px-4 py-3 font-bold text-white transition duration-200 hover:bg-white/10"
           >
             Start New Project
           </button>
@@ -237,12 +242,12 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
           <p>An error occurred during the generation process. Please check the logs for more details and try again.</p>
            <button
             onClick={onReset}
-            className="w-full mt-4 bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-4 rounded-lg transition duration-200"
+            className="w-full mt-4 rounded-md bg-red-600 px-4 py-2 font-bold text-white transition duration-200 hover:bg-red-500"
           >
             Try Again
           </button>
         </div>
       )}
-    </div>
+    </section>
   );
 };

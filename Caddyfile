@@ -1,0 +1,4 @@
+54-162-84-165.sslip.io {
+	encode gzip zstd
+	reverse_proxy videolm:3001
+}

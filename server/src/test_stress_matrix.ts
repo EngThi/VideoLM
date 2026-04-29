@@ -31,9 +31,9 @@ async function testMatrixStress() {
         if (cfg.type === 'hybrid') {
             return research.startHybridAbsolutePipeline(p.id);
         } else if (cfg.type === 'factual') {
-            return research.startNotebookLMResearch(p.id, 'video', 'classic');
+            return research.startNotebookLMResearch(p.id, 'video', 'classic', { liveResearch: true });
         } else {
-            return research.startNotebookLMResearch(p.id, 'infographic', 'clay');
+            return research.startNotebookLMResearch(p.id, 'infographic', 'clay', { liveResearch: true });
         }
     });
 

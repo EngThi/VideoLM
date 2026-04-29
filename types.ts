@@ -5,7 +5,7 @@ export interface ContentIdea {
 
 export interface ScriptResult {
   scriptText: string;
-  sources: string[];
+  sources: Array<string | { title?: string; uri?: string; url?: string }>;
 }
 
 export interface GeneratedImage {
@@ -33,8 +33,13 @@ export interface PipelineStage {
 
 export interface VideoConfig {
   topic: string;
+  quality?: Quality;
   duration: number;
+  style?: Style;
   voice: string;
+  upload?: boolean;
+  seoOptimize?: boolean;
+  thumbnailStyle?: ThumbnailStyle;
   bgMusicFile?: File;
   bgMusicUrl?: string;
   useLocalAssets?: boolean;

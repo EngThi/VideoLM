@@ -17,6 +17,7 @@ jest.mock('fluent-ffmpeg');
 
 const mockProjectsService = {
   getProject: jest.fn().mockResolvedValue({ scenes: [] }),
+  updateStatus: jest.fn().mockResolvedValue(undefined),
 };
 
 const mockVideoGateway = {
@@ -120,8 +121,11 @@ describe('VideoService', () => {
       const audioPath = 'audio.wav';
       const imagePaths = ['image.png'];
       const bgMusicPath = 'bgMusic.mp3';
+      fs.writeFileSync(audioPath, 'audio data');
+      fs.writeFileSync(imagePaths[0], 'image data');
+      fs.writeFileSync(bgMusicPath, 'music data');
 
-      jest.spyOn(service, 'createClip').mockResolvedValue();
+      jest.spyOn(service as any, 'createClip').mockResolvedValue(undefined);
 
       const promise = service.processAssembly(audioPath, imagePaths, 10, 'a script', bgMusicPath, 'temp');
 
@@ -140,7 +144,9 @@ describe('VideoService', () => {
     it('should NOT apply smart ducking when bgMusic is NOT provided', async () => {
        const audioPath = 'audio.wav';
        const imagePaths = ['image.png'];
-       jest.spyOn(service, 'createClip').mockResolvedValue();
+       fs.writeFileSync(audioPath, 'audio data');
+       fs.writeFileSync(imagePaths[0], 'image data');
+       jest.spyOn(service as any, 'createClip').mockResolvedValue(undefined);
 
        const promise = service.processAssembly(audioPath, imagePaths, 10, 'a script', undefined, 'temp');
        

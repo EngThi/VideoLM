@@ -2,9 +2,6 @@
 # Ignore node_modules folders in any directory
 **/node_modules
 
-# Ignore the entire server directory for the frontend build
-server
-
 # Ignore build output
 dist
 

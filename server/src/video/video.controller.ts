@@ -29,21 +29,23 @@ export class VideoController {
     }
   }))
   async assembleVideo(
-    @UploadedFiles() files: { audio?: Express.Multer.File[], bgMusic?: Express.Multer.File[], images?: Express.Multer.File[] },
+    @UploadedFiles() files: { audio?: Express.Multer.File[], bgMusic?: Express.Multer.File[], images?: Express.Multer.File[] } = {},
     @Body() body: { duration?: string; script?: string; bgMusicId?: string; projectId?: string },
   ) {
     try {
       console.log("📥 [DEBUG] Received Assemble Request:");
       console.log(` - ProjectID: ${body.projectId || 'dev-session'}`);
-      console.log(` - Audio: ${files.audio?.[0] ? files.audio[0].originalname + ' (' + files.audio[0].size + ' bytes)' : 'MISSING'}`);
-      console.log(` - Images: ${files.images?.length || 0} files received`);
-      console.log(` - BG Music: ${files.bgMusic?.[0] ? files.bgMusic[0].originalname : 'None'}`);
+      const uploadedFiles = files || {};
 
-      let bgMusicFile = files.bgMusic?.[0];
+      console.log(` - Audio: ${uploadedFiles.audio?.[0] ? uploadedFiles.audio[0].originalname + ' (' + uploadedFiles.audio[0].size + ' bytes)' : 'MISSING'}`);
+      console.log(` - Images: ${uploadedFiles.images?.length || 0} files received`);
+      console.log(` - BG Music: ${uploadedFiles.bgMusic?.[0] ? uploadedFiles.bgMusic[0].originalname : 'None'}`);
+
+      let bgMusicFile = uploadedFiles.bgMusic?.[0];
       const projectId = body.projectId || 'dev-session';
 
-      if (!files.audio?.[0] || !files.images || files.images.length === 0) {
-        console.error("❌ [ERROR] Missing required files:", { hasAudio: !!files.audio?.[0], imageCount: files.images?.length });
+      if (!uploadedFiles.audio?.[0] || !uploadedFiles.images || uploadedFiles.images.length === 0) {
+        console.error("❌ [ERROR] Missing required files:", { hasAudio: !!uploadedFiles.audio?.[0], imageCount: uploadedFiles.images?.length });
         throw new BadRequestException('Audio and images are required');
       }
 
@@ -68,8 +70,8 @@ export class VideoController {
       }
 
       const videoUrl = await this.videoService.assembleVideo(
-        files.audio[0],
-        files.images,
+        uploadedFiles.audio[0],
+        uploadedFiles.images,
         parseFloat(body.duration || '0'),
         body.script,
         bgMusicFile,
