@@ -25,7 +25,7 @@ import { authService, AuthUser } from './services/authService';
 
 const workspaceNav = [
   { label: 'Factory', value: 'Gemini + FFmpeg', accent: 'bg-[#ec3750]' },
-  { label: 'Research', value: 'NotebookLM video', accent: 'bg-[#33d6a6]' },
+  { label: 'Research', value: 'LM Engine', accent: 'bg-[#33d6a6]' },
   { label: 'Queue', value: 'single render lane', accent: 'bg-[#f7c948]' },
   { label: 'Deploy', value: 'stable sslip.io HTTPS', accent: 'bg-[#338eda]' },
 ];
@@ -571,6 +571,11 @@ const App: React.FC = () => {
 
           <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(400px,0.92fr)_minmax(0,1.35fr)]">
             <div className="space-y-5">
+              <ResearchDashboard
+                projectId={currentProjectId || researchProjectIdRef.current}
+                onResearchComplete={handleResearchComplete}
+              />
+
               <section className="rounded-lg border border-white/10 bg-[#101418]/95 p-4 shadow-2xl">
                 <div className="mb-4 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
                   <div>
@@ -587,11 +592,6 @@ const App: React.FC = () => {
                   testVideoUrl={testVideoUrl}
                 />
               </section>
-
-              <ResearchDashboard
-                projectId={currentProjectId || researchProjectIdRef.current}
-                onResearchComplete={handleResearchComplete}
-              />
             </div>
 
             <div className="space-y-5">

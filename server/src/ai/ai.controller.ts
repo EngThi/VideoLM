@@ -15,8 +15,9 @@ export class AiController {
   ) {}
 
   @Post('script')
-  generateScript(@Body() { topic }: { topic: string }) {
-    return this.aiService.generateScript(topic);
+  async generateScript(@Body() { topic, durationMinutes }: { topic: string; durationMinutes?: number }) {
+    const text = await this.aiService.generateScript(topic, durationMinutes);
+    return { text };
   }
 
   @Post('ideas')
@@ -32,6 +33,18 @@ export class AiController {
   @Post('image')
   async generateImage(@Body() { prompt, options }: { prompt: string; options?: ImageOptions }) {
     return this.aiService.generateSingleImage(prompt, options);
+  }
+
+  @Post('voiceover')
+  async generateVoiceover(
+    @Body() { script }: { script: string; voice?: string },
+    @Res() res: Response,
+  ) {
+    const { audioBuffer, duration } = await this.aiService.generateVoiceover(script);
+    res.setHeader('Content-Type', 'audio/wav');
+    res.setHeader('Content-Disposition', 'inline; filename="voiceover.wav"');
+    res.setHeader('X-Audio-Duration', String(duration));
+    return res.send(audioBuffer);
   }
 
   @Post('veo-test')

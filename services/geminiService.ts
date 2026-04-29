@@ -3,6 +3,22 @@ import type { ContentIdea, ScriptResult } from '../types';
 import { authService } from './authService';
 
 class GeminiService {
+  private async parseResponse(response: Response): Promise<any> {
+    const contentType = response.headers.get('content-type') || '';
+    const text = await response.text();
+
+    if (!text) return null;
+    if (contentType.includes('application/json')) {
+      return JSON.parse(text);
+    }
+
+    try {
+      return JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+
   /**
    * Obtém ideias de conteúdo do Backend (Protegido por JWT)
    */
@@ -18,7 +34,7 @@ class GeminiService {
       });
 
       if (!response.ok) throw new Error('Failed to fetch ideas from server');
-      return await response.json();
+      return await this.parseResponse(response);
     } catch (error) {
       console.error("Error calling backend for ideas:", error);
       return [];
@@ -40,7 +56,7 @@ class GeminiService {
       });
 
       if (!response.ok) throw new Error('Failed to generate script via server');
-      const data = await response.json();
+      const data = await this.parseResponse(response);
       const scriptText = typeof data === 'string' ? data : (data.text || '');
       return {
         scriptText,
@@ -67,7 +83,7 @@ class GeminiService {
       });
 
       if (!response.ok) throw new Error('Failed to generate image prompts via server');
-      return await response.json();
+      return await this.parseResponse(response);
     } catch (error) {
       console.error("Error calling backend for image prompts:", error);
       return [];
@@ -96,6 +112,33 @@ class GeminiService {
       throw error;
     }
   }
+
+  public async generateVoiceover(script: string, voice: string = 'aoede'): Promise<{ url: string; duration: number }> {
+    try {
+      const response = await fetch('/api/ai/voiceover', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...authService.getAuthHeader()
+        },
+        body: JSON.stringify({ script, voice }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to generate voiceover: ${response.status} ${errorText}`);
+      }
+
+      const blob = await response.blob();
+      return {
+        url: URL.createObjectURL(blob),
+        duration: Number(response.headers.get('x-audio-duration') || 0),
+      };
+    } catch (error) {
+      console.error("Error calling backend for voiceover:", error);
+      throw error;
+    }
+  }
 }
 
 export const geminiService = new GeminiService();
@@ -103,6 +146,6 @@ export const geminiService = new GeminiService();
 export const generateContentIdeas = (topic: string) => geminiService.generateContentIdeas(topic);
 export const generateScript = (topic: string, duration: number) => geminiService.generateScript(topic, duration / 60);
 export const generateScriptWithGoogleSearch = (topic: string, title: string, outline: string, duration: number) => geminiService.generateScript(`${topic} - ${title} - ${outline}`, duration / 60);
-export const generateNarration = (script: string, voice: string) => geminiService.generateVoiceover(script);
+export const generateNarration = (script: string, voice: string) => geminiService.generateVoiceover(script, voice);
 export const generateImagePrompts = (script: string, duration: number) => geminiService.generateImagePrompts(script);
 export const generateVeoVideo = (prompt: string) => geminiService.generateVeoVideo(prompt);
