@@ -1,6 +1,6 @@
 
-import { Controller, Post, Body, Res, UseGuards, Inject, forwardRef } from '@nestjs/common';
-import { AiService, ImageOptions } from './ai.service';
+import { Controller, Post, Body, Res, UseGuards, Inject, forwardRef, Headers } from '@nestjs/common';
+import { AiService, ImageOptions, UserApiKeys } from './ai.service';
 import { VideoService } from '../video/video.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { Response } from 'express';
@@ -14,33 +14,59 @@ export class AiController {
     private videoService: VideoService,
   ) {}
 
+  private getUserApiKeys(headers: Record<string, string | string[] | undefined>): UserApiKeys {
+    const read = (name: string) => {
+      const value = headers[name];
+      return Array.isArray(value) ? value[0] : value;
+    };
+
+    return {
+      geminiApiKey: read('x-user-gemini-api-key'),
+      openRouterApiKey: read('x-user-openrouter-api-key'),
+      hfTokens: read('x-user-hf-tokens'),
+    };
+  }
+
   @Post('script')
-  async generateScript(@Body() { topic, durationMinutes }: { topic: string; durationMinutes?: number }) {
-    const text = await this.aiService.generateScript(topic, durationMinutes);
+  async generateScript(
+    @Body() { topic, durationMinutes }: { topic: string; durationMinutes?: number },
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    const text = await this.aiService.generateScript(topic, durationMinutes, this.getUserApiKeys(headers));
     return { text };
   }
 
   @Post('ideas')
-  generateIdeas(@Body() { topic }: { topic: string }) {
-    return this.aiService.generateContentIdeas(topic);
+  generateIdeas(
+    @Body() { topic }: { topic: string },
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.aiService.generateContentIdeas(topic, this.getUserApiKeys(headers));
   }
 
   @Post('image-prompts')
-  generateImagePrompts(@Body() { script }: { script: string }) {
-    return this.aiService.generateImagePrompts(script);
+  generateImagePrompts(
+    @Body() { script }: { script: string },
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.aiService.generateImagePrompts(script, this.getUserApiKeys(headers));
   }
 
   @Post('image')
-  async generateImage(@Body() { prompt, options }: { prompt: string; options?: ImageOptions }) {
-    return this.aiService.generateSingleImage(prompt, options);
+  async generateImage(
+    @Body() { prompt, options }: { prompt: string; options?: ImageOptions },
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    return this.aiService.generateSingleImage(prompt, options, this.getUserApiKeys(headers));
   }
 
   @Post('voiceover')
   async generateVoiceover(
     @Body() { script }: { script: string; voice?: string },
+    @Headers() headers: Record<string, string | string[] | undefined>,
     @Res() res: Response,
   ) {
-    const { audioBuffer, duration } = await this.aiService.generateVoiceover(script);
+    const { audioBuffer, duration } = await this.aiService.generateVoiceover(script, this.getUserApiKeys(headers));
     res.setHeader('Content-Type', 'audio/wav');
     res.setHeader('Content-Disposition', 'inline; filename="voiceover.wav"');
     res.setHeader('X-Audio-Duration', String(duration));
@@ -48,8 +74,11 @@ export class AiController {
   }
 
   @Post('veo-test')
-  async testVeo(@Body() { prompt }: { prompt: string }) {
-    const videoUrl = await this.aiService.generateStandaloneVideo(prompt);
+  async testVeo(
+    @Body() { prompt }: { prompt: string },
+    @Headers() headers: Record<string, string | string[] | undefined>,
+  ) {
+    const videoUrl = await this.aiService.generateStandaloneVideo(prompt, this.getUserApiKeys(headers));
     return { videoUrl };
   }
 

@@ -15,6 +15,12 @@ interface LLMResult {
   provider: 'openrouter' | 'gemini' | 'fallback';
 }
 
+export interface UserApiKeys {
+  geminiApiKey?: string;
+  openRouterApiKey?: string;
+  hfTokens?: string;
+}
+
 export interface ImageGenerationResult {
   success: boolean;
   url?: string;
@@ -47,7 +53,11 @@ export class AiService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
-  private async callGemini(prompt: string, model = 'gemini-3-flash-preview'): Promise<string> {
+  private getFirstUserHfToken(keys?: UserApiKeys): string {
+    return keys?.hfTokens?.split(',').map(k => k.trim()).filter(Boolean)[0] || '';
+  }
+
+  private async callGemini(prompt: string, model = 'gemini-3-flash-preview', keys?: UserApiKeys): Promise<string> {
     const promptHash = crypto.createHash('md5').update(`${model}:${prompt}`).digest('hex');
     const cachePath = path.join(this.cacheDir, `llm_${promptHash}.txt`);
 
@@ -60,7 +70,7 @@ export class AiService {
     const maxKeys = 5;
 
     while (attempts < maxKeys) {
-      const key = this.geminiKeyManager.getCurrentKey();
+      const key = keys?.geminiApiKey || this.geminiKeyManager.getCurrentKey();
       if (!key) throw new Error('GEMINI_API_KEY not set');
 
       try {
@@ -78,7 +88,7 @@ export class AiService {
           this.logger.warn(`Gemini LLM quota exceeded. Waiting ${backoffDelay}ms before rotating key.`);
           await this.sleep(backoffDelay);
 
-          if (this.geminiKeyManager.rotate()) {
+          if (!keys?.geminiApiKey && this.geminiKeyManager.rotate()) {
             attempts++;
             continue;
           }
@@ -90,10 +100,10 @@ export class AiService {
     throw new Error('All Gemini keys exhausted for LLM');
   }
 
-  async generate(prompt: string, model?: string): Promise<LLMResult> {
+  async generate(prompt: string, model?: string, keys?: UserApiKeys): Promise<LLMResult> {
     try {
       this.logger.log(`LLM -> ${model || 'gemini-3-flash-preview'}`);
-      const text = await this.callGemini(prompt, model);
+      const text = await this.callGemini(prompt, model, keys);
       return { text, provider: 'gemini' };
     } catch (e: any) {
       this.logger.warn(`Gemini failed: ${e.message}`);
@@ -101,7 +111,7 @@ export class AiService {
     }
   }
 
-  async generateSingleImage(prompt: string, options?: ImageOptions): Promise<ImageGenerationResult> {
+  async generateSingleImage(prompt: string, options?: ImageOptions, keys?: UserApiKeys): Promise<ImageGenerationResult> {
     const promptHash = crypto.createHash('md5').update(prompt).digest('hex');
     const cachePath = path.join(this.cacheDir, `img_${promptHash}.png`);
 
@@ -116,9 +126,9 @@ export class AiService {
     }
 
     const providers = [
-      { name: 'Gemini-2.5', fn: this.generateImageGemini.bind(this) },
-      { name: 'OpenRouter', fn: this.generateImageOpenRouter.bind(this) },
-      { name: 'HuggingFace', fn: this.generateImageHuggingFace.bind(this) },
+      { name: 'Gemini-2.5', fn: (p: string, o?: ImageOptions) => this.generateImageGemini(p, o, keys) },
+      { name: 'OpenRouter', fn: (p: string, o?: ImageOptions) => this.generateImageOpenRouter(p, o, keys) },
+      { name: 'HuggingFace', fn: (p: string, o?: ImageOptions) => this.generateImageHuggingFace(p, o, keys) },
       { name: 'Pollinations', fn: this.generateImagePollinations.bind(this) },
     ];
 
@@ -139,14 +149,15 @@ export class AiService {
     return { success: true, url: finalUrl, provider: 'Pollinations-Fallback', timestamp: new Date().toISOString() };
   }
 
-  private async generateImageOpenRouter(prompt: string, options?: ImageOptions): Promise<string | null> {
-    if (!this.openRouterKey) return null;
+  private async generateImageOpenRouter(prompt: string, options?: ImageOptions, keys?: UserApiKeys): Promise<string | null> {
+    const openRouterKey = keys?.openRouterApiKey || this.openRouterKey;
+    if (!openRouterKey) return null;
 
     try {
       const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${this.openRouterKey}`,
+          Authorization: `Bearer ${openRouterKey}`,
           'Content-Type': 'application/json',
           'HTTP-Referer': 'https://github.com/EngThi/VideoLM',
           'X-Title': 'VideoLM',
@@ -173,12 +184,12 @@ export class AiService {
     }
   }
 
-  private async generateImageHuggingFace(prompt: string, options?: ImageOptions): Promise<string | null> {
+  private async generateImageHuggingFace(prompt: string, options?: ImageOptions, keys?: UserApiKeys): Promise<string | null> {
     let attempts = 0;
     const maxKeys = 5;
 
     while (attempts < maxKeys) {
-      const token = this.hfKeyManager.getCurrentKey();
+      const token = this.getFirstUserHfToken(keys) || this.hfKeyManager.getCurrentKey();
       if (!token) return null;
 
       try {
@@ -194,7 +205,7 @@ export class AiService {
         return `data:image/png;base64,${buffer.toString('base64')}`;
       } catch (error: any) {
         this.logger.warn(`HF token failed: ${error.message}`);
-        this.hfKeyManager.rotate();
+        if (!keys?.hfTokens) this.hfKeyManager.rotate();
         attempts++;
       }
     }
@@ -209,8 +220,8 @@ export class AiService {
     return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=${width}&height=${height}&nologo=true&seed=${seed}&model=turbo`;
   }
 
-  private async generateImageGemini(prompt: string, options?: ImageOptions): Promise<string | null> {
-    const key = this.geminiKeyManager.getCurrentKey();
+  private async generateImageGemini(prompt: string, options?: ImageOptions, keys?: UserApiKeys): Promise<string | null> {
+    const key = keys?.geminiApiKey || this.geminiKeyManager.getCurrentKey();
     if (!key) return null;
 
     try {
@@ -245,9 +256,9 @@ export class AiService {
     }
   }
 
-  async generateContentIdeas(topic: string): Promise<any[]> {
+  async generateContentIdeas(topic: string, keys?: UserApiKeys): Promise<any[]> {
     const prompt = `Generate 3 catchy YouTube video ideas for: "${topic}". Return JSON: [{"title": "...", "outline": "..."}]`;
-    const { text } = await this.generate(prompt);
+    const { text } = await this.generate(prompt, undefined, keys);
     try {
       return JSON.parse(text.replace(/```json|```/g, '').trim());
     } catch {
@@ -255,13 +266,13 @@ export class AiService {
     }
   }
 
-  async generateScript(topic: string, durationMinutes = 3): Promise<string> {
+  async generateScript(topic: string, durationMinutes = 3, keys?: UserApiKeys): Promise<string> {
     const prompt = `Write a ${durationMinutes}-minute factual YouTube script for: "${topic}". Return ONLY script text.`;
-    const { text } = await this.generate(prompt);
+    const { text } = await this.generate(prompt, undefined, keys);
     return text;
   }
 
-  async generateStoryboardFromResearch(topic: string, sources: string[]): Promise<string[]> {
+  async generateStoryboardFromResearch(topic: string, sources: string[], keys?: UserApiKeys): Promise<string[]> {
     this.logger.log(`Generating visual storyboard for research topic: ${topic}`);
 
     const prompt = `
@@ -274,7 +285,7 @@ export class AiService {
       Format: Return ONLY a JSON array of strings.
     `;
 
-    const { text } = await this.generate(prompt);
+    const { text } = await this.generate(prompt, undefined, keys);
 
     try {
       const cleaned = text.replace(/```json|```/g, '').trim();
@@ -290,9 +301,9 @@ export class AiService {
     }
   }
 
-  async generateImagePrompts(script: string): Promise<string[]> {
+  async generateImagePrompts(script: string, keys?: UserApiKeys): Promise<string[]> {
     const prompt = `Based on this script, generate exactly 5 cinematic image prompts as a JSON array of strings. SCRIPT: ${script}`;
-    const { text } = await this.generate(prompt);
+    const { text } = await this.generate(prompt, undefined, keys);
     try {
       return JSON.parse(text.replace(/```json|```/g, '').trim()).slice(0, 5);
     } catch {
@@ -300,18 +311,18 @@ export class AiService {
     }
   }
 
-  async generateImages(prompts: string[]): Promise<string[]> {
+  async generateImages(prompts: string[], keys?: UserApiKeys): Promise<string[]> {
     this.logger.log(`Generating batch of ${prompts.length} images`);
     const urls: string[] = [];
     for (const prompt of prompts) {
-      const res = await this.generateSingleImage(prompt);
+      const res = await this.generateSingleImage(prompt, undefined, keys);
       if (res.url) urls.push(res.url);
       await new Promise(r => setTimeout(r, 1000));
     }
     return urls;
   }
 
-  async generateVoiceover(script: string): Promise<{ audioBuffer: Buffer; duration: number }> {
+  async generateVoiceover(script: string, keys?: UserApiKeys): Promise<{ audioBuffer: Buffer; duration: number }> {
     const scriptHash = crypto.createHash('md5').update(script).digest('hex');
     const cachePath = path.join(this.cacheDir, `tts_${scriptHash}.wav`);
 
@@ -325,7 +336,7 @@ export class AiService {
     const maxKeys = 5;
 
     while (attempts < maxKeys) {
-      const key = this.geminiKeyManager.getCurrentKey();
+      const key = keys?.geminiApiKey || this.geminiKeyManager.getCurrentKey();
       if (!key) throw new Error('GEMINI_API_KEY not set');
 
       try {
@@ -360,7 +371,7 @@ export class AiService {
       } catch (e: any) {
         if (e.message?.includes('429') || e.message?.includes('RESOURCE_EXHAUSTED')) {
           this.logger.warn(`Gemini TTS quota exceeded for key ${attempts + 1}. Rotating.`);
-          if (this.geminiKeyManager.rotate()) {
+          if (!keys?.geminiApiKey && this.geminiKeyManager.rotate()) {
             attempts++;
             continue;
           }
@@ -382,8 +393,8 @@ export class AiService {
     );
   }
 
-  async generateStandaloneVideo(prompt: string): Promise<string> {
-    const key = this.geminiKeyManager.getCurrentKey();
+  async generateStandaloneVideo(prompt: string, keys?: UserApiKeys): Promise<string> {
+    const key = keys?.geminiApiKey || this.geminiKeyManager.getCurrentKey();
     if (!key) throw new Error('GEMINI_API_KEY not set');
 
     try {

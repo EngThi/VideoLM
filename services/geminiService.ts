@@ -1,6 +1,7 @@
 
 import type { ContentIdea, ScriptResult } from '../types';
 import { authService } from './authService';
+import { clientSettingsService } from './clientSettingsService';
 
 class GeminiService {
   private async parseResponse(response: Response): Promise<any> {
@@ -28,7 +29,8 @@ class GeminiService {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          ...authService.getAuthHeader()
+          ...authService.getAuthHeader(),
+          ...clientSettingsService.getApiKeyHeaders(),
         },
         body: JSON.stringify({ topic }),
       });
@@ -50,7 +52,8 @@ class GeminiService {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          ...authService.getAuthHeader()
+          ...authService.getAuthHeader(),
+          ...clientSettingsService.getApiKeyHeaders(),
         },
         body: JSON.stringify({ topic, durationMinutes }),
       });
@@ -77,7 +80,8 @@ class GeminiService {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          ...authService.getAuthHeader()
+          ...authService.getAuthHeader(),
+          ...clientSettingsService.getApiKeyHeaders(),
         },
         body: JSON.stringify({ script }),
       });
@@ -99,7 +103,8 @@ class GeminiService {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          ...authService.getAuthHeader()
+          ...authService.getAuthHeader(),
+          ...clientSettingsService.getApiKeyHeaders(),
         },
         body: JSON.stringify({ prompt }),
       });
@@ -119,7 +124,8 @@ class GeminiService {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...authService.getAuthHeader()
+          ...authService.getAuthHeader(),
+          ...clientSettingsService.getApiKeyHeaders(),
         },
         body: JSON.stringify({ script, voice }),
       });

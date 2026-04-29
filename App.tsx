@@ -5,6 +5,7 @@ import { StatusDisplay } from './components/StatusDisplay';
 import { ResultView } from './components/ResultView';
 import { IdeaSelector } from './components/IdeaSelector';
 import { ResearchDashboard } from './components/ResearchDashboard';
+import { SettingsPage } from './components/SettingsPage';
 import type { VideoConfig, PipelineStage, VideoResult, ContentIdea, ScriptResult, GeneratedImage } from './types';
 import { PIPELINE_STAGES } from './constants';
 import { generateContentIdeas, generateScriptWithGoogleSearch, generateNarration, generateVeoVideo, generateImagePrompts } from './services/geminiService';
@@ -85,6 +86,7 @@ const App: React.FC = () => {
   const [scriptResult, setScriptResult] = useState<ScriptResult | null>(null);
   const [contentIdeas, setContentIdeas] = useState<ContentIdea[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [activePage, setActivePage] = useState<'workspace' | 'settings'>('workspace');
 
   // Assets state
   const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | undefined>(undefined);
@@ -558,17 +560,32 @@ const App: React.FC = () => {
             </div>
             <nav className="space-y-1">
               {workspaceNav.map((item) => (
-                <div key={item.label} className="flex items-center gap-3 rounded-md border border-transparent px-2 py-2.5 text-sm text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04]">
+                <button key={item.label} onClick={() => setActivePage('workspace')} className="flex w-full items-center gap-3 rounded-md border border-transparent px-2 py-2.5 text-left text-sm text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04]">
                   <span className={`h-2.5 w-2.5 rounded-sm ${item.accent}`} />
                   <div className="min-w-0">
                     <div className="font-bold text-white">{item.label}</div>
                     <div className="truncate text-xs text-slate-500">{item.value}</div>
                   </div>
-                </div>
+                </button>
               ))}
+              <button
+                onClick={() => setActivePage('settings')}
+                className={`flex w-full items-center gap-3 rounded-md border px-2 py-2.5 text-left text-sm transition ${
+                  activePage === 'settings' ? 'border-[#338eda]/40 bg-[#338eda]/10 text-white' : 'border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.04]'
+                }`}
+              >
+                <span className="h-2.5 w-2.5 rounded-sm bg-[#338eda]" />
+                <div className="min-w-0">
+                  <div className="font-bold text-white">Settings</div>
+                  <div className="truncate text-xs text-slate-500">API keys and defaults</div>
+                </div>
+              </button>
             </nav>
           </aside>
 
+          {activePage === 'settings' ? (
+            <SettingsPage />
+          ) : (
           <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(400px,0.92fr)_minmax(0,1.35fr)]">
             <div className="space-y-5">
               <ResearchDashboard
@@ -615,6 +632,7 @@ const App: React.FC = () => {
               )}
             </div>
           </section>
+          )}
         </main>
       )}
     </div>

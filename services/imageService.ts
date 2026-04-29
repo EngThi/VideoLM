@@ -1,5 +1,6 @@
 
 import { authService } from './authService';
+import { clientSettingsService } from './clientSettingsService';
 
 export interface ImageGenerationResult {
   success: boolean;
@@ -24,7 +25,8 @@ export async function generateImage(prompt: string, options?: ImageOptions): Pro
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        ...authService.getAuthHeader()
+        ...authService.getAuthHeader(),
+        ...clientSettingsService.getApiKeyHeaders(),
       },
       body: JSON.stringify({ prompt, options }),
     });
