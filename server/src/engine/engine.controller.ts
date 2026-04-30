@@ -200,6 +200,23 @@ export class EngineController {
     };
   }
 
+  @Get('notebooklm/video')
+  describeNotebookLMVideoEndpoint() {
+    return {
+      status: 'ok',
+      message: 'Use POST multipart/form-data on this endpoint to submit a NotebookLM video job.',
+      endpoint: this.manifest().publicEndpoints.engineNotebookLMVideo,
+      exampleCurl: [
+        'curl -X POST',
+        `${PUBLIC_BASE_URL}/api/engine/notebooklm/video`,
+        '-F "projectId=engine_hackclub_demo"',
+        '-F "theme=Hack Club community"',
+        '-F "urls=https://hackclub.com/"',
+        '-F "style=paper_craft"',
+      ].join(' '),
+    };
+  }
+
   @Post('notebooklm/video')
   @UseInterceptors(FilesInterceptor('assets', 12, {
     storage: diskStorage({

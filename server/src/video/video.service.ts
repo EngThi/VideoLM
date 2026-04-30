@@ -12,6 +12,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
 const execAsync = promisify(exec);
+const RENDER_TIMEOUT_MS = 30 * 60 * 1000;
 
 @Injectable()
 export class VideoService {
@@ -98,7 +99,7 @@ export class VideoService {
           'crop=1280:720',
           `zoompan=z='min(zoom+0.0015,1.5)':d=${Math.ceil(duration * 25)}:s=1280x720:fps=25`
         ])
-        .outputOptions(['-c:v libx264', '-t', duration.toFixed(3), '-pix_fmt yuv420p'])
+        .outputOptions(['-c:v libx264', '-preset ultrafast', '-t', duration.toFixed(3), '-pix_fmt yuv420p', '-threads 1'])
         .on('end', () => resolve())
         .on('error', (err) => {
             this.logger.error(`❌ FFmpeg createClip fail: ${err.message}`);
@@ -106,6 +107,58 @@ export class VideoService {
         })
         .save(outputPath);
     });
+  }
+
+  private async updateRenderState(
+    projectId: string,
+    render: Record<string, any>,
+  ) {
+    if (!projectId || projectId === 'dev-session') return;
+    const service = this.projectsService as any;
+    if (typeof service.updateMetadata !== 'function') return;
+
+    try {
+      await service.updateMetadata(projectId, {
+        render: {
+          ...render,
+          updatedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      this.logger.warn(`Failed to update render metadata for ${projectId}: ${error.message}`);
+    }
+  }
+
+  private async renderImagePathClips(
+    tempDir: string,
+    imagePaths: string[],
+    totalDuration: number,
+    projectId: string,
+  ): Promise<string[]> {
+    const durationPerImage = totalDuration / imagePaths.length;
+    const clipPaths: string[] = [];
+
+    for (let i = 0; i < imagePaths.length; i++) {
+      const clipPath = path.join(tempDir, `clip_${i}.mp4`);
+      await this.updateRenderState(projectId, {
+        stage: 'rendering_clips',
+        progress: Math.round((i / imagePaths.length) * 45),
+        currentFrame: null,
+        currentClip: i + 1,
+        totalClips: imagePaths.length,
+      });
+      this.videoGateway.broadcastProgress(projectId, Math.round((i / imagePaths.length) * 45), 'rendering_clips');
+      await this.createClip(imagePaths[i], clipPath, durationPerImage);
+      clipPaths.push(clipPath);
+    }
+
+    await this.updateRenderState(projectId, {
+      stage: 'clips_ready',
+      progress: 45,
+      currentClip: imagePaths.length,
+      totalClips: imagePaths.length,
+    });
+    return clipPaths;
   }
 
   private buildComplexFilter(srtPath?: string, bgMusicPath?: string, bRollPath?: string, bRollTiming?: { start: number; end: number }, maskPath?: string) {
@@ -311,6 +364,17 @@ export class VideoService {
     const finalFileName = `${projectId || 'dev'}_${jobId}.mp4`;
     const videoUrl = `/videos/${finalFileName}`;
 
+    if (projectId !== 'dev-session') {
+      await this.projectsService.updateStatus(projectId, 'queued', videoUrl);
+      await this.updateRenderState(projectId, {
+        stage: 'queued',
+        progress: 0,
+        imageCount: imagePaths.length,
+        audioBytes: audioBuffer.length,
+        estimatedDuration: inputDuration || null,
+      });
+    }
+
     await this.renderQueue.add('assemble', {
         audioPath,
         imagePaths,
@@ -321,8 +385,7 @@ export class VideoService {
         externalTempDir: jobDir,
         projectId
     }, {
-        attempts: 5,
-        backoff: { type: 'exponential', delay: 5000 },
+        attempts: 1,
         removeOnComplete: true,
         removeOnFail: false
     });
@@ -353,7 +416,15 @@ export class VideoService {
     const finalPath = path.join(videosDir, finalFileName);
     const videoUrl = `/videos/${finalFileName}`;
 
-    if (projectId !== 'dev-session') await this.projectsService.updateStatus(projectId, 'processing');
+    if (projectId !== 'dev-session') {
+      await this.projectsService.updateStatus(projectId, 'processing', videoUrl);
+      await this.updateRenderState(projectId, {
+        stage: 'preparing',
+        progress: 1,
+        imageCount: imagePaths.length,
+        startedAt: new Date().toISOString(),
+      });
+    }
 
     // Inicializa maskPath (Absolute Cinema 200%)
     let maskPath: string | undefined;
@@ -371,6 +442,12 @@ export class VideoService {
             totalDuration = inputDuration > 0 ? inputDuration : 10; // Mínimo de 10s
         }
         this.logger.log(`📏 Total Video Duration: ${totalDuration.toFixed(2)}s`);
+        await this.updateRenderState(projectId, {
+          stage: 'probing_audio',
+          progress: 3,
+          duration: totalDuration,
+          imageCount: imagePaths.length,
+        });
 
         let srtPath: string | undefined;
         let bRollTiming: { start: number; end: number } | undefined;
@@ -392,8 +469,7 @@ export class VideoService {
             }
         }
 
-        const pseudoImageFiles: any[] = imagePaths.map(p => ({ buffer: fs.readFileSync(p), originalname: p }));
-        const clipPaths = await this.renderAllClips(tempDir, pseudoImageFiles, totalDuration);
+        const clipPaths = await this.renderImagePathClips(tempDir, imagePaths, totalDuration, projectId);
         const concatListPath = path.join(tempDir, 'concat_list.txt');
         fs.writeFileSync(concatListPath, clipPaths.map(p => `file '${p}'`).join('\n'));
 const { filterComplex, videoLabel, audioLabel } = this.buildComplexFilter(srtPath, bgMusicPath, bRollPath, bRollTiming, maskPath);
@@ -416,15 +492,84 @@ if (filterComplex.length > 0) command.complexFilter(filterComplex);
         if (filterComplex.length > 0) outputOptions.push(`-map ${videoLabel}`, `-map ${audioLabel}`);
         else outputOptions.push('-map 0:v', '-map 1:a');
 
+        const ffmpegLogPath = path.join(tempDir, 'ffmpeg.log');
+        let lastProgressUpdate = 0;
+        let settled = false;
+        const timeout = setTimeout(async () => {
+          if (settled) return;
+          const message = `FFmpeg render timed out after ${Math.round(RENDER_TIMEOUT_MS / 60000)} minutes`;
+          this.logger.error(`🚨 ${message} for ${projectId}`);
+          try { command.kill('SIGKILL'); } catch {}
+          if (projectId !== 'dev-session') {
+            await this.projectsService.updateStatus(projectId, 'error', videoUrl, message);
+            await this.updateRenderState(projectId, {
+              stage: 'failed',
+              progress: 0,
+              error: message,
+              logPath: ffmpegLogPath,
+            });
+          }
+          reject(new Error(message));
+        }, RENDER_TIMEOUT_MS);
+
+        await this.updateRenderState(projectId, {
+          stage: 'ffmpeg_render',
+          progress: 50,
+          duration: totalDuration,
+          logPath: ffmpegLogPath,
+        });
+
         command.outputOptions(outputOptions)
-          .on('end', () => {
-            if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'completed', videoUrl);
+          .on('stderr', (line) => {
+            try { fs.appendFileSync(ffmpegLogPath, `${line}\n`); } catch {}
+          })
+          .on('progress', (progress) => {
+            const now = Date.now();
+            if (now - lastProgressUpdate < 2000) return;
+            lastProgressUpdate = now;
+            const percent = typeof progress.percent === 'number'
+              ? Math.min(98, Math.max(50, Math.round(50 + progress.percent * 0.48)))
+              : 50;
+            this.updateRenderState(projectId, {
+              stage: 'ffmpeg_render',
+              progress: percent,
+              currentFrame: progress.frames ?? null,
+              timemark: progress.timemark ?? null,
+              duration: totalDuration,
+              logPath: ffmpegLogPath,
+            });
+            this.videoGateway.broadcastProgress(projectId, percent, 'ffmpeg_render');
+          })
+          .on('end', async () => {
+            settled = true;
+            clearTimeout(timeout);
+            if (projectId !== 'dev-session') {
+              await this.projectsService.updateStatus(projectId, 'completed', videoUrl);
+              await this.updateRenderState(projectId, {
+                stage: 'completed',
+                progress: 100,
+                currentFrame: null,
+                videoUrl,
+                completedAt: new Date().toISOString(),
+                logPath: ffmpegLogPath,
+              });
+            }
             try { fs.rmSync(tempDir, { recursive: true, force: true }); } catch (e) {}
             resolve(videoUrl);
           })
-          .on('error', (err) => {
+          .on('error', async (err) => {
+             settled = true;
+             clearTimeout(timeout);
              this.logger.error(`🚨 FFmpeg Task Error: ${err.message}`);
-             if (projectId !== 'dev-session') this.projectsService.updateStatus(projectId, 'error', undefined, err.message);
+             if (projectId !== 'dev-session') {
+               await this.projectsService.updateStatus(projectId, 'error', videoUrl, err.message);
+               await this.updateRenderState(projectId, {
+                 stage: 'failed',
+                 progress: 0,
+                 error: err.message,
+                 logPath: ffmpegLogPath,
+               });
+             }
              reject(err);
           });
 
@@ -437,6 +582,14 @@ if (filterComplex.length > 0) command.complexFilter(filterComplex);
         command.save(finalPath);
       } catch (error) {
         this.logger.error(`🚨 processAssembly Critical Error: ${error.message}`);
+        if (projectId !== 'dev-session') {
+          await this.projectsService.updateStatus(projectId, 'error', videoUrl, error.message);
+          await this.updateRenderState(projectId, {
+            stage: 'failed',
+            progress: 0,
+            error: error.message,
+          });
+        }
         reject(error);
       }
     });
@@ -489,11 +642,31 @@ if (filterComplex.length > 0) command.complexFilter(filterComplex);
 
   async getStatus(projectId: string): Promise<any> {
     const project = await this.projectsService.findOne(projectId);
+    const render = project.metadata?.render || {};
+    const statusAgeMs = Date.now() - new Date(project.updatedAt).getTime();
+    const isStale = ['queued', 'processing'].includes(project.status as string)
+      && statusAgeMs > RENDER_TIMEOUT_MS
+      && render.stage !== 'completed'
+      && render.stage !== 'failed';
+    const staleMessage = `Render exceeded ${Math.round(RENDER_TIMEOUT_MS / 60000)} minutes without completion. Submit again with the current build to receive detailed progress.`;
+
+    if (isStale && !project.error) {
+      await this.projectsService.updateStatus(projectId, 'error', project.videoPath, staleMessage);
+    }
+
     return { 
-      status: project.status, 
+      status: isStale ? 'failed' : project.status, 
+      progress: isStale ? 0 : render.progress ?? null,
+      stage: isStale ? 'stale_timeout' : render.stage ?? project.status,
+      currentFrame: render.currentFrame ?? null,
+      currentClip: render.currentClip ?? null,
+      totalClips: render.totalClips ?? null,
+      duration: render.duration ?? null,
+      updatedAt: render.updatedAt ?? project.updatedAt,
       videoUrl: project.videoPath, // HOMES Engine espera videoUrl
       videoPath: project.videoPath, 
-      error: project.error 
+      error: isStale ? (project.error || staleMessage) : project.error,
+      render
     };
   }
 
