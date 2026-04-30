@@ -92,18 +92,37 @@ export class ResearchService {
       throw new BadRequestException('Empty source URL is not allowed.');
     }
 
-    const withScheme = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed)
-      ? trimmed
-      : `https://${trimmed}`;
+    if (!trimmed.startsWith('https://')) {
+      throw new BadRequestException(`Invalid source URL: ${rawUrl}. Sources must start with https://`);
+    }
 
     try {
-      const parsed = new URL(withScheme);
-      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      const parsed = new URL(trimmed);
+      if (parsed.protocol !== 'https:') {
         throw new Error('unsupported protocol');
       }
       return parsed.toString();
     } catch {
-      throw new BadRequestException(`Invalid source URL: ${rawUrl}`);
+      throw new BadRequestException(`Invalid source URL: ${rawUrl}. Sources must be valid https:// URLs.`);
+    }
+  }
+
+  private async findOrCreateResearchProject(
+    projectId: string,
+    metadata: Record<string, any> = {},
+  ) {
+    try {
+      return await this.projectsService.findOne(projectId);
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) throw error;
+
+      this.logger.log(`Research project ${projectId} not found. Auto-creating for NotebookLM workflow.`);
+      await this.projectsService.updateMetadata(projectId, {
+        ...metadata,
+        autoCreatedForResearch: true,
+        researchProjectCreatedAt: new Date().toISOString(),
+      });
+      return this.projectsService.findOne(projectId);
     }
   }
 
@@ -181,7 +200,10 @@ export class ResearchService {
     style: string = 'classic',
     options: { liveResearch?: boolean; notebookId?: string; profileId?: string } = {},
   ) {
-    const project = await this.projectsService.findOne(projectId);
+    const project = await this.findOrCreateResearchProject(projectId, {
+      notebookId: options.notebookId,
+      nlmProfileId: options.profileId,
+    });
     
     if ((!project.sources || project.sources.length === 0) && !options.notebookId) {
       throw new NotFoundException('No sources found for this project. Add URLs first.');

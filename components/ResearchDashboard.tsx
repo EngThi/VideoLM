@@ -21,6 +21,7 @@ const NLM_VIDEO_STYLES = [
 
 export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId, onResearchComplete }) => {
   const [urls, setUrls] = useState<string>('');
+  const [urlError, setUrlError] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'researching' | 'storyboarding' | 'assembling' | 'completed' | 'error'>('idle');
   const [log, setLog] = useState<string[]>([]);
   const [style, setStyle] = useState<string>('watercolor');
@@ -33,6 +34,31 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
 
   const addLog = (msg: string) => setLog(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
   const isBusy = status !== 'idle' && status !== 'error' && status !== 'completed';
+  const canStart = (status === 'idle' || status === 'error') && !urlError;
+
+  const parseUrlList = (value: string): string[] => {
+    return Array.from(new Set(value.split('\n').map(u => u.trim()).filter(Boolean)));
+  };
+
+  const validateHttpsUrls = (value: string): string => {
+    const urlList = parseUrlList(value);
+    const invalid = urlList.filter((url) => {
+      if (!url.startsWith('https://')) return true;
+      try {
+        return new URL(url).protocol !== 'https:';
+      } catch {
+        return true;
+      }
+    });
+
+    if (invalid.length === 0) return '';
+    return `Only valid https:// URLs are accepted. Fix: ${invalid.slice(0, 3).join(', ')}`;
+  };
+
+  const handleUrlChange = (value: string) => {
+    setUrls(value);
+    setUrlError(validateHttpsUrls(value));
+  };
 
   const normalizeList = (payload: any): any[] => {
     if (Array.isArray(payload)) return payload;
@@ -100,13 +126,20 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
 
   const handleStartResearch = async () => {
     if (!urls.trim() && !selectedNotebookId && !sourceFiles?.length) return alert('Insira uma URL, selecione um notebook ou envie arquivos.');
+
+    const validationError = validateHttpsUrls(urls);
+    if (validationError) {
+      setUrlError(validationError);
+      addLog(`🚨 URL VALIDATION: ${validationError}`);
+      return;
+    }
     
     setStatus('researching');
     addLog('🚀 [ENGINE] Gemini 3 Flash Preview activated.');
     addLog('📡 [RESEARCH] Deep Dive cycle starting...');
 
     try {
-      const urlList = urls.split('\n').filter(u => u.trim());
+      const urlList = parseUrlList(urls);
       
       // 1. Injetar Fontes
       if (urlList.length > 0) {
@@ -155,7 +188,8 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
       // 3. Polling de Download
       addLog('⏳ Monitoring Google Studio render worker...');
       let isDone = false;
-      while (!isDone) {
+      const maxPolls = 60;
+      for (let pollCount = 1; pollCount <= maxPolls && !isDone; pollCount += 1) {
         await new Promise(r => setTimeout(r, 20000));
         const res = await fetch(`/api/research/${projectId}/download`, {
           headers: authService.getAuthHeader(),
@@ -173,8 +207,12 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
         } else if (data.status === 'error') {
           throw new Error(data.message);
         } else {
-          addLog('📡 Status: Rendering Cinematic Frames...');
+          addLog(`📡 Status: Rendering Cinematic Frames... (${pollCount}/${maxPolls})`);
         }
+      }
+
+      if (!isDone) {
+        throw new Error('NotebookLM is still rendering after 20 minutes. The job may still finish in NotebookLM; try Download again later or use a smaller notebook/source set.');
       }
 
     } catch (e: any) {
@@ -279,11 +317,16 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
 https://example.com/source"
                 className="h-32 w-full resize-none rounded-lg border border-white/10 bg-black/25 p-4 font-mono text-sm text-slate-100 outline-none transition placeholder:text-slate-700 focus:border-emerald-300/50 focus:ring-4 focus:ring-emerald-300/5"
                 value={urls}
-                onChange={(e) => setUrls(e.target.value)}
+                onChange={(e) => handleUrlChange(e.target.value)}
                 disabled={status !== 'idle' && status !== 'error'}
             />
             <div className="absolute bottom-3 right-4 text-[10px] font-mono uppercase tracking-[0.14em] text-slate-600">URL sources</div>
         </div>
+        {urlError ? (
+            <div className="rounded-md border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
+                {urlError}
+            </div>
+        ) : null}
 
         <div className="rounded-lg border border-white/10 bg-black/25 p-4">
             <div className="flex items-center justify-between gap-3 mb-2">
@@ -310,9 +353,9 @@ https://example.com/source"
 
         <button
             onClick={handleStartResearch}
-            disabled={status !== 'idle' && status !== 'error'}
+            disabled={!canStart}
             className={`w-full rounded-lg py-4 text-sm font-black uppercase tracking-[0.14em] transition active:scale-[0.99] ${
-            status === 'idle' || status === 'error' 
+            canStart
             ? 'bg-[#33d6a6] text-black hover:bg-[#62e4bd]'
             : 'bg-white/[0.04] text-slate-500 cursor-not-allowed border border-white/10'
             }`}
