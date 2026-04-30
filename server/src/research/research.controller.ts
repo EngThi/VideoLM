@@ -72,11 +72,12 @@ export class ResearchController {
     @Param('projectId') projectId: string,
     @Body('type') type: 'audio' | 'video' = 'audio',
     @Body('style') style: string = 'classic',
+    @Body('stylePrompt') stylePrompt?: string,
     @Body('liveResearch') liveResearch: boolean = false,
     @Body('notebookId') notebookId?: string,
     @Body('profileId') profileId?: string,
   ) {
-    return this.researchService.startNotebookLMResearch(projectId, type, style, { liveResearch, notebookId, profileId });
+    return this.researchService.startNotebookLMResearch(projectId, type, style, { liveResearch, notebookId, profileId, stylePrompt });
   }
 
   @Post(':projectId/source-files')

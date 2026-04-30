@@ -138,9 +138,10 @@ export class NotebookLMEngine {
     return this.execute(`create audio ${this.shellQuote(notebookId)} --confirm${this.profileFlag(profile)}`);
   }
 
-  async createVideoOverview(notebookId: string, style: string = 'classic', profile?: string) {
+  async createVideoOverview(notebookId: string, style: string = 'classic', profile?: string, stylePrompt?: string) {
     this.logger.log(`Solicitando Video Overview (${style}) para: ${notebookId}`);
-    return this.execute(`create video ${this.shellQuote(notebookId)} --style ${this.shellQuote(style)} --confirm${this.profileFlag(profile)}`);
+    const promptFlag = stylePrompt ? ` --style-prompt ${this.shellQuote(stylePrompt)}` : '';
+    return this.execute(`create video ${this.shellQuote(notebookId)} --style ${this.shellQuote(style)}${promptFlag} --confirm${this.profileFlag(profile)}`);
   }
 
   async createInfographic(notebookId: string, style: string = 'professional', orientation: string = 'portrait', profile?: string) {

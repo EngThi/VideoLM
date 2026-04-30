@@ -145,6 +145,7 @@ export class EngineController {
           body: {
             type: 'video',
             style: ['auto_select', 'classic', 'whiteboard', 'watercolor', 'anime', 'kawaii', 'retro_print', 'heritage', 'paper_craft', 'custom'],
+            stylePrompt: 'required only when style is custom',
             liveResearch: false,
             notebookId: 'optional existing notebook id',
             profileId: 'optional profile id',

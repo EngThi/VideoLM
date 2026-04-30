@@ -126,13 +126,18 @@ export class ResearchService {
     }
   }
 
-  private normalizeNotebookLMVideoStyle(style: string): string {
-    if (style === 'custom') {
-      this.logger.warn('NotebookLM custom style requires a style prompt. Falling back to classic.');
-      return 'classic';
+  private resolveNotebookLMVideoStyle(style: string, stylePrompt?: string) {
+    const resolvedStyle = style || 'classic';
+    const resolvedStylePrompt = stylePrompt?.trim();
+
+    if (resolvedStyle === 'custom' && !resolvedStylePrompt) {
+      throw new BadRequestException('Custom NotebookLM style requires a stylePrompt.');
     }
 
-    return style || 'classic';
+    return {
+      style: resolvedStyle,
+      stylePrompt: resolvedStyle === 'custom' ? resolvedStylePrompt : undefined,
+    };
   }
 
   /**
@@ -207,9 +212,11 @@ export class ResearchService {
     projectId: string,
     type: 'audio' | 'video' | 'infographic' = 'audio',
     style: string = 'classic',
-    options: { liveResearch?: boolean; notebookId?: string; profileId?: string } = {},
+    options: { liveResearch?: boolean; notebookId?: string; profileId?: string; stylePrompt?: string } = {},
   ) {
-    const resolvedStyle = type === 'video' ? this.normalizeNotebookLMVideoStyle(style) : style;
+    const resolvedVideoStyle = type === 'video'
+      ? this.resolveNotebookLMVideoStyle(style, options.stylePrompt)
+      : { style, stylePrompt: undefined };
     const project = await this.findOrCreateResearchProject(projectId, {
       notebookId: options.notebookId,
       nlmProfileId: options.profileId,
@@ -262,13 +269,18 @@ export class ResearchService {
       }
 
       // 3. Disparar a geração (Deep Dive)
-      this.logger.log(`Triggering ${type} overview (Style: ${resolvedStyle}) for notebook ${notebookId}`);
+      this.logger.log(`Triggering ${type} overview (Style: ${resolvedVideoStyle.style}) for notebook ${notebookId}`);
       
       if (type === 'video') {
-        return this.notebookLM.createVideoOverview(notebookId, resolvedStyle, profileId);
+        return this.notebookLM.createVideoOverview(
+          notebookId,
+          resolvedVideoStyle.style,
+          profileId,
+          resolvedVideoStyle.stylePrompt,
+        );
       }
       if (type === 'infographic') {
-        return this.notebookLM.createInfographic(notebookId, resolvedStyle, undefined, profileId);
+        return this.notebookLM.createInfographic(notebookId, resolvedVideoStyle.style, undefined, profileId);
       }
       return this.notebookLM.createAudioOverview(notebookId, profileId);
 

@@ -18,6 +18,8 @@ const NLM_VIDEO_STYLES = [
   { value: 'paper_craft', label: 'Paper Craft' },
 ];
 
+const CUSTOM_STYLE = { value: 'custom', label: 'Custom' };
+
 const researchSteps = [
   {
     title: '1. Choose sources',
@@ -25,7 +27,7 @@ const researchSteps = [
   },
   {
     title: '2. Pick a style',
-    body: 'The style is sent to NotebookLM video overview generation. Auto lets NotebookLM choose.',
+    body: 'The style is sent to NotebookLM video overview generation. Custom opens a prompt field.',
   },
   {
     title: '3. Start render',
@@ -39,6 +41,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
   const [status, setStatus] = useState<'idle' | 'researching' | 'storyboarding' | 'assembling' | 'completed' | 'error'>('idle');
   const [log, setLog] = useState<string[]>([]);
   const [style, setStyle] = useState<string>('watercolor');
+  const [customStylePrompt, setCustomStylePrompt] = useState<string>('');
   const [profileId, setProfileId] = useState<string>('default');
   const [cookiesJson, setCookiesJson] = useState<string>('');
   const [notebooks, setNotebooks] = useState<any[]>([]);
@@ -48,7 +51,8 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
 
   const addLog = (msg: string) => setLog(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
   const isBusy = status !== 'idle' && status !== 'error' && status !== 'completed';
-  const canStart = (status === 'idle' || status === 'error') && !urlError;
+  const isCustomStyleMissingPrompt = style === 'custom' && !customStylePrompt.trim();
+  const canStart = (status === 'idle' || status === 'error') && !urlError && !isCustomStyleMissingPrompt;
 
   const parseUrlList = (value: string): string[] => {
     return Array.from(new Set(value.split('\n').map(u => u.trim()).filter(Boolean)));
@@ -153,6 +157,11 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
       addLog(`🚨 URL VALIDATION: ${validationError}`);
       return;
     }
+
+    if (style === 'custom' && !customStylePrompt.trim()) {
+      addLog('🚨 STYLE VALIDATION: Custom style needs a short style prompt.');
+      return;
+    }
     
     setStatus('researching');
     addLog('🚀 [ENGINE] Gemini 3 Flash Preview activated.');
@@ -198,7 +207,13 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
       const triggerRes = await fetch(`/api/research/${projectId}/trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authService.getAuthHeader() },
-        body: JSON.stringify({ type: 'video', style, notebookId: selectedNotebookId || undefined, profileId }),
+        body: JSON.stringify({
+          type: 'video',
+          style,
+          stylePrompt: style === 'custom' ? customStylePrompt.trim() : undefined,
+          notebookId: selectedNotebookId || undefined,
+          profileId,
+        }),
       });
       if (!triggerRes.ok) {
         const error = await triggerRes.json().catch(() => ({}));
@@ -276,7 +291,33 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
                       {label}
                   </button>
               ))}
+              <button
+                  onClick={() => setStyle(CUSTOM_STYLE.value)}
+                  className={`min-h-8 w-full rounded-md border px-2 py-1 text-center text-[10px] font-bold uppercase leading-tight tracking-[0.04em] transition ${
+                      style === CUSTOM_STYLE.value
+                      ? 'border-[#f7c948]/70 bg-[#f7c948]/15 text-[#ffe28a]'
+                      : 'border-[#f7c948]/25 bg-[#f7c948]/[0.06] text-[#f7c948] hover:border-[#f7c948]/50 hover:bg-[#f7c948]/10'
+                  }`}
+              >
+                  {CUSTOM_STYLE.label}
+              </button>
           </div>
+          {style === 'custom' ? (
+            <div className="mt-3 rounded-md border border-[#f7c948]/20 bg-[#f7c948]/[0.06] p-2">
+              <label className="text-[9px] font-black uppercase tracking-[0.12em] text-[#f7c948]">
+                Custom prompt
+              </label>
+              <textarea
+                value={customStylePrompt}
+                onChange={(e) => setCustomStylePrompt(e.target.value)}
+                placeholder="Example: warm indie zine, hand-drawn diagrams, subtle motion, high contrast captions"
+                className="mt-2 h-20 w-full resize-none rounded-md border border-white/10 bg-black/35 p-2 text-[11px] leading-relaxed text-slate-100 outline-none placeholder:text-slate-600 focus:border-[#f7c948]/50"
+              />
+              <p className="mt-1 text-[10px] leading-relaxed text-slate-500">
+                Sent to NotebookLM as the custom style prompt.
+              </p>
+            </div>
+          ) : null}
         </div>
         </div>
       </div>
@@ -292,7 +333,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
         </div>
 
         <div className="rounded-lg border border-yellow-300/20 bg-yellow-300/10 p-3 text-xs leading-relaxed text-yellow-100">
-          Reviewer path: click <span className="font-bold">Load</span> to list NotebookLM notebooks, choose one, confirm it has sources, select a style, then start the render. New URL sources must be full `https://` links.
+          Reviewer path: click <span className="font-bold">Load</span> to list NotebookLM notebooks, choose one, confirm it has sources, select a style, then start the render. New URL sources must be full `https://` links. Custom style requires a prompt.
         </div>
 
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1.2fr]">
