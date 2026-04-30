@@ -212,7 +212,15 @@ export class ResearchService {
     projectId: string,
     type: 'audio' | 'video' | 'infographic' = 'audio',
     style: string = 'classic',
-    options: { liveResearch?: boolean; notebookId?: string; profileId?: string; stylePrompt?: string } = {},
+    options: {
+      liveResearch?: boolean;
+      notebookId?: string;
+      profileId?: string;
+      stylePrompt?: string;
+      sourceFiles?: Array<{ path: string; originalname?: string }>;
+      theme?: string;
+      title?: string;
+    } = {},
   ) {
     const resolvedVideoStyle = type === 'video'
       ? this.resolveNotebookLMVideoStyle(style, options.stylePrompt)
@@ -220,10 +228,19 @@ export class ResearchService {
     const project = await this.findOrCreateResearchProject(projectId, {
       notebookId: options.notebookId,
       nlmProfileId: options.profileId,
+      theme: options.theme,
+      title: options.title,
     });
     
-    if ((!project.sources || project.sources.length === 0) && !options.notebookId) {
+    if ((!project.sources || project.sources.length === 0) && !options.notebookId && !options.sourceFiles?.length) {
       throw new NotFoundException('No sources found for this project. Add URLs first.');
+    }
+
+    if (options.theme || options.title) {
+      await this.projectsService.updateMetadata(projectId, {
+        engineTheme: options.theme,
+        engineTitle: options.title,
+      });
     }
 
     await this.projectsService.updateStatus(projectId, 'researching');
@@ -256,6 +273,17 @@ export class ResearchService {
 
       if (submittedSources.length > 0 && addedSourceCount === 0) {
         throw new BadRequestException('No valid sources were accepted by NotebookLM. Use full http:// or https:// URLs.');
+      }
+
+      if (options.sourceFiles?.length) {
+        this.logger.log(`Feeding ${options.sourceFiles.length} file assets into notebook ${notebookId}...`);
+        for (const file of options.sourceFiles) {
+          try {
+            await this.notebookLM.addFileSource(notebookId, file.path, profileId);
+          } catch (fileErr) {
+            this.logger.warn(`Failed to add file asset ${file.originalname || file.path}, skipping: ${fileErr.message}`);
+          }
+        }
       }
 
       if (options.liveResearch) {

@@ -1,9 +1,16 @@
-import { Controller, Get } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, UploadedFiles, UseInterceptors } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import * as path from 'path';
+import * as fs from 'fs';
+import { ResearchService } from '../research/research.service';
 
 const PUBLIC_BASE_URL = process.env.PUBLIC_BASE_URL || 'https://54-162-84-165.sslip.io';
 
 @Controller('api/engine')
 export class EngineController {
+  constructor(private readonly researchService: ResearchService) {}
+
   @Get('health')
   health() {
     return {
@@ -35,6 +42,7 @@ export class EngineController {
           behavior: 'FIFO render lane for heavy video jobs',
         },
         cors: 'open',
+        engineNotebookLMVideo: true,
         maxUploadMbPerFile: 100,
         maxImagesPerRender: 100,
         maxResearchFilesPerRequest: 12,
@@ -84,6 +92,29 @@ export class EngineController {
           method: 'GET',
           path: '/api/video/music',
           url: `${PUBLIC_BASE_URL}/api/video/music`,
+        },
+        engineNotebookLMVideo: {
+          method: 'POST',
+          path: '/api/engine/notebooklm/video',
+          url: `${PUBLIC_BASE_URL}/api/engine/notebooklm/video`,
+          requestType: 'multipart/form-data',
+          fields: {
+            projectId: { type: 'string', required: false },
+            title: { type: 'string', required: false },
+            theme: { type: 'string', required: false, description: 'Free-form topic/theme stored with the job and used for liveResearch query context.' },
+            urls: { type: 'string|string[]', required: false, description: 'JSON array, newline-separated, or comma-separated https:// sources.' },
+            assets: { type: 'file[]', required: false, maxCount: 12, description: 'Documents/assets sent to NotebookLM as file sources.' },
+            style: { type: 'string', required: false, default: 'classic' },
+            stylePrompt: { type: 'string', required: false, description: 'Required when style is custom.' },
+            liveResearch: { type: 'boolean|string', required: false, default: false },
+            notebookId: { type: 'string', required: false, description: 'Use an existing NotebookLM notebook instead of creating one.' },
+            profileId: { type: 'string', required: false, default: 'default' },
+          },
+          response: {
+            projectId: 'string',
+            status: 'submitted',
+            pollUrl: `${PUBLIC_BASE_URL}/api/research/{projectId}/download`,
+          },
         },
       },
       authenticatedEndpoints: {
@@ -167,5 +198,85 @@ export class EngineController {
         'For authenticated full app assembly, login first and send Authorization: Bearer <token>.',
       ],
     };
+  }
+
+  @Post('notebooklm/video')
+  @UseInterceptors(FilesInterceptor('assets', 12, {
+    storage: diskStorage({
+      destination: (_req, _file, cb) => {
+        const uploadDir = path.join(process.cwd(), 'temp', 'engine-nlm-assets');
+        fs.mkdirSync(uploadDir, { recursive: true });
+        cb(null, uploadDir);
+      },
+      filename: (_req, file, cb) => {
+        const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-');
+        cb(null, `${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`);
+      },
+    }),
+  }))
+  async startNotebookLMVideo(
+    @UploadedFiles() assets: any[] = [],
+    @Body() body: Record<string, any>,
+  ) {
+    const projectId = body.projectId || `engine_${Date.now()}`;
+    const urls = this.parseUrlSources(body.urls);
+    const style = body.style || 'classic';
+    const profileId = body.profileId || 'default';
+    const liveResearch = this.parseBoolean(body.liveResearch);
+
+    if (!urls.length && !assets.length && !body.notebookId) {
+      throw new BadRequestException('Send at least one https:// URL, one asset file, or an existing notebookId.');
+    }
+
+    if (urls.length) {
+      await this.researchService.addSources(projectId, urls);
+    }
+
+    await this.researchService.startNotebookLMResearch(projectId, 'video', style, {
+      stylePrompt: body.stylePrompt,
+      profileId,
+      notebookId: body.notebookId,
+      liveResearch,
+      sourceFiles: assets,
+      theme: body.theme,
+      title: body.title,
+    });
+
+    return {
+      projectId,
+      status: 'submitted',
+      notebookLM: 'video',
+      pollUrl: `${PUBLIC_BASE_URL}/api/research/${projectId}/download`,
+    };
+  }
+
+  private parseUrlSources(raw: unknown): string[] {
+    if (!raw) return [];
+    if (Array.isArray(raw)) return raw.flatMap(item => this.parseUrlSources(item));
+
+    const text = String(raw).trim();
+    if (!text) return [];
+
+    if (text.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(text);
+        if (Array.isArray(parsed)) return this.parseUrlSources(parsed);
+      } catch {
+        throw new BadRequestException('urls must be a JSON array, newline-separated list, or comma-separated list.');
+      }
+    }
+
+    return Array.from(new Set(
+      text
+        .split(/[\n,]/)
+        .map(url => url.trim())
+        .filter(Boolean),
+    ));
+  }
+
+  private parseBoolean(raw: unknown): boolean {
+    if (raw === true) return true;
+    if (typeof raw === 'string') return ['1', 'true', 'yes', 'on'].includes(raw.toLowerCase());
+    return false;
   }
 }
