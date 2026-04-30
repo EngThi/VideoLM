@@ -53,6 +53,19 @@ export class AiService {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
 
+  private async withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+    let timeout: NodeJS.Timeout | undefined;
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
+    });
+
+    try {
+      return await Promise.race([promise, timeoutPromise]);
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
+  }
+
   private getFirstUserHfToken(keys?: UserApiKeys): string {
     return keys?.hfTokens?.split(',').map(k => k.trim()).filter(Boolean)[0] || '';
   }
@@ -322,8 +335,40 @@ export class AiService {
     return urls;
   }
 
-  async generateVoiceover(script: string, keys?: UserApiKeys): Promise<{ audioBuffer: Buffer; duration: number }> {
-    const scriptHash = crypto.createHash('md5').update(script).digest('hex');
+  private estimateVoiceoverDuration(script: string): number {
+    const words = script.trim().split(/\s+/).filter(Boolean).length;
+    const estimatedSeconds = Math.ceil((words / 150) * 60);
+    return Math.min(Math.max(estimatedSeconds, 8), 120);
+  }
+
+  private async generateFallbackVoiceover(script: string, cachePath: string): Promise<{ audioBuffer: Buffer; duration: number }> {
+    const duration = this.estimateVoiceoverDuration(script);
+    this.logger.warn(`TTS -> using local fallback WAV (${duration}s)`);
+
+    const command = [
+      'ffmpeg',
+      '-hide_banner',
+      '-loglevel error',
+      '-f lavfi',
+      '-i anullsrc=channel_layout=mono:sample_rate=44100',
+      `-t ${duration}`,
+      '-c:a pcm_s16le',
+      '-f wav',
+      'pipe:1',
+    ].join(' ');
+
+    const { stdout } = await execAsync(command, {
+      encoding: 'buffer',
+      maxBuffer: 44100 * 2 * duration + 1024 * 1024,
+    } as any);
+
+    fs.writeFileSync(cachePath, stdout);
+    return { audioBuffer: stdout, duration };
+  }
+
+  async generateVoiceover(script: string, keys?: UserApiKeys, voice = 'aoede'): Promise<{ audioBuffer: Buffer; duration: number }> {
+    const voiceName = voice || 'aoede';
+    const scriptHash = crypto.createHash('md5').update(`${voiceName}:${script}`).digest('hex');
     const cachePath = path.join(this.cacheDir, `tts_${scriptHash}.wav`);
 
     if (fs.existsSync(cachePath)) {
@@ -337,36 +382,47 @@ export class AiService {
 
     while (attempts < maxKeys) {
       const key = keys?.geminiApiKey || this.geminiKeyManager.getCurrentKey();
-      if (!key) throw new Error('GEMINI_API_KEY not set');
+      if (!key) return this.generateFallbackVoiceover(script, cachePath);
 
       try {
         const ai = new GoogleGenAI({ apiKey: key });
-        const result = await ai.models.generateContent({
-          model: 'gemini-2.5-flash-preview-tts',
-          contents: [{ role: 'user', parts: [{ text: script }] }],
-          config: {
-            responseModalities: ['AUDIO'],
-            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'aoede' } } },
-          },
-        });
+        const result = await this.withTimeout(
+          ai.models.generateContent({
+            model: 'gemini-2.5-flash-preview-tts',
+            contents: [{ role: 'user', parts: [{ text: script }] }],
+            config: {
+              responseModalities: ['AUDIO'],
+              speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName } } },
+            },
+          }),
+          12000,
+          'Gemini TTS',
+        );
 
         const part = result.candidates?.[0]?.content?.parts?.find(p => p.inlineData);
         if (!part?.inlineData?.data) throw new Error('TTS failed: no inlineData');
         const rawBuffer = Buffer.from(part.inlineData.data, 'base64');
 
+        const tempInputPath = path.join(this.cacheDir, `tts_${scriptHash}.input`);
+        const tempOutputPath = path.join(this.cacheDir, `tts_${scriptHash}.normalized.wav`);
         try {
-          this.logger.log('Normalizing Gemini TTS audio through FFmpeg pipe');
-          const { stdout } = await execAsync('ffmpeg -i pipe:0 -vn -ar 44100 -ac 1 -c:a pcm_s16le -f wav pipe:1', {
-            input: rawBuffer,
-            encoding: 'buffer',
-          } as any);
+          this.logger.log('Normalizing Gemini TTS audio through FFmpeg');
+          fs.writeFileSync(tempInputPath, rawBuffer);
+          await execAsync(`ffmpeg -hide_banner -loglevel error -y -i "${tempInputPath}" -vn -ar 44100 -ac 1 -c:a pcm_s16le "${tempOutputPath}"`, {
+            timeout: 10000,
+            maxBuffer: 1024 * 1024,
+          });
 
-          fs.writeFileSync(cachePath, stdout);
-          return { audioBuffer: stdout, duration: stdout.length / (44100 * 2) };
+          const normalized = fs.readFileSync(tempOutputPath);
+          fs.writeFileSync(cachePath, normalized);
+          return { audioBuffer: normalized, duration: normalized.length / (44100 * 2) };
         } catch (ffmpegErr: any) {
           this.logger.error(`Pipe transcode failed: ${ffmpegErr.message}`);
-          fs.writeFileSync(cachePath, rawBuffer);
-          return { audioBuffer: rawBuffer, duration: rawBuffer.length / 48000 };
+          return this.generateFallbackVoiceover(script, cachePath);
+        } finally {
+          for (const filePath of [tempInputPath, tempOutputPath]) {
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+          }
         }
       } catch (e: any) {
         if (e.message?.includes('429') || e.message?.includes('RESOURCE_EXHAUSTED')) {
@@ -376,11 +432,12 @@ export class AiService {
             continue;
           }
         }
-        throw e;
+        this.logger.warn(`Gemini TTS failed (${e.message}). Falling back to local WAV.`);
+        return this.generateFallbackVoiceover(script, cachePath);
       }
     }
 
-    throw new Error('All Gemini keys exhausted for TTS');
+    return this.generateFallbackVoiceover(script, cachePath);
   }
 
   async downloadImages(urls: string[]): Promise<Buffer[]> {

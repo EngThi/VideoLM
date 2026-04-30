@@ -62,11 +62,11 @@ export class AiController {
 
   @Post('voiceover')
   async generateVoiceover(
-    @Body() { script }: { script: string; voice?: string },
+    @Body() { script, voice }: { script: string; voice?: string },
     @Headers() headers: Record<string, string | string[] | undefined>,
     @Res() res: Response,
   ) {
-    const { audioBuffer, duration } = await this.aiService.generateVoiceover(script, this.getUserApiKeys(headers));
+    const { audioBuffer, duration } = await this.aiService.generateVoiceover(script, this.getUserApiKeys(headers), voice);
     res.setHeader('Content-Type', 'audio/wav');
     res.setHeader('Content-Disposition', 'inline; filename="voiceover.wav"');
     res.setHeader('X-Audio-Duration', String(duration));
