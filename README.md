@@ -1,23 +1,11 @@
 # VideoLM Factory
 
-VideoLM Factory is a full-stack video generation workspace. It combines research ingestion, NotebookLM automation, Gemini-compatible generation, FFmpeg rendering, and a queue-backed API that can be used from the web UI or from an external Engine.
+VideoLM Factory is a full-stack video generation workspace. It combines research ingestion, NotebookLM automation, Gemini-compatible generation, FFmpeg rendering, and a queue-backed API that can be used from the hosted web UI.
 
 Current reviewer URL:
 
 ```text
 https://54-162-84-165.sslip.io
-```
-
-Hosted reviewer demo:
-
-```text
-https://54-162-84-165.sslip.io/engine-demo
-```
-
-Engine contract:
-
-```text
-https://54-162-84-165.sslip.io/api/engine/manifest
 ```
 
 ## What This Repo Contains
@@ -27,14 +15,13 @@ https://54-162-84-165.sslip.io/api/engine/manifest
 - BullMQ + Redis render queue so heavy FFmpeg jobs run one at a time.
 - NotebookLM integration through [`notebooklm-mcp-cli`](https://github.com/jacob-bd/notebooklm-mcp-cli).
 - Docker Compose production stack with Caddy HTTPS reverse proxy.
-- Public no-auth demo bridge for reviewers and external Engine smoke tests.
+- Public no-auth demo bridge for reviewer smoke tests.
 
 ## Documentation
 
 - [Architecture](./docs/ARCHITECTURE.md)
 - [API Reference](./docs/API.md)
 - [NotebookLM Setup](./docs/NOTEBOOKLM_SETUP.md)
-- [Engine Integration](./docs/ENGINE_INTEGRATION.md)
 - [Deployment](./docs/DEPLOYMENT.md)
 - [Operations](./docs/OPERATIONS.md)
 - [Security Notes](./docs/SECURITY.md)
@@ -45,7 +32,6 @@ https://54-162-84-165.sslip.io/api/engine/manifest
 ```bash
 export APP_URL="https://54-162-84-165.sslip.io"
 
-curl -fsS "$APP_URL/api/engine/health"
 curl -fsS "$APP_URL/api/video/demo/health"
 ```
 
@@ -54,7 +40,7 @@ Expected response:
 ```json
 {
   "status": "ok",
-  "service": "VideoLM Engine Bridge",
+  "service": "VideoLM Demo Bridge",
   "baseUrl": "https://54-162-84-165.sslip.io",
   "timestamp": "..."
 }
@@ -66,12 +52,12 @@ If a client receives HTML or `Unexpected token '<'`, it is calling a frontend ro
 
 Start with the hosted demo instead of local setup:
 
-1. Open `https://54-162-84-165.sslip.io/engine-demo`.
-2. Play one of the pre-rendered MP4s.
-3. Click `Generate demo video` to submit a short deterministic render to the hosted queue.
+1. Open `https://54-162-84-165.sslip.io`.
+2. Use the Research Lab for NotebookLM video generation or the Factory panel for standard rendering.
+3. Use the public demo bridge only for a quick API smoke test.
 4. Watch `/api/video/:projectId/status` progress through queue and render stages.
 
-The hosted demo does not require Gemini quota, Pollinations, local FFmpeg, NotebookLM login, or local environment setup. Local installation remains available for developers who want to inspect or extend the system.
+The hosted app avoids local FFmpeg and local environment setup for reviewers. NotebookLM and AI-key setup are documented for users who want to run the full workflow themselves.
 
 ## Local Development
 
@@ -164,11 +150,9 @@ Caddy serves HTTPS on port `443` and reverse-proxies to the app container on por
 
 ## Public Demo Flow
 
-The no-auth demo bridge is intended for reviewers and external Engine integration tests.
+The no-auth demo bridge is intended for reviewer smoke tests.
 
 ```text
-GET  /engine-demo
-GET  /api/engine/manifest
 GET  /api/video/demo/health
 POST /api/video/demo/assemble
 GET  /api/video/:projectId/status
@@ -183,7 +167,7 @@ images     required JPG/PNG/WebP scene files, up to 100
 script     optional script text for captions
 bgMusic    optional background music upload
 bgMusicId  optional file name from server/data/music
-projectId  optional stable id from the external Engine
+projectId  optional stable id for polling
 ```
 
 Use [docs/API.md](./docs/API.md) for exact request and response shapes.
@@ -193,7 +177,6 @@ Use [docs/API.md](./docs/API.md) for exact request and response shapes.
 ```bash
 npm run build
 cd server && npm test -- --runInBand
-curl -fsS https://54-162-84-165.sslip.io/api/engine/manifest
 curl -fsS https://54-162-84-165.sslip.io/api/video/demo/health
 ```
 
@@ -203,7 +186,6 @@ curl -fsS https://54-162-84-165.sslip.io/api/video/demo/health
 App.tsx                         Main React shell
 components/ResearchDashboard.tsx NotebookLM research UI
 services/ffmpegService.ts        Browser-side video assembly client
-server/src/engine                Engine manifest and health endpoints
 server/src/research              NotebookLM research API
 server/src/video                 FFmpeg render API and queue bridge
 server/public/videos             Generated video files
