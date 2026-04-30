@@ -16,7 +16,6 @@ const NLM_VIDEO_STYLES = [
   { value: 'retro_print', label: 'Retro Print' },
   { value: 'heritage', label: 'Heritage' },
   { value: 'paper_craft', label: 'Paper Craft' },
-  { value: 'custom', label: 'Custom' },
 ];
 
 const researchSteps = [

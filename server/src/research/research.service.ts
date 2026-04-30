@@ -126,6 +126,15 @@ export class ResearchService {
     }
   }
 
+  private normalizeNotebookLMVideoStyle(style: string): string {
+    if (style === 'custom') {
+      this.logger.warn('NotebookLM custom style requires a style prompt. Falling back to classic.');
+      return 'classic';
+    }
+
+    return style || 'classic';
+  }
+
   /**
    * Adiciona URLs ao projeto e persiste na coluna 'sources'
    */
@@ -200,6 +209,7 @@ export class ResearchService {
     style: string = 'classic',
     options: { liveResearch?: boolean; notebookId?: string; profileId?: string } = {},
   ) {
+    const resolvedStyle = type === 'video' ? this.normalizeNotebookLMVideoStyle(style) : style;
     const project = await this.findOrCreateResearchProject(projectId, {
       notebookId: options.notebookId,
       nlmProfileId: options.profileId,
@@ -252,20 +262,23 @@ export class ResearchService {
       }
 
       // 3. Disparar a geração (Deep Dive)
-      this.logger.log(`Triggering ${type} overview (Style: ${style}) for notebook ${notebookId}`);
+      this.logger.log(`Triggering ${type} overview (Style: ${resolvedStyle}) for notebook ${notebookId}`);
       
       if (type === 'video') {
-        return this.notebookLM.createVideoOverview(notebookId, style, profileId);
+        return this.notebookLM.createVideoOverview(notebookId, resolvedStyle, profileId);
       }
       if (type === 'infographic') {
-        return this.notebookLM.createInfographic(notebookId, style, undefined, profileId);
+        return this.notebookLM.createInfographic(notebookId, resolvedStyle, undefined, profileId);
       }
       return this.notebookLM.createAudioOverview(notebookId, profileId);
 
     } catch (error) {
       this.logger.error(`Failed to execute NotebookLM pipeline: ${error.message}`);
       await this.projectsService.updateStatus(projectId, 'error', undefined, `Research failed: ${error.message}`);
-      throw error;
+      if (error instanceof BadRequestException || error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException(`NotebookLM failed: ${error.message}`);
     }
   }
 
