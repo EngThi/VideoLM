@@ -332,6 +332,18 @@ export class ResearchService {
 
     if (!notebookId) throw new NotFoundException('Notebook ID not found for this project.');
 
+    if (project.status === 'completed' && project.videoPath) {
+      const cachedPath = path.join(process.cwd(), 'public', project.videoPath.replace(/^\//, ''));
+      if (fs.existsSync(cachedPath)) {
+        return {
+          status: 'completed',
+          videoUrl: project.videoPath,
+          type: path.extname(cachedPath).toLowerCase() === '.png' ? 'infographic' : 'video',
+          cached: true,
+        };
+      }
+    }
+
     try {
       const statusRaw = await this.notebookLM.checkStatus(notebookId, profileId);
       const artifacts = JSON.parse(statusRaw);
