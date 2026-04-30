@@ -97,6 +97,8 @@ npm run dev
 
 ## NotebookLM Setup
 
+> [!] NotebookLM is optional for the basic hosted demo, but setting it up makes testing much better. With a valid NotebookLM profile, VideoLM can list notebooks, ingest sources, generate NotebookLM video overviews, download MP4/PNG artifacts, and apply the project branding automatically.
+
 Install the upstream CLI:
 
 ```bash
