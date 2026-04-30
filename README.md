@@ -8,6 +8,10 @@ Current reviewer URL:
 https://54-162-84-165.sslip.io
 ```
 
+> [!TIP]
+> A completed Hack Club NotebookLM render is available as a public MP4:  
+> https://54-162-84-165.sslip.io/videos/research_community_1777566704645.mp4
+
 ## What This Repo Contains
 
 - React + Vite frontend for creating videos, running NotebookLM research, uploading sources, and downloading generated artifacts.
@@ -97,7 +101,8 @@ npm run dev
 
 ## NotebookLM Setup
 
-> [!] NotebookLM is optional for the basic hosted demo, but setting it up makes testing much better. With a valid NotebookLM profile, VideoLM can list notebooks, ingest sources, generate NotebookLM video overviews, download MP4/PNG artifacts, and apply the project branding automatically.
+> [!IMPORTANT]
+> NotebookLM is optional for the basic hosted demo, but setting it up makes testing much better. With a valid NotebookLM profile, VideoLM can list notebooks, ingest sources, generate NotebookLM video overviews, download MP4/PNG artifacts, and apply the project branding automatically.
 
 Install the upstream CLI:
 
