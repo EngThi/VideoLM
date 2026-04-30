@@ -8,6 +8,12 @@ Current reviewer URL:
 https://54-162-84-165.sslip.io
 ```
 
+Hosted reviewer demo:
+
+```text
+https://54-162-84-165.sslip.io/engine-demo
+```
+
 Engine contract:
 
 ```text
@@ -55,6 +61,17 @@ Expected response:
 ```
 
 If a client receives HTML or `Unexpected token '<'`, it is calling a frontend route instead of an API route. API clients must call `/api/...`.
+
+## Recommended Reviewer Path
+
+Start with the hosted demo instead of local setup:
+
+1. Open `https://54-162-84-165.sslip.io/engine-demo`.
+2. Play one of the pre-rendered MP4s.
+3. Click `Generate demo video` to submit a short deterministic render to the hosted queue.
+4. Watch `/api/video/:projectId/status` progress through queue and render stages.
+
+The hosted demo does not require Gemini quota, Pollinations, local FFmpeg, NotebookLM login, or local environment setup. Local installation remains available for developers who want to inspect or extend the system.
 
 ## Local Development
 
@@ -150,10 +167,12 @@ Caddy serves HTTPS on port `443` and reverse-proxies to the app container on por
 The no-auth demo bridge is intended for reviewers and external Engine integration tests.
 
 ```text
+GET  /engine-demo
 GET  /api/engine/manifest
 GET  /api/video/demo/health
 POST /api/video/demo/assemble
 GET  /api/video/:projectId/status
+GET  /videos/*.mp4
 ```
 
 `POST /api/video/demo/assemble` expects `multipart/form-data`:

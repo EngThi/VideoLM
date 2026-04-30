@@ -6,6 +6,7 @@ import { ResultView } from './components/ResultView';
 import { IdeaSelector } from './components/IdeaSelector';
 import { ResearchDashboard } from './components/ResearchDashboard';
 import { SettingsPage } from './components/SettingsPage';
+import { EngineDemoPage } from './components/EngineDemoPage';
 import type { VideoConfig, PipelineStage, VideoResult, ContentIdea, ScriptResult, GeneratedImage } from './types';
 import { PIPELINE_STAGES } from './constants';
 import { generateContentIdeas, generateScriptWithGoogleSearch, generateNarration, generateVeoVideo, generateImagePrompts } from './services/geminiService';
@@ -25,6 +26,7 @@ const getAudioDuration = (url: string): Promise<number> => {
 import { authService, AuthUser } from './services/authService';
 
 const workspaceNav = [
+  { label: 'Demo', value: 'hosted reviewer path', accent: 'bg-[#f7c948]', page: 'demo' },
   { label: 'Factory', value: 'Gemini + FFmpeg', accent: 'bg-[#ec3750]' },
   { label: 'Research', value: 'LM Engine', accent: 'bg-[#33d6a6]' },
   { label: 'Queue', value: 'single render lane', accent: 'bg-[#f7c948]' },
@@ -86,7 +88,9 @@ const App: React.FC = () => {
   const [scriptResult, setScriptResult] = useState<ScriptResult | null>(null);
   const [contentIdeas, setContentIdeas] = useState<ContentIdea[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [activePage, setActivePage] = useState<'workspace' | 'settings'>('workspace');
+  const [activePage, setActivePage] = useState<'workspace' | 'settings' | 'demo'>(() => (
+    window.location.pathname === '/demo' || window.location.pathname === '/engine-demo' ? 'demo' : 'workspace'
+  ));
 
   // Assets state
   const [generatedAudioUrl, setGeneratedAudioUrl] = useState<string | undefined>(undefined);
@@ -560,7 +564,19 @@ const App: React.FC = () => {
             </div>
             <nav className="space-y-1">
               {workspaceNav.map((item) => (
-                <button key={item.label} onClick={() => setActivePage('workspace')} className="flex w-full items-center gap-3 rounded-md border border-transparent px-2 py-2.5 text-left text-sm text-slate-300 transition hover:border-white/10 hover:bg-white/[0.04]">
+                <button
+                  key={item.label}
+                  onClick={() => {
+                    const page = item.page === 'demo' ? 'demo' : 'workspace';
+                    setActivePage(page);
+                    window.history.replaceState(null, '', page === 'demo' ? '/engine-demo' : '/');
+                  }}
+                  className={`flex w-full items-center gap-3 rounded-md border px-2 py-2.5 text-left text-sm transition ${
+                    activePage === (item.page === 'demo' ? 'demo' : 'workspace')
+                      ? 'border-white/10 bg-white/[0.06] text-white'
+                      : 'border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.04]'
+                  }`}
+                >
                   <span className={`h-2.5 w-2.5 rounded-sm ${item.accent}`} />
                   <div className="min-w-0">
                     <div className="font-bold text-white">{item.label}</div>
@@ -569,7 +585,10 @@ const App: React.FC = () => {
                 </button>
               ))}
               <button
-                onClick={() => setActivePage('settings')}
+                onClick={() => {
+                  setActivePage('settings');
+                  window.history.replaceState(null, '', '/settings');
+                }}
                 className={`flex w-full items-center gap-3 rounded-md border px-2 py-2.5 text-left text-sm transition ${
                   activePage === 'settings' ? 'border-[#338eda]/40 bg-[#338eda]/10 text-white' : 'border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.04]'
                 }`}
@@ -585,6 +604,8 @@ const App: React.FC = () => {
 
           {activePage === 'settings' ? (
             <SettingsPage />
+          ) : activePage === 'demo' ? (
+            <EngineDemoPage />
           ) : (
           <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(400px,0.92fr)_minmax(0,1.35fr)]">
             <div className="space-y-5">
