@@ -19,6 +19,21 @@ const NLM_VIDEO_STYLES = [
   { value: 'custom', label: 'Custom' },
 ];
 
+const researchSteps = [
+  {
+    title: '1. Choose sources',
+    body: 'Paste https:// URLs, pick an existing NotebookLM notebook, or upload documents into a selected notebook.',
+  },
+  {
+    title: '2. Pick a style',
+    body: 'The style is sent to NotebookLM video overview generation. Auto lets NotebookLM choose.',
+  },
+  {
+    title: '3. Start render',
+    body: 'The server requests the NotebookLM video, polls for completion, downloads the MP4, then applies branding.',
+  },
+];
+
 export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId, onResearchComplete }) => {
   const [urls, setUrls] = useState<string>('');
   const [urlError, setUrlError] = useState<string>('');
@@ -39,6 +54,12 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
   const parseUrlList = (value: string): string[] => {
     return Array.from(new Set(value.split('\n').map(u => u.trim()).filter(Boolean)));
   };
+
+  const urlCount = parseUrlList(urls).length;
+  const selectedNotebook = notebooks.find((notebook: any) => {
+    const id = notebook.id || notebook.notebook_id || notebook.notebookId;
+    return id === selectedNotebookId;
+  });
 
   const validateHttpsUrls = (value: string): string => {
     const urlList = parseUrlList(value);
@@ -238,7 +259,9 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
               {status}
             </span>
           </div>
-          <p className="mt-1 text-sm text-slate-400">Start from a URL, an existing notebook, uploaded files, or a saved profile.</p>
+          <p className="mt-1 max-w-2xl text-sm text-slate-400">
+            Generate a NotebookLM video overview from web sources, an existing notebook, or uploaded files. Use only public `https://` URLs.
+          </p>
         </div>
         <div className="shrink-0 rounded-lg border border-white/10 bg-black/20 p-2">
           <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Video style</p>
@@ -260,12 +283,28 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
       </div>
 
       <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+          {researchSteps.map((step) => (
+            <div key={step.title} className="rounded-lg border border-white/10 bg-black/20 p-3">
+              <div className="text-[11px] font-black uppercase tracking-[0.1em] text-emerald-200">{step.title}</div>
+              <p className="mt-2 text-xs leading-relaxed text-slate-400">{step.body}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-lg border border-yellow-300/20 bg-yellow-300/10 p-3 text-xs leading-relaxed text-yellow-100">
+          Reviewer path: click <span className="font-bold">Load</span> to list NotebookLM notebooks, choose one, confirm it has sources, select a style, then start the render. New URL sources must be full `https://` links.
+        </div>
+
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1.2fr]">
             <div className="space-y-3 rounded-lg border border-white/10 bg-black/25 p-4">
                 <div className="flex items-center justify-between gap-3">
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.16em]">NotebookLM Account</span>
                     <button onClick={handleSaveProfile} className="rounded-md bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.08em] text-black hover:bg-slate-200">Save</button>
                 </div>
+                <p className="text-xs leading-relaxed text-slate-500">
+                    Use `default` for the server profile. To bring your own account, paste or upload `~/.notebooklm-mcp-cli/profiles/default/cookies.json`, then save.
+                </p>
                 <input
                     className="w-full rounded-md border border-white/10 bg-black/35 px-3 py-2 text-xs text-slate-100 outline-none focus:border-emerald-300/50"
                     value={profileId}
@@ -291,6 +330,9 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
                     <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.16em]">Existing Notebooks</span>
                     <button onClick={handleLoadNotebooks} className="rounded-md border border-white/10 bg-white/[0.06] px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.08em] text-slate-200 hover:bg-white/10">Load</button>
                 </div>
+                <p className="text-xs leading-relaxed text-slate-500">
+                    Select a notebook if the sources are already in NotebookLM. Leave this blank when you want the app to create a new notebook from the URL list.
+                </p>
                 <select
                     className="w-full rounded-md border border-white/10 bg-black/35 px-3 py-2 text-xs text-slate-100 outline-none focus:border-emerald-300/50"
                     value={selectedNotebookId}
@@ -303,6 +345,19 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
                         return id ? <option key={id} value={id}>{title}</option> : null;
                     })}
                 </select>
+                <div className="flex flex-wrap gap-2 text-[10px] uppercase tracking-[0.1em]">
+                    <span className="rounded-md border border-white/10 bg-black/25 px-2 py-1 text-slate-500">{notebooks.length} notebooks loaded</span>
+                    <span className={`rounded-md border px-2 py-1 ${
+                        selectedNotebookId ? 'border-emerald-300/20 bg-emerald-300/10 text-emerald-200' : 'border-white/10 bg-black/25 text-slate-500'
+                    }`}>
+                        {selectedNotebookId ? 'Notebook selected' : 'New notebook mode'}
+                    </span>
+                </div>
+                {selectedNotebook ? (
+                    <div className="truncate rounded-md border border-emerald-300/15 bg-emerald-300/10 px-3 py-2 text-xs text-emerald-100">
+                        Using: {selectedNotebook.title || selectedNotebook.name || selectedNotebookId}
+                    </div>
+                ) : null}
                 <div className="max-h-20 overflow-y-auto rounded-md border border-white/10 bg-black/35 p-2 text-[10px] text-slate-500">
                     {notebookSources.length === 0 ? 'No sources loaded' : notebookSources.slice(0, 8).map((source: any, index) => (
                         <div key={source.id || index} className="truncate text-slate-400">{source.title || source.name || source.url || source.id || JSON.stringify(source).slice(0, 80)}</div>
@@ -312,6 +367,17 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
         </div>
 
         <div className="relative">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">URL Sources</span>
+                    <p className="mt-1 text-xs text-slate-500">One full `https://` URL per line. These are added to a new or selected NotebookLM notebook.</p>
+                </div>
+                <span className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${
+                    urlError ? 'border-red-300/30 bg-red-500/10 text-red-200' : 'border-white/10 bg-black/25 text-slate-500'
+                }`}>
+                    {urlCount} URL{urlCount === 1 ? '' : 's'}
+                </span>
+            </div>
             <textarea
                 placeholder="https://hackclub.com/
 https://example.com/source"
@@ -333,6 +399,9 @@ https://example.com/source"
                 <span className="text-[10px] font-bold text-slate-500 uppercase tracking-[0.16em]">Document Sources</span>
                 <span className="text-[10px] text-slate-600">PDF, TXT, MD, DOCX, slides, sheets</span>
             </div>
+            <p className="mb-3 text-xs leading-relaxed text-slate-500">
+                File upload requires an existing notebook selection. The app uploads these files to that notebook before requesting the video overview.
+            </p>
             <input
                 type="file"
                 multiple
@@ -360,8 +429,14 @@ https://example.com/source"
             : 'bg-white/[0.04] text-slate-500 cursor-not-allowed border border-white/10'
             }`}
         >
-            {status === 'idle' || status === 'error' ? 'Start research video' : status === 'completed' ? 'Completed' : 'Rendering...'}
+            {status === 'idle' || status === 'error' ? 'Start NotebookLM video render' : status === 'completed' ? 'Completed' : 'Rendering in NotebookLM...'}
         </button>
+
+        <div className="grid grid-cols-1 gap-2 text-[11px] text-slate-500 md:grid-cols-3">
+            <div className="rounded-md border border-white/10 bg-black/20 p-2">Expected wait: NotebookLM video generation can take several minutes.</div>
+            <div className="rounded-md border border-white/10 bg-black/20 p-2">Output: final MP4 is downloaded to this server and shown as a public URL.</div>
+            <div className="rounded-md border border-white/10 bg-black/20 p-2">Failure mode: invalid URLs stop immediately; long renders stop polling after 20 minutes.</div>
+        </div>
 
         {log.length > 0 && (
             <div className="mt-6">
