@@ -5,6 +5,10 @@ import { AiService } from '../ai/ai.service';
 import { VideoService } from '../video/video.service';
 import * as path from 'path';
 import * as fs from 'fs';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
+
+const execFileAsync = promisify(execFile);
 
 @Injectable()
 export class ResearchService {
@@ -16,6 +20,71 @@ export class ResearchService {
     private aiService: AiService,
     private videoService: VideoService,
   ) {}
+
+  private getBrandingMaskPath(): string | undefined {
+    const candidates = [
+      path.join(process.cwd(), 'public/logo_mask.gif'),
+      path.join(process.cwd(), '..', 'dist', 'logo_mask.gif'),
+      path.join(process.cwd(), 'public/logo_mask.png'),
+      path.join(process.cwd(), '..', 'dist', 'logo_mask.png'),
+    ];
+
+    return candidates.find(candidate => fs.existsSync(candidate));
+  }
+
+  private async applyBrandingOverlay(inputPath: string, artifactType: string): Promise<string> {
+    if (artifactType !== 'video' && artifactType !== 'infographic') return inputPath;
+
+    const maskPath = this.getBrandingMaskPath();
+    if (!maskPath) {
+      this.logger.warn('Branding mask not found. Returning raw NotebookLM artifact.');
+      return inputPath;
+    }
+
+    const ext = path.extname(inputPath);
+    const tempOutput = inputPath.replace(new RegExp(`${ext}$`), `.branded${ext}`);
+    const overlayFilter = '[1:v]scale=300:-1[wm];[0:v][wm]overlay=main_w-overlay_w-20:main_h-overlay_h-20:shortest=1[v]';
+
+    const args = artifactType === 'video'
+      ? [
+          '-y',
+          '-i', inputPath,
+          '-ignore_loop', '0',
+          '-i', maskPath,
+          '-filter_complex', overlayFilter,
+          '-map', '[v]',
+          '-map', '0:a?',
+          '-c:v', 'libx264',
+          '-preset', 'veryfast',
+          '-pix_fmt', 'yuv420p',
+          '-c:a', 'copy',
+          '-movflags', '+faststart',
+          tempOutput,
+        ]
+      : [
+          '-y',
+          '-i', inputPath,
+          '-ignore_loop', '0',
+          '-i', maskPath,
+          '-filter_complex', overlayFilter,
+          '-map', '[v]',
+          '-frames:v', '1',
+          tempOutput,
+        ];
+
+    try {
+      this.logger.log(`Applying branding mask to ${artifactType}: ${path.basename(inputPath)}`);
+      await execFileAsync('ffmpeg', args, { maxBuffer: 20 * 1024 * 1024 });
+      fs.renameSync(tempOutput, inputPath);
+      return inputPath;
+    } catch (error) {
+      this.logger.warn(`Branding overlay failed for ${path.basename(inputPath)}: ${error.message}`);
+      try {
+        if (fs.existsSync(tempOutput)) fs.rmSync(tempOutput, { force: true });
+      } catch {}
+      return inputPath;
+    }
+  }
 
   private normalizeSourceUrl(rawUrl: string): string {
     const trimmed = rawUrl.trim();
@@ -221,6 +290,8 @@ export class ResearchService {
       } else if (latest.type === 'infographic') {
         await this.notebookLM.downloadInfographic(notebookId, outputPath, profileId);
       }
+
+      await this.applyBrandingOverlay(outputPath, latest.type);
 
       // 4. Se for um Pipeline Híbrido, precisamos gerar o roteiro e áudio customizados
       if (project.title.includes('STRESS A') || project.title.includes('Hybrid')) {

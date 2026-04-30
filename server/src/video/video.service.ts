@@ -158,8 +158,10 @@ export class VideoService {
 
     // 3. Logo Mask (Absolute Cinema - inferior direito)
     const defaultGif = path.join(process.cwd(), 'public/logo_mask.gif');
-    if (fs.existsSync(defaultGif)) {
-        maskPath = defaultGif;
+    const distGif = path.join(process.cwd(), '..', 'dist', 'logo_mask.gif');
+    const resolvedGif = fs.existsSync(defaultGif) ? defaultGif : (fs.existsSync(distGif) ? distGif : undefined);
+    if (resolvedGif) {
+        maskPath = resolvedGif;
         this.logger.log(`🎭 Branding Active: Applying ${path.basename(maskPath)} watermark.`);
     }
 
@@ -356,8 +358,10 @@ export class VideoService {
     // Inicializa maskPath (Absolute Cinema 200%)
     let maskPath: string | undefined;
     const defaultGif = path.join(process.cwd(), 'public/logo_mask.gif');
+    const distGif = path.join(process.cwd(), '..', 'dist', 'logo_mask.gif');
     const defaultPng = path.join(process.cwd(), 'public/logo_mask.png');
     if (fs.existsSync(defaultGif)) maskPath = defaultGif;
+    else if (fs.existsSync(distGif)) maskPath = distGif;
     else if (fs.existsSync(defaultPng)) maskPath = defaultPng;
 
     return new Promise(async (resolve, reject) => {
