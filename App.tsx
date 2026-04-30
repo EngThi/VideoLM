@@ -26,17 +26,17 @@ const getAudioDuration = (url: string): Promise<number> => {
 import { authService, AuthUser } from './services/authService';
 
 const workspaceNav = [
+  { label: 'NotebookLM', value: 'primary video path', accent: 'bg-[#33d6a6]' },
   { label: 'Demo', value: 'hosted reviewer path', accent: 'bg-[#f7c948]', page: 'demo' },
-  { label: 'Factory', value: 'Gemini + FFmpeg', accent: 'bg-[#ec3750]' },
-  { label: 'Research', value: 'LM Engine', accent: 'bg-[#33d6a6]' },
+  { label: 'Factory', value: 'fallback pipeline', accent: 'bg-[#64748b]' },
   { label: 'Queue', value: 'single render lane', accent: 'bg-[#f7c948]' },
   { label: 'Deploy', value: 'stable sslip.io HTTPS', accent: 'bg-[#338eda]' },
 ];
 
 const statCards = [
-  { label: 'Video worker', value: 'Ready', detail: 'queued renders' },
-  { label: 'NotebookLM', value: 'Profiles', detail: 'default + BYO cookies' },
-  { label: 'Engine', value: 'Online', detail: 'health check passing' },
+  { label: 'NotebookLM', value: 'Primary', detail: 'video overview renders' },
+  { label: 'Profiles', value: 'Ready', detail: 'default + BYO cookies' },
+  { label: 'Worker', value: 'Queued', detail: 'single render lane' },
   { label: 'Public URL', value: 'HTTPS', detail: 'sslip.io fixed host' },
 ];
 
@@ -496,7 +496,7 @@ const App: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="hidden rounded-md border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-200 md:inline-flex">Engine online</span>
+            <span className="hidden rounded-md border border-emerald-400/25 bg-emerald-400/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-200 md:inline-flex">NotebookLM ready</span>
             <span className="hidden rounded-md border border-white/10 bg-white/[0.04] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-slate-300 sm:inline-flex">Stable HTTPS</span>
             {user ? (
               <>
@@ -516,7 +516,7 @@ const App: React.FC = () => {
             <div className="mb-6">
               <p className="mb-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-300">Private build</p>
               <h2 className="text-3xl font-black tracking-tight text-white">Sign in</h2>
-              <p className="mt-2 text-sm text-slate-400">Create research videos from URLs, NotebookLM profiles, or local asset packs.</p>
+              <p className="mt-2 text-sm text-slate-400">Create NotebookLM video overviews from URLs, saved profiles, existing notebooks, or uploaded sources.</p>
             </div>
 
             <div className="flex flex-col gap-4">
@@ -607,29 +607,35 @@ const App: React.FC = () => {
           ) : activePage === 'demo' ? (
             <EngineDemoPage />
           ) : (
-          <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(400px,0.92fr)_minmax(0,1.35fr)]">
+          <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
             <div className="space-y-5">
               <ResearchDashboard
                 projectId={currentProjectId || researchProjectIdRef.current}
                 onResearchComplete={handleResearchComplete}
               />
 
-              <section className="rounded-lg border border-white/10 bg-[#101418]/95 p-4 shadow-2xl">
-                <div className="mb-4 flex items-start justify-between gap-4 border-b border-white/10 pb-4">
+              <details className="group rounded-lg border border-white/10 bg-[#0f1318]/80 shadow-xl">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-4 py-3">
                   <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-emerald-300">Factory</p>
-                    <h2 className="mt-1 text-xl font-black tracking-tight text-white">Create video</h2>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">Secondary tool</p>
+                    <h2 className="mt-1 text-sm font-black uppercase tracking-[0.12em] text-slate-300">Factory fallback</h2>
                   </div>
-                  <span className="rounded-md border border-white/10 bg-black/30 px-2.5 py-1 text-[11px] font-bold uppercase text-slate-400">Standard pipeline</span>
+                  <span className="rounded-md border border-white/10 bg-black/30 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500 group-open:hidden">Open</span>
+                  <span className="hidden rounded-md border border-white/10 bg-black/30 px-2.5 py-1 text-[10px] font-bold uppercase text-slate-500 group-open:inline">Close</span>
+                </summary>
+                <div className="border-t border-white/10 p-4">
+                  <p className="mb-4 text-xs leading-relaxed text-slate-500">
+                    Optional Gemini + FFmpeg path for asset-pack assembly and fallback tests. The main reviewer flow is the NotebookLM panel above.
+                  </p>
+                  <ConfigForm
+                    onGenerate={handleGenerate}
+                    isGenerating={isLoading || isGenerating}
+                    onTestVeo={handleTestVeo}
+                    isTestLoading={isTestLoading}
+                    testVideoUrl={testVideoUrl}
+                  />
                 </div>
-                <ConfigForm
-                  onGenerate={handleGenerate}
-                  isGenerating={isLoading || isGenerating}
-                  onTestVeo={handleTestVeo}
-                  isTestLoading={isTestLoading}
-                  testVideoUrl={testVideoUrl}
-                />
-              </section>
+              </details>
             </div>
 
             <div className="space-y-5">

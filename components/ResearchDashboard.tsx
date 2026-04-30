@@ -257,13 +257,13 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
   };
 
   return (
-    <section className="rounded-lg border border-white/10 bg-[#101418]/95 p-4 shadow-2xl">
+    <section className="rounded-lg border border-emerald-300/20 bg-[#101418]/95 p-5 shadow-2xl shadow-emerald-950/20">
       <div className="mb-5 border-b border-white/10 pb-4">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="min-w-0">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#f7c948]">LM Engine</p>
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#33d6a6]">Primary workflow</p>
           <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h3 className="text-xl font-black tracking-tight text-white">Research Lab</h3>
+            <h3 className="text-2xl font-black tracking-tight text-white">NotebookLM Video</h3>
             <span className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${
               status === 'completed' ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' :
               status === 'error' ? 'border-red-300/30 bg-red-300/10 text-red-200' :
@@ -274,7 +274,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
             </span>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-slate-400">
-            Generate a NotebookLM video overview from web sources, an existing notebook, or uploaded files. Use only public `https://` URLs.
+            Main path for reviewers: generate a NotebookLM video overview from web sources, an existing notebook, or uploaded files. Use only public `https://` URLs.
           </p>
         </div>
         <div className="shrink-0 rounded-lg border border-white/10 bg-black/20 p-2">
