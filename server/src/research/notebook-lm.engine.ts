@@ -156,17 +156,17 @@ export class NotebookLMEngine {
 
   async downloadAudio(notebookId: string, outputPath: string, profile?: string) {
     this.logger.log(`Baixando áudio do notebook ${notebookId} para: ${outputPath}`);
-    return this.execute(`download audio ${this.shellQuote(notebookId)} --output ${this.shellQuote(outputPath)} --no-progress${this.profileFlag(profile)}`);
+    return this.execute(`download audio ${this.shellQuote(notebookId)} --output ${this.shellQuote(outputPath)} --no-progress`);
   }
 
   async downloadVideo(notebookId: string, outputPath: string, profile?: string) {
     this.logger.log(`Baixando vídeo do notebook ${notebookId} para: ${outputPath}`);
-    return this.execute(`download video ${this.shellQuote(notebookId)} --output ${this.shellQuote(outputPath)} --no-progress${this.profileFlag(profile)}`);
+    return this.execute(`download video ${this.shellQuote(notebookId)} --output ${this.shellQuote(outputPath)} --no-progress`);
   }
 
   async downloadInfographic(notebookId: string, outputPath: string, profile?: string) {
     this.logger.log(`Baixando infográfico do notebook ${notebookId} para: ${outputPath}`);
-    return this.execute(`download infographic ${this.shellQuote(notebookId)} --output ${this.shellQuote(outputPath)} --no-progress${this.profileFlag(profile)}`);
+    return this.execute(`download infographic ${this.shellQuote(notebookId)} --output ${this.shellQuote(outputPath)} --no-progress`);
   }
 
   async downloadReport(notebookId: string, outputPath: string) {
