@@ -27,7 +27,6 @@ import { authService, AuthUser } from './services/authService';
 
 const workspaceNav = [
   { label: 'NotebookLM', value: 'primary video path', accent: 'bg-[#33d6a6]' },
-  { label: 'Demo', value: 'hosted reviewer path', accent: 'bg-[#f7c948]', page: 'demo' },
   { label: 'Factory', value: 'fallback pipeline', accent: 'bg-[#64748b]' },
   { label: 'Queue', value: 'single render lane', accent: 'bg-[#f7c948]' },
   { label: 'Deploy', value: 'stable sslip.io HTTPS', accent: 'bg-[#338eda]' },
@@ -41,6 +40,7 @@ const statCards = [
 ];
 
 const App: React.FC = () => {
+  const isEngineDemoRoute = window.location.pathname === '/engine-demo';
   const [user, setUser] = useState<AuthUser | null>(() => authService.getUser());
   const [authEmail, setAuthEmail] = useState('');
   const [authPass, setAuthPass] = useState('');
@@ -88,8 +88,8 @@ const App: React.FC = () => {
   const [scriptResult, setScriptResult] = useState<ScriptResult | null>(null);
   const [contentIdeas, setContentIdeas] = useState<ContentIdea[]>([]);
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
-  const [activePage, setActivePage] = useState<'workspace' | 'settings' | 'demo'>(() => (
-    window.location.pathname === '/demo' || window.location.pathname === '/engine-demo' ? 'demo' : 'workspace'
+  const [activePage, setActivePage] = useState<'workspace' | 'settings'>(() => (
+    window.location.pathname === '/settings' ? 'settings' : 'workspace'
   ));
 
   // Assets state
@@ -109,6 +109,10 @@ const App: React.FC = () => {
   const [testVideoUrl, setTestVideoUrl] = useState<string | null>(null);
 
   const isMounted = useRef(true);
+  useEffect(() => {
+    document.title = isEngineDemoRoute ? 'HOMES-Engine' : 'VideoLM Factory';
+  }, [isEngineDemoRoute]);
+
   useEffect(() => {
     isMounted.current = true;
     return () => { isMounted.current = false; };
@@ -478,6 +482,16 @@ const App: React.FC = () => {
 
   }, [isGenerating, currentStageIndex, stages, addLog, config, selectedIdea, setStageStatus, scriptResult, currentProjectId]);
 
+  if (isEngineDemoRoute) {
+    return (
+      <main className="min-h-screen bg-[#080b0e] px-4 py-5 text-slate-100 font-sans md:px-6">
+        <div className="mx-auto max-w-[1800px]">
+          <EngineDemoPage />
+        </div>
+      </main>
+    );
+  }
+
   return (
     <div className="min-h-screen text-slate-100 font-sans">
       <header className="sticky top-0 z-50 border-b border-white/10 bg-[#080b0e]/90 backdrop-blur-xl">
@@ -567,12 +581,11 @@ const App: React.FC = () => {
                 <button
                   key={item.label}
                   onClick={() => {
-                    const page = item.page === 'demo' ? 'demo' : 'workspace';
-                    setActivePage(page);
-                    window.history.replaceState(null, '', page === 'demo' ? '/engine-demo' : '/');
+                    setActivePage('workspace');
+                    window.history.replaceState(null, '', '/');
                   }}
                   className={`flex w-full items-center gap-3 rounded-md border px-2 py-2.5 text-left text-sm transition ${
-                    activePage === (item.page === 'demo' ? 'demo' : 'workspace')
+                    activePage === 'workspace'
                       ? 'border-white/10 bg-white/[0.06] text-white'
                       : 'border-transparent text-slate-300 hover:border-white/10 hover:bg-white/[0.04]'
                   }`}
@@ -604,8 +617,6 @@ const App: React.FC = () => {
 
           {activePage === 'settings' ? (
             <SettingsPage />
-          ) : activePage === 'demo' ? (
-            <EngineDemoPage />
           ) : (
           <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1.35fr)_minmax(320px,0.85fr)]">
             <div className="space-y-5">
