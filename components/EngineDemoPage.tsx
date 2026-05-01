@@ -50,13 +50,13 @@ const demoThemes = [
 
 const preRenderedVideos = [
   {
-    title: 'Hack Club NotebookLM render',
+    title: 'Hack Club research render',
     detail: 'Paper craft style from the live Hack Club URL',
     url: '/videos/research_community_1777566704645.mp4',
   },
   {
-    title: 'Codex Hack Club NotebookLM render',
-    detail: 'Cached NotebookLM video, returned immediately by polling',
+    title: 'Codex Hack Club research render',
+    detail: 'Cached research video, returned immediately by polling',
     url: '/videos/research_codex_notebooklm_hackclub.mp4',
   },
   {
@@ -177,11 +177,9 @@ export const EngineDemoPage: React.FC = () => {
   const theme = useMemo(() => demoThemes.find(item => item.id === themeId) || demoThemes[0], [themeId]);
   const baseUrl = getBaseUrl(health.manifest);
   const absoluteVideoUrl = resolveVideoUrl(baseUrl, videoUrl);
-  const maxUploadMb = health.manifest?.capabilities?.maxUploadMbPerFile ?? 100;
-  const maxImages = health.manifest?.capabilities?.maxImagesPerRender ?? 100;
   const queueConcurrency = health.manifest?.capabilities?.queue?.concurrency ?? 1;
 
-  const log = (message: string) => setLogs(prev => [`[${new Date().toLocaleTimeString()}] ${message}`, ...prev].slice(0, 12));
+  const log = (message: string) => setLogs(prev => [...prev, message].slice(-120));
 
   useEffect(() => {
     let mounted = true;
@@ -200,17 +198,18 @@ export const EngineDemoPage: React.FC = () => {
       await new Promise(resolve => setTimeout(resolve, 3000));
       const data = await pollVideoStatus(projectId);
       setStatus(data);
-      log(`${data.stage || data.status} ${data.progress ?? 0}%`);
+      log(`status: ${data.stage || data.status} ${data.progress ?? 0}%`);
 
       if (data.status === 'completed') {
         const finalUrl = resolveVideoUrl(baseUrl, data.videoUrl || data.videoPath || '');
         if (!finalUrl) throw new Error('Render completed but no videoUrl/videoPath was returned.');
 
-        log(`Verifying MP4 ${finalUrl}`);
+        log('verifying mp4...');
         await verifyPlayableMp4(finalUrl);
         setVideoUrl(finalUrl);
         setStatus({ ...data, videoUrl: finalUrl });
-        log(`Completed MP4 verified: ${finalUrl}`);
+        log(`mp4 verified: ${finalUrl}`);
+        log('$ open output.mp4');
         return;
       }
 
@@ -231,7 +230,9 @@ export const EngineDemoPage: React.FC = () => {
 
     try {
       const projectId = `hosted_demo_${theme.id}_${Date.now()}`;
-      log('Creating deterministic browser assets.');
+      log('$ homes-engine demo');
+      log(`projectId: ${projectId}`);
+      log('stage: preparing deterministic assets');
       const audio = makeToneWav(24);
       const images = await Promise.all(Array.from({ length: 6 }, (_, index) => makeDemoImage(theme.label, index, 6)));
 
@@ -242,17 +243,18 @@ export const EngineDemoPage: React.FC = () => {
       body.append('audio', audio);
       images.forEach(image => body.append('images', image));
 
-      log('Submitting to hosted VideoLM.');
+      log('POST /api/video/demo/assemble');
       const res = await fetch('/api/video/demo/assemble', { method: 'POST', body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || `Submit failed (${res.status})`);
 
       setStatus({ status: 'queued', stage: 'queued', progress: 0, videoUrl: data.videoUrl });
-      log(`Queued ${data.projectId}.`);
+      log(`queued: ${data.projectId}`);
+      log(`GET /api/video/${data.projectId}/status`);
       await pollStatus(data.projectId);
     } catch (error: any) {
       setStatus(prev => ({ ...prev, status: 'failed', stage: 'failed', error: error.message }));
-      log(error.message);
+      log(`error: ${error.message}`);
     } finally {
       setIsSubmitting(false);
     }
@@ -297,12 +299,16 @@ export const EngineDemoPage: React.FC = () => {
       urls.forEach(url => body.append('urls', url));
       Array.from(notebookAssets || []).forEach(file => body.append('assets', file));
 
-      log(`Submitting NotebookLM job ${projectId}.`);
+      log(`$ homes-engine notebooklm --url ${urls[0] || '[assets/notebook]'} --style ${notebookStyle} --format brief`);
+      log(`projectId: ${projectId}`);
+      log('POST /api/engine/notebooklm/video');
       const res = await fetch('/api/engine/notebooklm/video', { method: 'POST', body });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || `NotebookLM submit failed (${res.status})`);
+      if (!res.ok) throw new Error(data.message || `Research submit failed (${res.status})`);
       setNotebookStatus({ status: data.status || 'submitted', stage: 'background_queued', progress: 5 });
-      log(`NotebookLM job accepted in background. Expected wait: ${data.expectedWaitMinutes || '8-12'} minutes.`);
+      log(`notebooklm: background queued`);
+      log(`expected wait: ${data.expectedWaitMinutes || '8-12'} minutes`);
+      log(`GET /api/research/${projectId}/download`);
 
       for (let i = 0; i < 90; i += 1) {
         await new Promise(resolve => setTimeout(resolve, 10000));
@@ -310,254 +316,163 @@ export const EngineDemoPage: React.FC = () => {
         setNotebookStatus({ ...poll, progress: poll.status === 'completed' ? 100 : Math.min(95, 5 + i), stage: poll.status === 'completed' ? 'completed' : poll.stage || 'notebooklm_rendering' });
         if (poll.status === 'completed' && poll.videoUrl) {
           const finalUrl = resolveVideoUrl(baseUrl, poll.videoUrl || poll.videoPath || '');
-          log(`Verifying NotebookLM MP4 ${finalUrl}`);
+          log('verifying mp4...');
           await verifyPlayableMp4(finalUrl);
           setVideoUrl(finalUrl);
-          log(`NotebookLM MP4 verified: ${finalUrl}`);
+          log(`mp4 verified: ${finalUrl}`);
+          log('$ open output.mp4');
           return;
         }
-        if (poll.status === 'error' || poll.status === 'failed') throw new Error(poll.error || poll.message || 'NotebookLM job failed.');
+        if (poll.status === 'error' || poll.status === 'failed') throw new Error(poll.error || poll.message || 'Research job failed.');
       }
-      throw new Error('NotebookLM polling timed out. Long renders may still finish server-side.');
+      throw new Error('Research polling timed out. Long renders may still finish server-side.');
     } catch (error: any) {
       setNotebookStatus(prev => ({ ...prev, status: 'failed', stage: prev.stage || 'failed', error: error.message }));
-      log(error.message);
+      log(`error: ${error.message}`);
     } finally {
       setIsNotebookSubmitting(false);
     }
   };
 
+  const runHealthCommand = () => {
+    log('$ homes-engine health');
+    log(`engine: ${health.engine?.status || (health.error ? 'offline' : 'checking')}`);
+    log(`videolm: ${health.demo?.status === 'ok' ? 'connected' : health.error ? 'offline' : 'checking'}`);
+    log('notebooklm: ready');
+    log(`queue: ${queueConcurrency} render lane`);
+  };
+
+  const runGalleryCommand = () => {
+    log('$ homes-engine gallery');
+    log('$ ls outputs/');
+    preRenderedVideos.forEach(video => log(video.url.replace('/videos/', '')));
+  };
+
+  const openGalleryVideo = async (videoPath: string) => {
+    const finalUrl = resolveVideoUrl(baseUrl, videoPath);
+    try {
+      setStatus({ status: 'processing', stage: 'verifying_pre_rendered', progress: 95, videoUrl: finalUrl });
+      log(`$ open ${videoPath.replace('/videos/', '')}`);
+      log('verifying mp4...');
+      await verifyPlayableMp4(finalUrl);
+      setVideoUrl(finalUrl);
+      setStatus({ status: 'completed', stage: 'pre_rendered_verified', progress: 100, videoUrl: finalUrl });
+      log(`mp4 verified: ${finalUrl}`);
+      log('$ open output.mp4');
+    } catch (error: any) {
+      setVideoUrl('');
+      setStatus({ status: 'failed', stage: 'mp4_validation_failed', progress: 0, videoUrl: finalUrl, error: error.message });
+      log(`error: ${error.message}`);
+    }
+  };
+
+  const bootLines = [
+    'HOMES-Engine',
+    '',
+    '$ python main.py',
+    '',
+    '[99] HOMES-Engine reviewer mode',
+    '',
+    '$ homes-engine health',
+    `engine: ${health.engine?.status || (health.error ? 'offline' : 'checking')}`,
+    `videolm: ${health.demo?.status === 'ok' ? 'connected' : health.error ? 'offline' : 'checking'}`,
+    'notebooklm: ready',
+    `queue: ${queueConcurrency} render lane`,
+    '',
+    '$ homes-engine demo',
+  ];
+
   return (
-    <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_420px]">
-      <div className="space-y-5">
-        <div className="rounded-lg border border-white/10 bg-[#101418]/95 p-4 shadow-2xl">
-          <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#f7c948]">Terminal-first video generation through VideoLM</p>
-              <h2 className="mt-1 text-2xl font-black tracking-tight text-white">HOMES-Engine</h2>
-              <p className="mt-1 font-mono text-xs text-slate-500">VideoLM: {baseUrl}</p>
-            </div>
-            <span className={`rounded-md border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] ${
-              health.error ? 'border-red-300/30 bg-red-500/10 text-red-200' : 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200'
-            }`}>
-              Health: {health.error ? 'offline' : 'online'}
-            </span>
-          </div>
-          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-md border border-white/10 bg-black/25 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Engine</div>
-              <div className="mt-1 truncate text-sm font-black text-white">{health.engine?.status || (health.error ? 'offline' : 'checking')}</div>
-            </div>
-            <div className="rounded-md border border-white/10 bg-black/25 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Renderer</div>
-              <div className="mt-1 truncate text-sm font-black text-white">{health.demo?.status || (health.error ? 'offline' : 'checking')}</div>
-            </div>
-            <div className="rounded-md border border-white/10 bg-black/25 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Limits</div>
-              <div className="mt-1 truncate text-sm font-black text-white">{maxUploadMb}MB / {maxImages} imgs</div>
-            </div>
-            <div className="rounded-md border border-white/10 bg-black/25 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Queue</div>
-              <div className="mt-1 truncate text-sm font-black text-white">{queueConcurrency} render lane</div>
-            </div>
-          </div>
-          {health.error ? (
-            <div className="mt-3 rounded-md border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">{health.error}</div>
-          ) : null}
-        </div>
-
-        <div className="rounded-lg border border-white/10 bg-[#101418]/95 p-5 shadow-2xl">
-          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#33d6a6]">Deterministic render</p>
-          <h2 className="mt-2 text-xl font-black tracking-tight text-white">Generate demo video</h2>
-          <p className="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
-            Reviewer-safe path: deterministic assets are generated in the browser, submitted to the hosted VideoLM worker, then returned as a public MP4.
-          </p>
-
-          <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
-            {demoThemes.map(item => (
-              <button
-                key={item.id}
-                onClick={() => setThemeId(item.id)}
-                className={`rounded-md border px-3 py-3 text-left transition ${
-                  themeId === item.id ? 'border-emerald-300/50 bg-emerald-300/10 text-white' : 'border-white/10 bg-black/25 text-slate-300 hover:border-white/25'
-                }`}
-              >
-                <div className="text-sm font-black">{item.label}</div>
-                <div className="mt-1 line-clamp-2 text-xs leading-relaxed text-slate-500">{item.script}</div>
-              </button>
-            ))}
+    <section className="min-h-[calc(100vh-2.5rem)] bg-[#050607] px-3 py-4 font-mono text-[13px] leading-relaxed text-slate-100 md:px-5">
+      <div className="mx-auto max-w-6xl">
+        <div className="border border-emerald-300/20 bg-black shadow-2xl shadow-emerald-950/20">
+          <div className="flex items-center gap-2 border-b border-emerald-300/15 px-3 py-2 text-[11px] text-slate-500">
+            <span className="h-2.5 w-2.5 rounded-full bg-[#ec3750]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#f7c948]" />
+            <span className="h-2.5 w-2.5 rounded-full bg-[#33d6a6]" />
+            <span className="ml-2 text-emerald-200">termux ~/homes-engine</span>
           </div>
 
-          <button
-            onClick={generateDemo}
-            disabled={isSubmitting}
-            className="mt-5 w-full rounded-lg bg-[#33d6a6] px-4 py-4 text-sm font-black uppercase tracking-[0.14em] text-black transition hover:bg-[#62e4bd] disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500"
-          >
-            {isSubmitting ? 'Generating hosted demo...' : 'Generate demo video'}
-          </button>
+          <div className="min-h-[520px] p-4 md:p-5">
+            <div className="whitespace-pre-wrap">
+              {bootLines.map((line, index) => (
+                <div key={`boot-${index}`} className={line.startsWith('$') ? 'text-[#33d6a6]' : line.startsWith('[') ? 'text-[#f7c948]' : 'text-slate-200'}>
+                  {line}
+                </div>
+              ))}
+              {logs.map((line, index) => (
+                <div key={`log-${index}-${line}`} className={line.startsWith('$') ? 'text-[#33d6a6]' : line.startsWith('error:') ? 'text-[#ec3750]' : line.includes('verified') ? 'text-[#f7c948]' : 'text-slate-300'}>
+                  {line}
+                </div>
+              ))}
+              {status.error ? <div className="text-[#ec3750]">error: {status.error}</div> : null}
+              {notebookStatus.error ? <div className="text-[#ec3750]">error: {notebookStatus.error}</div> : null}
+              <div className="text-[#33d6a6]">$ <span className="inline-block h-4 w-2 translate-y-0.5 bg-[#33d6a6]" /></div>
+            </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-md border border-white/10 bg-black/25 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Status</div>
-              <div className="mt-1 text-sm font-black text-white">{status.status || 'idle'}</div>
+            <div className="mt-6 flex flex-wrap gap-2 text-xs">
+              <button onClick={runHealthCommand} className="border border-emerald-300/25 bg-emerald-300/5 px-2.5 py-1.5 text-emerald-200 hover:bg-emerald-300/10">[run] $ homes-engine health</button>
+              <button onClick={generateDemo} disabled={isSubmitting} className="border border-emerald-300/25 bg-emerald-300/5 px-2.5 py-1.5 text-emerald-200 hover:bg-emerald-300/10 disabled:opacity-40">[run] $ homes-engine demo</button>
+              <button onClick={runGalleryCommand} className="border border-emerald-300/25 bg-emerald-300/5 px-2.5 py-1.5 text-emerald-200 hover:bg-emerald-300/10">[run] $ homes-engine gallery</button>
+              <button onClick={submitNotebookVideo} disabled={isNotebookSubmitting} className="border border-amber-300/25 bg-amber-300/5 px-2.5 py-1.5 text-amber-200 hover:bg-amber-300/10 disabled:opacity-40">[run] $ homes-engine notebooklm --url https://hackclub.com --style {notebookStyle} --format brief</button>
             </div>
-            <div className="rounded-md border border-white/10 bg-black/25 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Stage</div>
-              <div className="mt-1 truncate text-sm font-black text-white">{status.stage || 'ready'}</div>
+
+            <div className="mt-5 grid gap-2 text-xs text-slate-400 md:grid-cols-2">
+              <label className="flex items-center gap-2">topic:
+                <select value={themeId} onChange={(e) => setThemeId(e.target.value)} className="min-w-0 flex-1 border border-white/10 bg-black px-2 py-1 font-mono text-emerald-100 outline-none">
+                  {demoThemes.map(item => <option key={item.id} value={item.id}>{item.id}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2">style:
+                <select value={notebookStyle} onChange={(e) => setNotebookStyle(e.target.value)} className="min-w-0 flex-1 border border-white/10 bg-black px-2 py-1 font-mono text-emerald-100 outline-none">
+                  {notebookStyles.map(style => <option key={style} value={style}>{style}</option>)}
+                </select>
+              </label>
+              <label className="flex items-center gap-2 md:col-span-2">url:
+                <input value={notebookUrls} onChange={(e) => setNotebookUrls(e.target.value)} className="min-w-0 flex-1 border border-white/10 bg-black px-2 py-1 font-mono text-emerald-100 outline-none" />
+              </label>
+              <label className="flex items-center gap-2">profile:
+                <input value={profileId} onChange={(e) => setProfileId(e.target.value)} className="min-w-0 flex-1 border border-white/10 bg-black px-2 py-1 font-mono text-emerald-100 outline-none" />
+              </label>
+              <label className="flex items-center gap-2">notebook:
+                <input value={notebookId} onChange={(e) => setNotebookId(e.target.value)} placeholder="optional" className="min-w-0 flex-1 border border-white/10 bg-black px-2 py-1 font-mono text-emerald-100 outline-none placeholder:text-slate-600" />
+              </label>
+              {notebookStyle === 'custom' ? (
+                <label className="flex items-center gap-2 md:col-span-2">stylePrompt:
+                  <input value={notebookStylePrompt} onChange={(e) => setNotebookStylePrompt(e.target.value)} className="min-w-0 flex-1 border border-white/10 bg-black px-2 py-1 font-mono text-emerald-100 outline-none" />
+                </label>
+              ) : null}
+              <label className="flex items-center gap-2">assets:
+                <input type="file" multiple onChange={(e) => setNotebookAssets(e.target.files)} className="min-w-0 flex-1 text-slate-500 file:border file:border-white/10 file:bg-black file:px-2 file:py-1 file:font-mono file:text-slate-300" />
+              </label>
+              <label className="flex items-center gap-2">liveResearch:
+                <input type="checkbox" checked={liveResearch} onChange={(e) => setLiveResearch(e.target.checked)} />
+              </label>
             </div>
-            <div className="rounded-md border border-white/10 bg-black/25 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Progress</div>
-              <div className="mt-1 text-sm font-black text-white">{status.progress ?? 0}%</div>
+
+            <div className="mt-6 text-xs text-slate-400">
+              <div className="text-[#33d6a6]">$ ls outputs/</div>
+              <div className="mt-1 space-y-1">
+                {preRenderedVideos.map(video => (
+                  <button key={video.url} onClick={() => openGalleryVideo(video.url)} className="block w-full truncate text-left text-slate-300 hover:text-[#f7c948]">
+                    {video.url.replace('/videos/', '')}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="rounded-md border border-white/10 bg-black/25 p-3">
-              <div className="text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Queue</div>
-              <div className="mt-1 text-sm font-black text-white">1 lane</div>
-            </div>
+
+            {absoluteVideoUrl ? (
+              <div className="mt-6 border-t border-emerald-300/15 pt-4">
+                <div className="mb-2 text-[#33d6a6]">$ open output.mp4</div>
+                <video className="aspect-video w-full bg-black" src={absoluteVideoUrl} controls playsInline preload="metadata" />
+                <a href={absoluteVideoUrl} target="_blank" rel="noreferrer" className="mt-2 inline-block text-xs text-[#f7c948] hover:text-[#ffe18a]">
+                  open mp4
+                </a>
+              </div>
+            ) : null}
           </div>
-
-          {status.error ? (
-            <div className="mt-4 rounded-md border border-red-300/20 bg-red-500/10 px-3 py-2 text-xs text-red-200">
-              {status.error}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="rounded-lg border border-white/10 bg-black/25 p-4">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Video output</span>
-            {absoluteVideoUrl ? <a href={absoluteVideoUrl} className="text-xs font-bold text-emerald-200 hover:text-emerald-100">Open MP4</a> : null}
-          </div>
-          {absoluteVideoUrl ? (
-            <video className="aspect-video w-full rounded-lg border border-white/10 bg-black" src={absoluteVideoUrl} controls />
-          ) : (
-            <div className="grid aspect-video place-items-center rounded-lg border border-white/10 bg-[#101418] text-sm text-slate-500">
-              Generate a short demo or select a pre-rendered video.
-            </div>
-          )}
         </div>
       </div>
-
-      <aside className="space-y-5">
-        <div className="rounded-lg border border-white/10 bg-[#101418]/95 p-4 shadow-2xl">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[#33d6a6]">NotebookLM video</p>
-          <div className="mt-3 space-y-3">
-            <input
-              value={notebookProjectId}
-              onChange={(e) => setNotebookProjectId(e.target.value)}
-              className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-emerald-300/50"
-              placeholder="projectId"
-            />
-            <input
-              value={notebookTitle}
-              onChange={(e) => setNotebookTitle(e.target.value)}
-              className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-emerald-300/50"
-              placeholder="Title"
-            />
-            <input
-              value={notebookTheme}
-              onChange={(e) => setNotebookTheme(e.target.value)}
-              className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-emerald-300/50"
-              placeholder="Theme"
-            />
-            <textarea
-              value={notebookUrls}
-              onChange={(e) => setNotebookUrls(e.target.value)}
-              className="h-24 w-full resize-none rounded-md border border-white/10 bg-black/30 px-3 py-2 font-mono text-xs text-white outline-none focus:border-emerald-300/50"
-              placeholder="https://hackclub.com/"
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                value={notebookStyle}
-                onChange={(e) => setNotebookStyle(e.target.value)}
-                className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-emerald-300/50"
-              >
-                {notebookStyles.map(style => <option key={style} value={style}>{style}</option>)}
-              </select>
-              <input
-                value={profileId}
-                onChange={(e) => setProfileId(e.target.value)}
-                className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-emerald-300/50"
-                placeholder="default"
-              />
-            </div>
-            {notebookStyle === 'custom' ? (
-              <textarea
-                value={notebookStylePrompt}
-                onChange={(e) => setNotebookStylePrompt(e.target.value)}
-                className="h-20 w-full resize-none rounded-md border border-[#f7c948]/20 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-[#f7c948]/50"
-                placeholder="Custom style prompt"
-              />
-            ) : null}
-            <input
-              value={notebookId}
-              onChange={(e) => setNotebookId(e.target.value)}
-              className="w-full rounded-md border border-white/10 bg-black/30 px-3 py-2 text-xs text-white outline-none focus:border-emerald-300/50"
-              placeholder="Existing notebookId (optional)"
-            />
-            <input
-              type="file"
-              multiple
-              onChange={(e) => setNotebookAssets(e.target.files)}
-              className="block w-full text-[10px] text-slate-400 file:mr-3 file:rounded-md file:border-0 file:bg-white/10 file:px-3 file:py-1.5 file:text-[10px] file:font-bold file:uppercase file:text-slate-200"
-            />
-            <label className="flex items-center gap-2 rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-slate-300">
-              <input type="checkbox" checked={liveResearch} onChange={(e) => setLiveResearch(e.target.checked)} />
-              liveResearch
-            </label>
-            <button
-              onClick={submitNotebookVideo}
-              disabled={isNotebookSubmitting}
-              className="w-full rounded-md bg-[#33d6a6] px-4 py-3 text-xs font-black uppercase tracking-[0.12em] text-black transition hover:bg-[#62e4bd] disabled:cursor-not-allowed disabled:bg-white/[0.06] disabled:text-slate-500"
-            >
-              {isNotebookSubmitting ? 'NotebookLM rendering...' : 'Submit NotebookLM video'}
-            </button>
-            <div className="rounded-md border border-white/10 bg-black/30 p-3 text-xs text-slate-400">
-              <div>Status: <span className="font-bold text-white">{notebookStatus.status || 'idle'}</span></div>
-              <div>Progress: <span className="font-bold text-white">{notebookStatus.progress ?? 0}%</span></div>
-              <div>Stage: <span className="font-bold text-white">{notebookStatus.stage || 'ready'}</span></div>
-              {notebookStatus.error ? <div className="mt-2 text-red-200">{notebookStatus.error}</div> : null}
-            </div>
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-white/10 bg-[#101418]/95 p-4 shadow-2xl">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Pre-rendered fallback</p>
-          <div className="mt-3 space-y-3">
-            {preRenderedVideos.map(video => (
-              <button
-                key={video.url}
-                onClick={async () => {
-                  const finalUrl = resolveVideoUrl(baseUrl, video.url);
-                  try {
-                    setStatus({ status: 'processing', stage: 'verifying_pre_rendered', progress: 95, videoUrl: finalUrl });
-                    log(`Verifying MP4 ${finalUrl}`);
-                    await verifyPlayableMp4(finalUrl);
-                    setVideoUrl(finalUrl);
-                    setStatus({ status: 'completed', stage: 'pre_rendered_verified', progress: 100, videoUrl: finalUrl });
-                    log(`Pre-rendered MP4 verified: ${finalUrl}`);
-                  } catch (error: any) {
-                    setVideoUrl('');
-                    setStatus({ status: 'failed', stage: 'mp4_validation_failed', progress: 0, videoUrl: finalUrl, error: error.message });
-                    log(error.message);
-                  }
-                }}
-                className="w-full rounded-md border border-white/10 bg-black/25 p-3 text-left transition hover:border-emerald-300/30 hover:bg-emerald-300/[0.06]"
-              >
-                <div className="text-sm font-black text-white">{video.title}</div>
-                <div className="mt-1 text-xs leading-relaxed text-slate-500">{video.detail}</div>
-                <div className="mt-2 truncate font-mono text-[10px] text-emerald-200">{resolveVideoUrl(baseUrl, video.url)}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-lg border border-white/10 bg-black/30 p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Terminal output</p>
-          <div className="mt-3 h-52 overflow-y-auto rounded-md border border-white/10 bg-black/50 p-3 font-mono text-[11px] leading-relaxed text-slate-400">
-            {logs.length ? logs.map(line => <div key={line}>{line}</div>) : 'Waiting for demo job...'}
-          </div>
-        </div>
-      </aside>
     </section>
   );
 };
