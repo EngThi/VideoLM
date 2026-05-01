@@ -50,19 +50,9 @@ const demoThemes = [
 
 const preRenderedVideos = [
   {
-    title: 'Hack Club research render',
-    detail: 'Paper craft style from the live Hack Club URL',
-    url: '/videos/research_community_1777566704645.mp4',
-  },
-  {
-    title: 'Codex Hack Club research render',
-    detail: 'Cached research video, returned immediately by polling',
-    url: '/videos/research_codex_notebooklm_hackclub.mp4',
-  },
-  {
-    title: 'Hosted Hack Club demo',
-    detail: 'Short hosted render for fast reviewer playback',
-    url: '/videos/hosted_demo_hackclub_1777572464094_1777572474992.mp4',
+    title: 'Hack Club NotebookLM render',
+    detail: 'Heavier Hack Club MP4 with NotebookLM visuals and branding mask',
+    url: '/videos/research_codex_video_trim_mask_1777661325.mp4',
   },
   {
     title: 'One minute branded render',
@@ -224,34 +214,14 @@ export const EngineDemoPage: React.FC = () => {
   const generateDemo = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
-    setStatus({ status: 'queued', stage: 'client_assets', progress: 0 });
+    setStatus({ status: 'processing', stage: 'opening_curated_hackclub_render', progress: 95 });
     setVideoUrl('');
     setLogs([]);
 
     try {
-      const projectId = `hosted_demo_${theme.id}_${Date.now()}`;
       log('$ homes-engine demo');
-      log(`projectId: ${projectId}`);
-      log('stage: preparing deterministic assets');
-      const audio = makeToneWav(24);
-      const images = await Promise.all(Array.from({ length: 6 }, (_, index) => makeDemoImage(theme.label, index, 6)));
-
-      const body = new FormData();
-      body.append('projectId', projectId);
-      body.append('duration', '24');
-      body.append('script', theme.script);
-      body.append('audio', audio);
-      images.forEach(image => body.append('images', image));
-
-      log('POST /api/video/demo/assemble');
-      const res = await fetch('/api/video/demo/assemble', { method: 'POST', body });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || `Submit failed (${res.status})`);
-
-      setStatus({ status: 'queued', stage: 'queued', progress: 0, videoUrl: data.videoUrl });
-      log(`queued: ${data.projectId}`);
-      log(`GET /api/video/${data.projectId}/status`);
-      await pollStatus(data.projectId);
+      log('mode: curated Hack Club reviewer render');
+      await openGalleryVideo(preRenderedVideos[0].url);
     } catch (error: any) {
       setStatus(prev => ({ ...prev, status: 'failed', stage: 'failed', error: error.message }));
       log(`error: ${error.message}`);
