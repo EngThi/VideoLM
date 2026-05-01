@@ -76,7 +76,17 @@ export class ResearchController {
     @Body('liveResearch') liveResearch: boolean = false,
     @Body('notebookId') notebookId?: string,
     @Body('profileId') profileId?: string,
+    @Body('format') videoFormat?: string,
   ) {
+    if (type === 'video') {
+      return this.researchService.startNotebookLMResearchInBackground(projectId, type, style, {
+        liveResearch,
+        notebookId,
+        profileId,
+        stylePrompt,
+        videoFormat: videoFormat || 'brief',
+      });
+    }
     return this.researchService.startNotebookLMResearch(projectId, type, style, { liveResearch, notebookId, profileId, stylePrompt });
   }
 

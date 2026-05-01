@@ -138,10 +138,11 @@ export class NotebookLMEngine {
     return this.execute(`create audio ${this.shellQuote(notebookId)} --confirm${this.profileFlag(profile)}`);
   }
 
-  async createVideoOverview(notebookId: string, style: string = 'classic', profile?: string, stylePrompt?: string) {
-    this.logger.log(`Solicitando Video Overview (${style}) para: ${notebookId}`);
+  async createVideoOverview(notebookId: string, style: string = 'classic', profile?: string, stylePrompt?: string, format: string = 'brief') {
+    this.logger.log(`Solicitando Video Overview (${style}, ${format}) para: ${notebookId}`);
     const promptFlag = stylePrompt ? ` --style-prompt ${this.shellQuote(stylePrompt)}` : '';
-    return this.execute(`create video ${this.shellQuote(notebookId)} --style ${this.shellQuote(style)}${promptFlag} --confirm${this.profileFlag(profile)}`);
+    const formatFlag = format ? ` --format ${this.shellQuote(format)}` : '';
+    return this.execute(`create video ${this.shellQuote(notebookId)}${formatFlag} --style ${this.shellQuote(style)}${promptFlag} --confirm${this.profileFlag(profile)}`);
   }
 
   async createInfographic(notebookId: string, style: string = 'professional', orientation: string = 'portrait', profile?: string) {

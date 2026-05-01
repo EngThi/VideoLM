@@ -210,6 +210,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
         body: JSON.stringify({
           type: 'video',
           style,
+          format: 'brief',
           stylePrompt: style === 'custom' ? customStylePrompt.trim() : undefined,
           notebookId: selectedNotebookId || undefined,
           profileId,
@@ -221,7 +222,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
       }
 
       // 3. Polling de Download
-      addLog('⏳ Monitoring Google Studio render worker...');
+      addLog('⏳ Google Studio job accepted. Rendering continues in the background; typical wait is 8-12 minutes.');
       let isDone = false;
       const maxPolls = 60;
       for (let pollCount = 1; pollCount <= maxPolls && !isDone; pollCount += 1) {
@@ -239,10 +240,10 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
           setStatus('completed');
           onResearchComplete(data.videoUrl);
           isDone = true;
-        } else if (data.status === 'error') {
-          throw new Error(data.message);
+        } else if (data.status === 'error' || data.status === 'failed') {
+          throw new Error(data.error || data.message);
         } else {
-          addLog(`📡 Status: Rendering Cinematic Frames... (${pollCount}/${maxPolls})`);
+          addLog(`📡 Status: ${data.stage || data.status || 'google_studio_rendering'} (${pollCount}/${maxPolls})`);
         }
       }
 
@@ -469,11 +470,11 @@ https://example.com/source"
             : 'bg-white/[0.04] text-slate-500 cursor-not-allowed border border-white/10'
             }`}
         >
-            {status === 'idle' || status === 'error' ? 'Start NotebookLM video render' : status === 'completed' ? 'Completed' : 'Rendering in NotebookLM...'}
+            {status === 'idle' || status === 'error' ? 'Start NotebookLM video render' : status === 'completed' ? 'Completed' : 'Rendering in background...'}
         </button>
 
         <div className="grid grid-cols-1 gap-2 text-[11px] text-slate-500 md:grid-cols-3">
-            <div className="rounded-md border border-white/10 bg-black/20 p-2">Expected wait: NotebookLM video generation can take several minutes.</div>
+            <div className="rounded-md border border-white/10 bg-black/20 p-2">Expected wait: reviewer mode uses NotebookLM brief format and usually takes about 8-12 minutes.</div>
             <div className="rounded-md border border-white/10 bg-black/20 p-2">Output: final MP4 is downloaded to this server and shown as a public URL.</div>
             <div className="rounded-md border border-white/10 bg-black/20 p-2">Failure mode: invalid URLs stop immediately; long renders stop polling after 20 minutes.</div>
         </div>

@@ -105,6 +105,7 @@ export class EngineController {
             urls: { type: 'string|string[]', required: false, description: 'JSON array, newline-separated, or comma-separated https:// sources.' },
             assets: { type: 'file[]', required: false, maxCount: 12, description: 'Documents/assets sent to NotebookLM as file sources.' },
             style: { type: 'string', required: false, default: 'classic' },
+            format: { type: 'string', required: false, default: 'brief', description: 'NotebookLM video format: brief, explainer, or cinematic. Reviewer path defaults to brief.' },
             stylePrompt: { type: 'string', required: false, description: 'Required when style is custom.' },
             liveResearch: { type: 'boolean|string', required: false, default: false },
             notebookId: { type: 'string', required: false, description: 'Use an existing NotebookLM notebook instead of creating one.' },
@@ -238,6 +239,7 @@ export class EngineController {
     const projectId = body.projectId || `engine_${Date.now()}`;
     const urls = this.parseUrlSources(body.urls);
     const style = body.style || 'classic';
+    const format = body.format || 'brief';
     const profileId = body.profileId || 'default';
     const liveResearch = this.parseBoolean(body.liveResearch);
 
@@ -249,7 +251,7 @@ export class EngineController {
       await this.researchService.addSources(projectId, urls);
     }
 
-    await this.researchService.startNotebookLMResearch(projectId, 'video', style, {
+    await this.researchService.startNotebookLMResearchInBackground(projectId, 'video', style, {
       stylePrompt: body.stylePrompt,
       profileId,
       notebookId: body.notebookId,
@@ -257,12 +259,16 @@ export class EngineController {
       sourceFiles: assets,
       theme: body.theme,
       title: body.title,
+      videoFormat: format,
     });
 
     return {
       projectId,
       status: 'submitted',
       notebookLM: 'video',
+      background: true,
+      format,
+      expectedWaitMinutes: '8-12',
       pollUrl: `${PUBLIC_BASE_URL}/api/research/${projectId}/download`,
     };
   }

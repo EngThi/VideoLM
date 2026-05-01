@@ -283,6 +283,7 @@ export const EngineDemoPage: React.FC = () => {
       body.append('title', notebookTitle);
       body.append('theme', notebookTheme);
       body.append('style', notebookStyle);
+      body.append('format', 'brief');
       body.append('profileId', profileId || 'default');
       body.append('liveResearch', String(liveResearch));
       if (notebookId.trim()) body.append('notebookId', notebookId.trim());
@@ -294,12 +295,13 @@ export const EngineDemoPage: React.FC = () => {
       const res = await fetch('/api/engine/notebooklm/video', { method: 'POST', body });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || `NotebookLM submit failed (${res.status})`);
-      setNotebookStatus({ status: data.status || 'submitted', stage: 'notebooklm_submitted', progress: 5 });
+      setNotebookStatus({ status: data.status || 'submitted', stage: 'background_queued', progress: 5 });
+      log(`NotebookLM job accepted in background. Expected wait: ${data.expectedWaitMinutes || '8-12'} minutes.`);
 
       for (let i = 0; i < 90; i += 1) {
         await new Promise(resolve => setTimeout(resolve, 10000));
         const poll = await pollNotebookLM(projectId);
-        setNotebookStatus({ ...poll, progress: poll.status === 'completed' ? 100 : Math.min(95, 5 + i), stage: poll.status === 'completed' ? 'completed' : 'notebooklm_rendering' });
+        setNotebookStatus({ ...poll, progress: poll.status === 'completed' ? 100 : Math.min(95, 5 + i), stage: poll.status === 'completed' ? 'completed' : poll.stage || 'notebooklm_rendering' });
         if (poll.status === 'completed' && poll.videoUrl) {
           setVideoUrl(poll.videoUrl);
           log(`NotebookLM completed: ${poll.videoUrl}`);

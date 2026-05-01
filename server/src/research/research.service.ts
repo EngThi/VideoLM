@@ -220,6 +220,7 @@ export class ResearchService {
       sourceFiles?: Array<{ path: string; originalname?: string }>;
       theme?: string;
       title?: string;
+      videoFormat?: string;
     } = {},
   ) {
     const resolvedVideoStyle = type === 'video'
@@ -305,6 +306,7 @@ export class ResearchService {
           resolvedVideoStyle.style,
           profileId,
           resolvedVideoStyle.stylePrompt,
+          options.videoFormat || 'brief',
         );
       }
       if (type === 'infographic') {
@@ -322,6 +324,63 @@ export class ResearchService {
     }
   }
 
+  async startNotebookLMResearchInBackground(
+    projectId: string,
+    type: 'audio' | 'video' | 'infographic' = 'video',
+    style: string = 'classic',
+    options: {
+      liveResearch?: boolean;
+      notebookId?: string;
+      profileId?: string;
+      stylePrompt?: string;
+      sourceFiles?: Array<{ path: string; originalname?: string }>;
+      theme?: string;
+      title?: string;
+      videoFormat?: string;
+    } = {},
+  ) {
+    await this.projectsService.updateStatus(projectId, 'researching');
+    await this.projectsService.updateMetadata(projectId, {
+      notebookLMBackground: true,
+      notebookLMStage: 'queued',
+      notebookLMType: type,
+      notebookLMStyle: style,
+      notebookLMFormat: options.videoFormat || 'brief',
+      notebookLMSubmittedAt: new Date().toISOString(),
+    });
+
+    setImmediate(async () => {
+      try {
+        await this.projectsService.updateMetadata(projectId, {
+          notebookLMStage: 'requesting_google_studio',
+          notebookLMStartedAt: new Date().toISOString(),
+        });
+        await this.startNotebookLMResearch(projectId, type, style, options);
+        await this.projectsService.updateMetadata(projectId, {
+          notebookLMStage: 'google_studio_rendering',
+          notebookLMRequestedAt: new Date().toISOString(),
+        });
+      } catch (error) {
+        this.logger.error(`Background NotebookLM job failed for ${projectId}: ${error.message}`);
+        await this.projectsService.updateStatus(projectId, 'error', undefined, `NotebookLM failed: ${error.message}`);
+        await this.projectsService.updateMetadata(projectId, {
+          notebookLMStage: 'failed',
+          notebookLMError: error.message,
+          notebookLMFailedAt: new Date().toISOString(),
+        });
+      }
+    });
+
+    return {
+      projectId,
+      status: 'submitted',
+      stage: 'queued',
+      background: true,
+      expectedWaitMinutes: '8-12',
+      message: 'NotebookLM video generation is running in the background. Poll the download endpoint for completion.',
+    };
+  }
+
   /**
    * Verifica o status e baixa o resultado da pesquisa (Áudio ou Vídeo)
    */
@@ -330,7 +389,25 @@ export class ResearchService {
     const notebookId = project.metadata?.notebookId;
     const profileId = project.metadata?.nlmProfileId;
 
-    if (!notebookId) throw new NotFoundException('Notebook ID not found for this project.');
+    if (project.status === 'error') {
+      return {
+        status: 'failed',
+        stage: project.metadata?.notebookLMStage || 'failed',
+        error: project.error || project.metadata?.notebookLMError || 'NotebookLM job failed.',
+      };
+    }
+
+    if (!notebookId) {
+      if (project.status === 'researching' || project.metadata?.notebookLMBackground) {
+        return {
+          status: 'processing',
+          stage: project.metadata?.notebookLMStage || 'queued',
+          message: 'NotebookLM job is queued or preparing a notebook.',
+          expectedWaitMinutes: '8-12',
+        };
+      }
+      throw new NotFoundException('Notebook ID not found for this project.');
+    }
 
     if (project.status === 'completed' && project.videoPath) {
       const cachedPath = path.join(process.cwd(), 'public', project.videoPath.replace(/^\//, ''));
@@ -354,7 +431,12 @@ export class ResearchService {
                   || artifacts.find((a: any) => a.type === 'infographic' && a.status === 'completed');
 
       if (!latest) {
-        return { status: 'processing', message: 'Result is still being generated in Google Studio.' };
+        return {
+          status: 'processing',
+          stage: project.metadata?.notebookLMStage || 'google_studio_rendering',
+          message: 'Result is still being generated in Google Studio.',
+          expectedWaitMinutes: '8-12',
+        };
       }
 
       let extension = 'mp4';
