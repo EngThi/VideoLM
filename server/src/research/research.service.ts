@@ -58,9 +58,10 @@ export class ResearchService {
 
     const ext = path.extname(inputPath);
     const tempOutput = inputPath.replace(new RegExp(`${ext}$`), `.branded${ext}`);
-    const overlayWidth = artifactType === 'video' ? 180 : 160;
-    const overlayMargin = artifactType === 'video' ? 18 : 14;
-    const overlayFilter = `[1:v]scale=${overlayWidth}:-1[wm];[0:v][wm]overlay=main_w-overlay_w-${overlayMargin}:main_h-overlay_h-${overlayMargin}:shortest=1[v]`;
+    const overlayWidth = artifactType === 'video' ? 180 : 280;
+    const overlayMarginX = artifactType === 'video' ? 18 : 6;
+    const overlayMarginY = artifactType === 'video' ? 18 : 0;
+    const overlayFilter = `[1:v]scale=${overlayWidth}:-1[wm];[0:v][wm]overlay=main_w-overlay_w-${overlayMarginX}:main_h-overlay_h-${overlayMarginY}:shortest=1[v]`;
 
     const args = artifactType === 'video'
       ? [
