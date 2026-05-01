@@ -110,8 +110,12 @@ const App: React.FC = () => {
 
   const isMounted = useRef(true);
   useEffect(() => {
-    document.title = isEngineDemoRoute ? 'HOMES-Engine' : 'VideoLM Factory';
-  }, [isEngineDemoRoute]);
+    if (window.location.pathname === '/engine-demo') {
+      document.title = 'HOMES-Engine';
+    } else {
+      document.title = 'VideoLM Factory';
+    }
+  }, []);
 
   useEffect(() => {
     isMounted.current = true;
