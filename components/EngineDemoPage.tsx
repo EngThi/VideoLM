@@ -7,6 +7,7 @@ import {
   pollNotebookLM,
   pollVideoStatus,
   resolveVideoUrl,
+  verifyPlayableMp4,
   type EngineManifest,
 } from '../services/engineApi';
 
@@ -201,9 +202,15 @@ export const EngineDemoPage: React.FC = () => {
       setStatus(data);
       log(`${data.stage || data.status} ${data.progress ?? 0}%`);
 
-      if (data.status === 'completed' && data.videoUrl) {
-        setVideoUrl(data.videoUrl);
-        log('Completed MP4 is ready.');
+      if (data.status === 'completed') {
+        const finalUrl = resolveVideoUrl(baseUrl, data.videoUrl || data.videoPath || '');
+        if (!finalUrl) throw new Error('Render completed but no videoUrl/videoPath was returned.');
+
+        log(`Verifying MP4 ${finalUrl}`);
+        await verifyPlayableMp4(finalUrl);
+        setVideoUrl(finalUrl);
+        setStatus({ ...data, videoUrl: finalUrl });
+        log(`Completed MP4 verified: ${finalUrl}`);
         return;
       }
 
@@ -240,7 +247,6 @@ export const EngineDemoPage: React.FC = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || `Submit failed (${res.status})`);
 
-      setVideoUrl(data.videoUrl);
       setStatus({ status: 'queued', stage: 'queued', progress: 0, videoUrl: data.videoUrl });
       log(`Queued ${data.projectId}.`);
       await pollStatus(data.projectId);
@@ -303,8 +309,11 @@ export const EngineDemoPage: React.FC = () => {
         const poll = await pollNotebookLM(projectId);
         setNotebookStatus({ ...poll, progress: poll.status === 'completed' ? 100 : Math.min(95, 5 + i), stage: poll.status === 'completed' ? 'completed' : poll.stage || 'notebooklm_rendering' });
         if (poll.status === 'completed' && poll.videoUrl) {
-          setVideoUrl(poll.videoUrl);
-          log(`NotebookLM completed: ${poll.videoUrl}`);
+          const finalUrl = resolveVideoUrl(baseUrl, poll.videoUrl || poll.videoPath || '');
+          log(`Verifying NotebookLM MP4 ${finalUrl}`);
+          await verifyPlayableMp4(finalUrl);
+          setVideoUrl(finalUrl);
+          log(`NotebookLM MP4 verified: ${finalUrl}`);
           return;
         }
         if (poll.status === 'error' || poll.status === 'failed') throw new Error(poll.error || poll.message || 'NotebookLM job failed.');
@@ -324,8 +333,8 @@ export const EngineDemoPage: React.FC = () => {
         <div className="rounded-lg border border-white/10 bg-[#101418]/95 p-4 shadow-2xl">
           <div className="flex flex-col gap-3 border-b border-white/10 pb-4 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#f7c948]">Operational dashboard</p>
-              <h2 className="mt-1 text-2xl font-black tracking-tight text-white">HOMES Engine Demo</h2>
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#f7c948]">Terminal-first video generation through VideoLM</p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight text-white">HOMES-Engine</h2>
               <p className="mt-1 font-mono text-xs text-slate-500">VideoLM: {baseUrl}</p>
             </div>
             <span className={`rounded-md border px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.12em] ${
@@ -517,9 +526,20 @@ export const EngineDemoPage: React.FC = () => {
             {preRenderedVideos.map(video => (
               <button
                 key={video.url}
-                onClick={() => {
-                  setVideoUrl(video.url);
-                  setStatus({ status: 'completed', stage: 'pre_rendered', progress: 100, videoUrl: video.url });
+                onClick={async () => {
+                  const finalUrl = resolveVideoUrl(baseUrl, video.url);
+                  try {
+                    setStatus({ status: 'processing', stage: 'verifying_pre_rendered', progress: 95, videoUrl: finalUrl });
+                    log(`Verifying MP4 ${finalUrl}`);
+                    await verifyPlayableMp4(finalUrl);
+                    setVideoUrl(finalUrl);
+                    setStatus({ status: 'completed', stage: 'pre_rendered_verified', progress: 100, videoUrl: finalUrl });
+                    log(`Pre-rendered MP4 verified: ${finalUrl}`);
+                  } catch (error: any) {
+                    setVideoUrl('');
+                    setStatus({ status: 'failed', stage: 'mp4_validation_failed', progress: 0, videoUrl: finalUrl, error: error.message });
+                    log(error.message);
+                  }
                 }}
                 className="w-full rounded-md border border-white/10 bg-black/25 p-3 text-left transition hover:border-emerald-300/30 hover:bg-emerald-300/[0.06]"
               >

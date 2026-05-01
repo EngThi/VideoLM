@@ -31,7 +31,21 @@ export function getBaseUrl(manifest?: EngineManifest | null) {
 
 export function resolveVideoUrl(baseUrl: string, videoUrl: string) {
   if (!videoUrl) return '';
-  return videoUrl.startsWith('http') ? videoUrl : `${baseUrl}${videoUrl}`;
+  if (videoUrl.startsWith('http://') || videoUrl.startsWith('https://')) return videoUrl;
+  return `${baseUrl}${videoUrl.startsWith('/') ? videoUrl : `/${videoUrl}`}`;
+}
+
+export async function verifyPlayableMp4(url: string) {
+  const res = await fetch(url, { method: 'HEAD', cache: 'no-store' });
+  const contentType = res.headers.get('content-type') || '';
+
+  if (res.status !== 200 && res.status !== 206) {
+    throw new Error(`MP4 is not public yet: ${res.status} ${url}`);
+  }
+
+  if (!contentType.includes('video/mp4')) {
+    throw new Error(`Expected video/mp4, got "${contentType}" for ${url}`);
+  }
 }
 
 export async function pollVideoStatus(projectId: string) {
