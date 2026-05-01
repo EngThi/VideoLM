@@ -3,7 +3,7 @@ import { authService } from '../services/authService';
 
 interface ResearchDashboardProps {
   projectId: string;
-  onResearchComplete: (videoUrl: string) => void;
+  onResearchComplete: (artifactUrl: string) => void;
 }
 
 const NLM_VIDEO_STYLES = [
@@ -26,12 +26,12 @@ const researchSteps = [
     body: 'Paste https:// URLs, pick an existing NotebookLM notebook, or upload documents into a selected notebook.',
   },
   {
-    title: '2. Pick a style',
-    body: 'The style is sent to NotebookLM video overview generation. Custom opens a prompt field.',
+    title: '2. Pick artifact and style',
+    body: 'Choose a video overview or infographic PNG, then pick a NotebookLM style. Custom opens a prompt field.',
   },
   {
     title: '3. Start render',
-    body: 'The server requests the NotebookLM video, polls for completion, downloads the MP4, then applies branding.',
+    body: 'The server requests the NotebookLM artifact, polls for completion, downloads the MP4 or PNG, then applies branding.',
   },
 ];
 
@@ -40,6 +40,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
   const [urlError, setUrlError] = useState<string>('');
   const [status, setStatus] = useState<'idle' | 'researching' | 'storyboarding' | 'assembling' | 'completed' | 'error'>('idle');
   const [log, setLog] = useState<string[]>([]);
+  const [artifactType, setArtifactType] = useState<'video' | 'infographic'>('video');
   const [style, setStyle] = useState<string>('watercolor');
   const [customStylePrompt, setCustomStylePrompt] = useState<string>('');
   const [profileId, setProfileId] = useState<string>('default');
@@ -203,12 +204,12 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
       }
 
       // 2. Disparar Trigger
-      addLog(`🎙️ Requesting ${style.toUpperCase()} Cinematic Overview...`);
+      addLog(`${artifactType === 'infographic' ? '🖼️' : '🎙️'} Requesting ${style.toUpperCase()} ${artifactType === 'infographic' ? 'Infographic' : 'Cinematic Overview'}...`);
       const triggerRes = await fetch(`/api/research/${projectId}/trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authService.getAuthHeader() },
         body: JSON.stringify({
-          type: 'video',
+          type: artifactType,
           style,
           format: 'brief',
           stylePrompt: style === 'custom' ? customStylePrompt.trim() : undefined,
@@ -236,7 +237,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
         }
         
         if (data.status === 'completed') {
-          addLog(`✅ 50MB+ HD Artifact downloaded to server: ${data.videoUrl}`);
+          addLog(`✅ ${artifactType === 'infographic' ? 'PNG infographic' : 'MP4 video'} downloaded to server: ${data.videoUrl}`);
           setStatus('completed');
           onResearchComplete(data.videoUrl);
           isDone = true;
@@ -264,7 +265,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
         <div className="min-w-0">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#33d6a6]">Primary workflow</p>
           <div className="mt-1 flex flex-wrap items-center gap-3">
-            <h3 className="text-2xl font-black tracking-tight text-white">NotebookLM Video</h3>
+            <h3 className="text-2xl font-black tracking-tight text-white">NotebookLM {artifactType === 'infographic' ? 'Infographic' : 'Video'}</h3>
             <span className={`rounded-md border px-2 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${
               status === 'completed' ? 'border-emerald-300/30 bg-emerald-300/10 text-emerald-200' :
               status === 'error' ? 'border-red-300/30 bg-red-300/10 text-red-200' :
@@ -275,11 +276,30 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
             </span>
           </div>
           <p className="mt-1 max-w-2xl text-sm text-slate-400">
-            Main path for reviewers: generate a NotebookLM video overview from web sources, an existing notebook, or uploaded files. Use only public `https://` URLs.
+            Main path for reviewers: generate a NotebookLM {artifactType === 'infographic' ? 'infographic PNG' : 'video overview'} from web sources, an existing notebook, or uploaded files. Use only public `https://` URLs.
           </p>
         </div>
         <div className="shrink-0 rounded-lg border border-white/10 bg-black/20 p-2">
-          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Video style</p>
+          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Artifact</p>
+          <div className="mb-3 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => setArtifactType('video')}
+              className={`min-h-8 rounded-md border px-2 py-1 text-center text-[10px] font-bold uppercase tracking-[0.06em] transition ${
+                artifactType === 'video' ? 'border-emerald-300/50 bg-emerald-300/15 text-emerald-100' : 'border-white/10 bg-black/25 text-slate-400 hover:border-white/25 hover:text-white'
+              }`}
+            >
+              Video
+            </button>
+            <button
+              onClick={() => setArtifactType('infographic')}
+              className={`min-h-8 rounded-md border px-2 py-1 text-center text-[10px] font-bold uppercase tracking-[0.06em] transition ${
+                artifactType === 'infographic' ? 'border-emerald-300/50 bg-emerald-300/15 text-emerald-100' : 'border-white/10 bg-black/25 text-slate-400 hover:border-white/25 hover:text-white'
+              }`}
+            >
+              Infographic
+            </button>
+          </div>
+          <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Style</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
               {NLM_VIDEO_STYLES.map(({ value, label }) => (
                   <button
@@ -334,7 +354,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
         </div>
 
         <div className="rounded-lg border border-yellow-300/20 bg-yellow-300/10 p-3 text-xs leading-relaxed text-yellow-100">
-          Reviewer path: click <span className="font-bold">Load</span> to list NotebookLM notebooks, choose one, confirm it has sources, select a style, then start the render. New URL sources must be full `https://` links. Custom style requires a prompt.
+          Reviewer path: choose Video or Infographic, click <span className="font-bold">Load</span> to list NotebookLM notebooks, choose one, confirm it has sources, select a style, then start the render. New URL sources must be full `https://` links. Custom style requires a prompt.
         </div>
 
         <div className="grid grid-cols-1 gap-3 xl:grid-cols-[1fr_1.2fr]">
@@ -441,7 +461,7 @@ https://example.com/source"
                 <span className="text-[10px] text-slate-600">PDF, TXT, MD, DOCX, slides, sheets</span>
             </div>
             <p className="mb-3 text-xs leading-relaxed text-slate-500">
-                File upload requires an existing notebook selection. The app uploads these files to that notebook before requesting the video overview.
+                File upload requires an existing notebook selection. The app uploads these files to that notebook before requesting the selected NotebookLM artifact.
             </p>
             <input
                 type="file"
@@ -470,12 +490,14 @@ https://example.com/source"
             : 'bg-white/[0.04] text-slate-500 cursor-not-allowed border border-white/10'
             }`}
         >
-            {status === 'idle' || status === 'error' ? 'Start NotebookLM video render' : status === 'completed' ? 'Completed' : 'Rendering in background...'}
+            {status === 'idle' || status === 'error'
+              ? artifactType === 'infographic' ? 'Start infographic render' : 'Start NotebookLM video render'
+              : status === 'completed' ? 'Completed' : 'Rendering in background...'}
         </button>
 
         <div className="grid grid-cols-1 gap-2 text-[11px] text-slate-500 md:grid-cols-3">
             <div className="rounded-md border border-white/10 bg-black/20 p-2">Expected wait: reviewer mode uses NotebookLM brief format and usually takes about 8-12 minutes.</div>
-            <div className="rounded-md border border-white/10 bg-black/20 p-2">Output: final MP4 is downloaded to this server and shown as a public URL.</div>
+            <div className="rounded-md border border-white/10 bg-black/20 p-2">Output: final {artifactType === 'infographic' ? 'PNG' : 'MP4'} is downloaded to this server and shown as a public URL after completion.</div>
             <div className="rounded-md border border-white/10 bg-black/20 p-2">Failure mode: invalid URLs stop immediately; long renders stop polling after 20 minutes.</div>
         </div>
 

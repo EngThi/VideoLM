@@ -48,6 +48,7 @@ const generateSrt = (script: string, totalDuration: number): string => {
 
 export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
   const [isZipping, setIsZipping] = useState(false);
+  const isImageArtifact = /\.(png|jpe?g|webp)(\?|$)/i.test(result.videoUrl || '');
 
   const handleDownloadAll = async () => {
     if (isZipping) return;
@@ -220,8 +221,15 @@ export const ResultView: React.FC<ResultViewProps> = ({ result, onReset }) => {
             </div>
           )}
 
-          {/* Video Section (Fallback if Veo used elsewhere) */}
-          {result.videoUrl && (
+          {/* Research Artifact Section */}
+          {result.videoUrl && isImageArtifact && (
+            <div className="space-y-2">
+               <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.14em]">Generated Infographic</h3>
+              <img src={result.videoUrl} alt="Generated NotebookLM infographic" className="w-full rounded-lg shadow-lg bg-black border border-white/10 object-contain" />
+            </div>
+          )}
+
+          {result.videoUrl && !isImageArtifact && (
             <div className="space-y-2">
                <h3 className="text-sm font-bold text-slate-400 uppercase tracking-[0.14em]">Generated Video</h3>
               <video controls src={result.videoUrl} className="w-full rounded-lg shadow-lg aspect-video bg-black border border-white/10">
