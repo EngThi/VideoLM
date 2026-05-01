@@ -59,9 +59,9 @@ const preRenderedVideos = [
     url: '/videos/research_codex_notebooklm_hackclub.mp4',
   },
   {
-    title: 'NotebookLM research artifact',
-    detail: 'Long-form hosted research result',
-    url: '/videos/research_community_1777492412812.mp4',
+    title: 'Hosted Hack Club demo',
+    detail: 'Short hosted render for fast reviewer playback',
+    url: '/videos/hosted_demo_hackclub_1777572464094_1777572474992.mp4',
   },
   {
     title: 'One minute branded render',
