@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { authService } from '../services/authService';
 
 interface ResearchDashboardProps {
@@ -16,6 +16,20 @@ const NLM_VIDEO_STYLES = [
   { value: 'retro_print', label: 'Retro Print' },
   { value: 'heritage', label: 'Heritage' },
   { value: 'paper_craft', label: 'Paper Craft' },
+];
+
+const NLM_INFOGRAPHIC_STYLES = [
+  { value: 'auto_select', label: 'Auto' },
+  { value: 'sketch_note', label: 'Sketch Note' },
+  { value: 'professional', label: 'Professional' },
+  { value: 'bento_grid', label: 'Bento Grid' },
+  { value: 'editorial', label: 'Editorial' },
+  { value: 'instructional', label: 'Instructional' },
+  { value: 'bricks', label: 'Bricks' },
+  { value: 'clay', label: 'Clay' },
+  { value: 'anime', label: 'Anime' },
+  { value: 'kawaii', label: 'Kawaii' },
+  { value: 'scientific', label: 'Scientific' },
 ];
 
 const CUSTOM_STYLE = { value: 'custom', label: 'Custom' };
@@ -52,7 +66,13 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
 
   const addLog = (msg: string) => setLog(prev => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...prev]);
   const isBusy = status !== 'idle' && status !== 'error' && status !== 'completed';
-  const isCustomStyleMissingPrompt = style === 'custom' && !customStylePrompt.trim();
+  const activeStyles = useMemo(
+    () => artifactType === 'infographic' ? NLM_INFOGRAPHIC_STYLES : NLM_VIDEO_STYLES,
+    [artifactType],
+  );
+  const currentStyleIsValid = activeStyles.some(item => item.value === style) || (artifactType === 'video' && style === 'custom');
+  const resolvedStyle = currentStyleIsValid ? style : activeStyles[0].value;
+  const isCustomStyleMissingPrompt = artifactType === 'video' && resolvedStyle === 'custom' && !customStylePrompt.trim();
   const canStart = (status === 'idle' || status === 'error') && !urlError && !isCustomStyleMissingPrompt;
 
   const parseUrlList = (value: string): string[] => {
@@ -159,7 +179,7 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
       return;
     }
 
-    if (style === 'custom' && !customStylePrompt.trim()) {
+    if (artifactType === 'video' && resolvedStyle === 'custom' && !customStylePrompt.trim()) {
       addLog('🚨 STYLE VALIDATION: Custom style needs a short style prompt.');
       return;
     }
@@ -204,15 +224,15 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
       }
 
       // 2. Disparar Trigger
-      addLog(`${artifactType === 'infographic' ? '🖼️' : '🎙️'} Requesting ${style.toUpperCase()} ${artifactType === 'infographic' ? 'Infographic' : 'Cinematic Overview'}...`);
+      addLog(`${artifactType === 'infographic' ? '🖼️' : '🎙️'} Requesting ${resolvedStyle.toUpperCase()} ${artifactType === 'infographic' ? 'Infographic' : 'Cinematic Overview'}...`);
       const triggerRes = await fetch(`/api/research/${projectId}/trigger`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...authService.getAuthHeader() },
         body: JSON.stringify({
           type: artifactType,
-          style,
+          style: resolvedStyle,
           format: 'brief',
-          stylePrompt: style === 'custom' ? customStylePrompt.trim() : undefined,
+          stylePrompt: resolvedStyle === 'custom' ? customStylePrompt.trim() : undefined,
           notebookId: selectedNotebookId || undefined,
           profileId,
         }),
@@ -283,7 +303,10 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
           <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Artifact</p>
           <div className="mb-3 grid grid-cols-2 gap-2">
             <button
-              onClick={() => setArtifactType('video')}
+              onClick={() => {
+                setArtifactType('video');
+                if (!NLM_VIDEO_STYLES.some(item => item.value === style) && style !== 'custom') setStyle('watercolor');
+              }}
               className={`min-h-8 rounded-md border px-2 py-1 text-center text-[10px] font-bold uppercase tracking-[0.06em] transition ${
                 artifactType === 'video' ? 'border-emerald-300/50 bg-emerald-300/15 text-emerald-100' : 'border-white/10 bg-black/25 text-slate-400 hover:border-white/25 hover:text-white'
               }`}
@@ -291,7 +314,10 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
               Video
             </button>
             <button
-              onClick={() => setArtifactType('infographic')}
+              onClick={() => {
+                setArtifactType('infographic');
+                if (!NLM_INFOGRAPHIC_STYLES.some(item => item.value === style)) setStyle('sketch_note');
+              }}
               className={`min-h-8 rounded-md border px-2 py-1 text-center text-[10px] font-bold uppercase tracking-[0.06em] transition ${
                 artifactType === 'infographic' ? 'border-emerald-300/50 bg-emerald-300/15 text-emerald-100' : 'border-white/10 bg-black/25 text-slate-400 hover:border-white/25 hover:text-white'
               }`}
@@ -301,29 +327,29 @@ export const ResearchDashboard: React.FC<ResearchDashboardProps> = ({ projectId,
           </div>
           <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">Style</p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2 2xl:grid-cols-3">
-              {NLM_VIDEO_STYLES.map(({ value, label }) => (
+              {activeStyles.map(({ value, label }) => (
                   <button
                       key={value}
                       onClick={() => setStyle(value)}
                       className={`min-h-8 w-full rounded-md border px-2 py-1 text-center text-[10px] font-bold uppercase leading-tight tracking-[0.04em] transition ${
-                          style === value ? 'border-emerald-300/50 bg-emerald-300/15 text-emerald-100' : 'border-white/10 bg-black/25 text-slate-400 hover:border-white/25 hover:text-white'
+                          resolvedStyle === value ? 'border-emerald-300/50 bg-emerald-300/15 text-emerald-100' : 'border-white/10 bg-black/25 text-slate-400 hover:border-white/25 hover:text-white'
                       }`}
                   >
                       {label}
                   </button>
               ))}
-              <button
+              {artifactType === 'video' ? <button
                   onClick={() => setStyle(CUSTOM_STYLE.value)}
                   className={`min-h-8 w-full rounded-md border px-2 py-1 text-center text-[10px] font-bold uppercase leading-tight tracking-[0.04em] transition ${
-                      style === CUSTOM_STYLE.value
+                      resolvedStyle === CUSTOM_STYLE.value
                       ? 'border-[#f7c948]/70 bg-[#f7c948]/15 text-[#ffe28a]'
                       : 'border-[#f7c948]/25 bg-[#f7c948]/[0.06] text-[#f7c948] hover:border-[#f7c948]/50 hover:bg-[#f7c948]/10'
                   }`}
               >
                   {CUSTOM_STYLE.label}
-              </button>
+              </button> : null}
           </div>
-          {style === 'custom' ? (
+          {artifactType === 'video' && resolvedStyle === 'custom' ? (
             <div className="mt-3 rounded-md border border-[#f7c948]/20 bg-[#f7c948]/[0.06] p-2">
               <label className="text-[9px] font-black uppercase tracking-[0.12em] text-[#f7c948]">
                 Custom prompt

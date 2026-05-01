@@ -179,6 +179,38 @@ export class ResearchService {
     };
   }
 
+  private resolveNotebookLMInfographicStyle(style: string) {
+    const validStyles = new Set([
+      'auto_select',
+      'sketch_note',
+      'professional',
+      'bento_grid',
+      'editorial',
+      'instructional',
+      'bricks',
+      'clay',
+      'anime',
+      'kawaii',
+      'scientific',
+    ]);
+
+    if (validStyles.has(style)) return style;
+
+    const aliases: Record<string, string> = {
+      classic: 'professional',
+      whiteboard: 'sketch_note',
+      watercolor: 'sketch_note',
+      paper_craft: 'instructional',
+      retro_print: 'editorial',
+      heritage: 'editorial',
+      custom: 'auto_select',
+    };
+
+    const resolved = aliases[style] || 'auto_select';
+    this.logger.warn(`NotebookLM infographic style '${style}' is not supported. Using '${resolved}'.`);
+    return resolved;
+  }
+
   /**
    * Adiciona URLs ao projeto e persiste na coluna 'sources'
    */
@@ -264,7 +296,7 @@ export class ResearchService {
   ) {
     const resolvedVideoStyle = type === 'video'
       ? this.resolveNotebookLMVideoStyle(style, options.stylePrompt)
-      : { style, stylePrompt: undefined };
+      : { style: type === 'infographic' ? this.resolveNotebookLMInfographicStyle(style) : style, stylePrompt: undefined };
     const project = await this.findOrCreateResearchProject(projectId, {
       notebookId: options.notebookId,
       nlmProfileId: options.profileId,

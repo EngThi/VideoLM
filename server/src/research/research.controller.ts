@@ -70,7 +70,7 @@ export class ResearchController {
   @Post(':projectId/trigger')
   async triggerResearch(
     @Param('projectId') projectId: string,
-    @Body('type') type: 'audio' | 'video' = 'audio',
+    @Body('type') type: 'audio' | 'video' | 'infographic' = 'audio',
     @Body('style') style: string = 'classic',
     @Body('stylePrompt') stylePrompt?: string,
     @Body('liveResearch') liveResearch: boolean = false,
@@ -78,7 +78,7 @@ export class ResearchController {
     @Body('profileId') profileId?: string,
     @Body('format') videoFormat?: string,
   ) {
-    if (type === 'video') {
+    if (type === 'video' || type === 'infographic') {
       return this.researchService.startNotebookLMResearchInBackground(projectId, type, style, {
         liveResearch,
         notebookId,
