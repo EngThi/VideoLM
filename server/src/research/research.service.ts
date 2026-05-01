@@ -22,6 +22,21 @@ export class ResearchService {
   ) {}
 
   private getBrandingMaskPath(): string | undefined {
+    const assetDirs = [
+      path.join(process.cwd(), 'public', 'branding-overlays'),
+      path.join(process.cwd(), '..', 'dist', 'branding-overlays'),
+    ];
+    const overlayAssets = assetDirs.flatMap((dir) => {
+      if (!fs.existsSync(dir)) return [];
+      return fs.readdirSync(dir)
+        .filter((name) => /\.(gif|png|webp)$/i.test(name))
+        .map((name) => path.join(dir, name));
+    });
+
+    if (overlayAssets.length) {
+      return overlayAssets[Math.floor(Math.random() * overlayAssets.length)];
+    }
+
     const candidates = [
       path.join(process.cwd(), 'public/logo_mask.gif'),
       path.join(process.cwd(), '..', 'dist', 'logo_mask.gif'),
@@ -43,7 +58,9 @@ export class ResearchService {
 
     const ext = path.extname(inputPath);
     const tempOutput = inputPath.replace(new RegExp(`${ext}$`), `.branded${ext}`);
-    const overlayFilter = '[1:v]scale=300:-1[wm];[0:v][wm]overlay=main_w-overlay_w-20:main_h-overlay_h-20:shortest=1[v]';
+    const overlayWidth = artifactType === 'video' ? 180 : 160;
+    const overlayMargin = artifactType === 'video' ? 18 : 14;
+    const overlayFilter = `[1:v]scale=${overlayWidth}:-1[wm];[0:v][wm]overlay=main_w-overlay_w-${overlayMargin}:main_h-overlay_h-${overlayMargin}:shortest=1[v]`;
 
     const args = artifactType === 'video'
       ? [
@@ -73,7 +90,7 @@ export class ResearchService {
         ];
 
     try {
-      this.logger.log(`Applying branding mask to ${artifactType}: ${path.basename(inputPath)}`);
+      this.logger.log(`Applying branding mask ${path.basename(maskPath)} to ${artifactType}: ${path.basename(inputPath)}`);
       await execFileAsync('ffmpeg', args, { maxBuffer: 20 * 1024 * 1024 });
       fs.renameSync(tempOutput, inputPath);
       return inputPath;
