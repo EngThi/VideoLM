@@ -58,10 +58,30 @@ export class ResearchService {
 
     const ext = path.extname(inputPath);
     const tempOutput = inputPath.replace(new RegExp(`${ext}$`), `.branded${ext}`);
-    const overlayWidth = artifactType === 'video' ? 140 : 250;
-    const overlayMarginX = artifactType === 'video' ? 16 : 6;
-    const overlayMarginY = artifactType === 'video' ? 16 : 6;
-    const overlayFilter = `[1:v]scale=${overlayWidth}:-1[wm];[0:v][wm]overlay=main_w-overlay_w-${overlayMarginX}:main_h-overlay_h-${overlayMarginY}:shortest=1[v]`;
+    const videoTrimSeconds = 3;
+    let videoDuration = 0;
+    if (artifactType === 'video') {
+      try {
+        const { stdout } = await execFileAsync('ffprobe', [
+          '-v', 'error',
+          '-show_entries', 'format=duration',
+          '-of', 'default=noprint_wrappers=1:nokey=1',
+          inputPath,
+        ]);
+        videoDuration = Number.parseFloat(stdout.trim());
+      } catch (error) {
+        this.logger.warn(`Could not probe duration for ${path.basename(inputPath)}: ${error.message}`);
+      }
+    }
+
+    const trimDuration = Number.isFinite(videoDuration) && videoDuration > videoTrimSeconds + 1
+      ? Math.max(0, videoDuration - videoTrimSeconds)
+      : 0;
+    const overlayFilter = artifactType === 'video'
+      ? trimDuration
+        ? `[0:v]trim=duration=${trimDuration.toFixed(3)},setpts=PTS-STARTPTS[base];[1:v]scale=190:44[wm];[base][wm]overlay=main_w-overlay_w-2:main_h-overlay_h-12:shortest=1[v];[0:a]atrim=duration=${trimDuration.toFixed(3)},asetpts=PTS-STARTPTS[a]`
+        : `[1:v]scale=190:44[wm];[0:v][wm]overlay=main_w-overlay_w-2:main_h-overlay_h-12:shortest=1[v]`
+      : `[1:v]scale=250:-1[wm];[0:v][wm]overlay=main_w-overlay_w-6:main_h-overlay_h-6:shortest=1[v]`;
 
     const args = artifactType === 'video'
       ? [
@@ -71,11 +91,11 @@ export class ResearchService {
           '-i', maskPath,
           '-filter_complex', overlayFilter,
           '-map', '[v]',
-          '-map', '0:a?',
+          '-map', trimDuration ? '[a]' : '0:a?',
           '-c:v', 'libx264',
           '-preset', 'veryfast',
           '-pix_fmt', 'yuv420p',
-          '-c:a', 'copy',
+          '-c:a', trimDuration ? 'aac' : 'copy',
           '-movflags', '+faststart',
           tempOutput,
         ]
@@ -91,7 +111,8 @@ export class ResearchService {
         ];
 
     try {
-      this.logger.log(`Applying branding mask ${path.basename(maskPath)} to ${artifactType}: ${path.basename(inputPath)}`);
+      const trimNote = trimDuration ? ` and trimming last ${videoTrimSeconds}s` : '';
+      this.logger.log(`Applying branding mask ${path.basename(maskPath)} to ${artifactType}: ${path.basename(inputPath)}${trimNote}`);
       await execFileAsync('ffmpeg', args, { maxBuffer: 20 * 1024 * 1024 });
       fs.renameSync(tempOutput, inputPath);
       return inputPath;
